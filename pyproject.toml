@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=68", "wheel>=0.41"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tandemmp"
+version = "0.8.0-dev"
+description = "Tracking/monitoring particles on the coverslip during a Mass Photometry experiment"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "scikit-learn",
+    "tqdm",
+    "opencv-python",
+    "tensorflow",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff>=0.4", "mypy>=1.10"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.package-data]
+tandemmp = ["resources/*.h5"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --import-mode=importlib"
+pythonpath = ["src"]
+
+# ---------------------------------------------------------------------------
+# ruff
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+exclude = ["notebooks/", "alex_area/", "deprecated/"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "ANN",  # flake8-annotations
+]
+ignore = [
+    "ANN101",  # Missing type annotation for `self`
+    "ANN102",  # Missing type annotation for `cls`
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN", "E501", "N806"]
+
+# ---------------------------------------------------------------------------
+# mypy
+# ---------------------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+ignore_missing_imports = true
+exclude = ["notebooks/", "tests/", "alex_area/", "deprecated/"]
+
+[[tool.mypy.overrides]]
+# Old pre-refactor Rust extension — not typed; suppress errors from transitive imports.
+module = ["deprecated.rust", "deprecated.rust.*"]
+ignore_errors = true

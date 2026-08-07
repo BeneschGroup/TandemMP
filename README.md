@@ -1,0 +1,27 @@
+# TandemMP
+
+Pair matching and particle tracking analysis for Mass Photometry data.
+
+## Installation
+
+```bash
+pip install -e /path_to_repo/.
+```
+
+## Entry points
+
+- **`src/tandemmp/pipeline/batch.py`** — main entry point for particle
+  tracking analysis. Runs the full event-finding, tracking, and pair-matching
+  pipeline over one or many movies (`process_movie` / `batch_process`).
+- **`src/tandemmp/pipeline/calibration.py`** — generates a contrast-to-mass
+  calibration from a calibration movie (`run_calibration`), which can then be
+  passed into a batch run or loaded from a saved calibration file
+  (`save_calibration` / `load_calibration`).
+- **`src/tandemmp/pipeline/simple_analysis.py`** — pair matching analysis for
+  CSV-exported point-events, without re-running PSF fitting.
+
+## Tests
+
+```bash
+pytest
+```
