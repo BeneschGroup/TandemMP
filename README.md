@@ -8,6 +8,9 @@ Pair matching and particle tracking analysis for Mass Photometry data.
 pip install -e /path_to_repo/.
 ```
 
+## Requirements
+`open_iscat`, `numpy`, `scipy`, `matplotlib`, `scikit-learn`, `tqdm`, `opencv-python`, `tensorflow`.
+
 ## Entry points
 
 - **`src/tandemmp/pipeline/batch.py`** — main entry point for particle
