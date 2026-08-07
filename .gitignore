@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+
+# Virtual environments / conda
+.venv/
+.conda/
+venv/
+env/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Type checking / linting caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/*.local.json
+
+# Logs
+*.log
+
+# Data / analysis artifacts
+*.pickle
+*.pkl
+*.mp
+import_analysis.txt
+
+# Large media files
+*.mp4
+*.tiff
+*.avi
+*.flv
+*.mov
+*.wmv
+
+# Rust build artifacts
+target/
+
+
+*.pyc.*
+*egg*
+*.local.json
+import_analysis.txt
+*.csv
