@@ -120,7 +120,9 @@ class TestCorrectMovie:
         # Correction should shrink the frame (cropped to the always-visible
         # region) and make the frames agree with each other far better than
         # the raw (drifting) input did.
-        assert corrected.shape[1] < movie.shape[1] or corrected.shape[2] < movie.shape[2]
+        assert (
+            corrected.shape[1] < movie.shape[1] or corrected.shape[2] < movie.shape[2]
+        )
         rmse_before = np.mean([_rmse(movie[0], movie[k]) for k in range(1, len(movie))])
         rmse_after = np.mean(
             [_rmse(corrected[0], corrected[k]) for k in range(1, len(corrected))]

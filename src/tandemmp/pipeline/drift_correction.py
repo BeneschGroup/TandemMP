@@ -111,8 +111,7 @@ class DriftCorrectionFunction:
         )
         if len(frame_indices) != len(movie_arr):
             msg = (
-                f"i has length {len(frame_indices)}, movie has length "
-                f"{len(movie_arr)}"
+                f"i has length {len(frame_indices)}, movie has length {len(movie_arr)}"
             )
             raise ValueError(msg)
 
