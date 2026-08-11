@@ -18,11 +18,12 @@ Two on-disk representations are supported for the resulting
   and hand-editable, mirroring :mod:`tandemmp.pipeline.calibration`'s save
   format.
 - :func:`save_correction_function` / :func:`load_correction_function` —
-  pickles a :class:`DriftCorrectionFunction`, a small callable wrapping the
-  same vector as ``correct(x, y, i) -> (x_corrected, y_corrected)``, for
-  callers that want to correct arbitrary positions directly (linearly
-  interpolating between sampled frames) rather than re-deriving the
-  subtraction themselves.
+  pickles a :class:`DriftCorrectionFunction`, a small wrapper exposing the
+  same vector as ``correct_coordinates(x, y, i) -> (x_corrected,
+  y_corrected)`` and ``correct_movie(movie, i) -> corrected_movie``, for
+  callers that want to correct arbitrary positions or a whole movie
+  directly (linearly interpolating between sampled frames) rather than
+  re-deriving the subtraction themselves.
 """
 
 from __future__ import annotations
@@ -38,7 +39,8 @@ import numpy as np
 import numpy.typing as npt
 
 from tandemmp.core.parameters import FullAnalysisParams
-from tandemmp.drift.corrector import DriftVector, get_vector
+from tandemmp.core.types import FloatArray, IntArray
+from tandemmp.drift.corrector import DriftVector, get_corrected_movie, get_vector
 from tandemmp.pipeline.loader import Loader
 
 # ---------------------------------------------------------------------------
@@ -48,20 +50,25 @@ from tandemmp.pipeline.loader import Loader
 
 @dataclasses.dataclass(frozen=True)
 class DriftCorrectionFunction:
-    """A :class:`DriftVector` wrapped up as a callable position corrector.
+    """A :class:`DriftVector` wrapped up as a callable position/movie corrector.
 
-    ``correct(x, y, i)`` linearly interpolates the vector at frame *i* (via
-    :func:`numpy.interp`, which clamps rather than extrapolates outside the
-    vector's frame range) and subtracts it from ``(x, y)`` — the same
-    convention used elsewhere in the pipeline, e.g.
+    ``correct_coordinates(x, y, i)`` linearly interpolates the vector at
+    frame *i* (via :func:`numpy.interp`, which clamps rather than
+    extrapolates outside the vector's frame range) and subtracts it from
+    ``(x, y)`` — the same convention used elsewhere in the pipeline, e.g.
     :func:`tandemmp.pipeline.simple_analysis.load_events`. *x*, *y* and *i*
-    may be scalars or equal-shaped arrays. Plain dataclass, so instances
-    pickle without issue (see :func:`save_correction_function`).
+    may be scalars or equal-shaped arrays.
+
+    ``correct_movie(movie, i)`` applies that same per-frame shift to every
+    frame of a raw movie array instead of a set of point coordinates.
+
+    Plain dataclass, so instances pickle without issue (see
+    :func:`save_correction_function`).
     """
 
     vector: DriftVector
 
-    def __call__(
+    def correct_coordinates(
         self,
         x: float | npt.NDArray[np.floating[Any]],
         y: float | npt.NDArray[np.floating[Any]],
@@ -71,6 +78,54 @@ class DriftCorrectionFunction:
         dx = np.interp(i, frames, self.vector.x)
         dy = np.interp(i, frames, self.vector.y)
         return np.asarray(x) - dx, np.asarray(y) - dy
+
+    def correct_movie(
+        self,
+        movie: FloatArray | IntArray,
+        i: npt.NDArray[np.floating[Any]] | npt.NDArray[np.integer[Any]] | None = None,
+        *,
+        parallel: bool = True,
+        n_jobs: int | None = None,
+    ) -> FloatArray:
+        """Apply this drift correction to every frame of *movie*.
+
+        *i* gives, for each frame of *movie*, the frame index into this
+        object's vector; it defaults to ``range(len(movie))``, i.e. *movie*
+        is assumed frame-aligned with the vector it was estimated from. Pass
+        the original frame indices here to correct a *movie* that was
+        loaded with a different ``frame_start``/``frame_end`` slice than the
+        one the vector was estimated from — non-integer/out-of-range values
+        are linearly interpolated/clamped exactly as in
+        :meth:`correct_coordinates`.
+
+        The actual per-frame shift, and cropping to the region that stays in
+        view across every frame, is delegated to
+        :func:`tandemmp.drift.corrector.get_corrected_movie`, called with a
+        vector resampled onto *i*.
+        """
+        movie_arr: FloatArray = np.asarray(movie, dtype=float)
+        frame_indices = (
+            np.arange(len(movie_arr), dtype=float)
+            if i is None
+            else np.asarray(i, dtype=float)
+        )
+        if len(frame_indices) != len(movie_arr):
+            msg = (
+                f"i has length {len(frame_indices)}, movie has length "
+                f"{len(movie_arr)}"
+            )
+            raise ValueError(msg)
+
+        frames = np.arange(len(self.vector), dtype=float)
+        resampled_vector = DriftVector(
+            np.interp(frame_indices, frames, self.vector.x),
+            np.interp(frame_indices, frames, self.vector.y),
+        )
+
+        corrected_movie, _ = get_corrected_movie(  # type: ignore[misc]
+            movie_arr, vector=resampled_vector, parallel=parallel, n_jobs=n_jobs
+        )
+        return corrected_movie
 
 
 # ---------------------------------------------------------------------------
@@ -210,8 +265,9 @@ def save_correction_function(
     """Pickle *result* as a :class:`DriftCorrectionFunction`.
 
     Unlike :func:`save_drift_vector`, this is a binary format — load it back
-    with :func:`load_correction_function` and call the result directly as
-    ``correct(x, y, i)``.
+    with :func:`load_correction_function` and call
+    ``result.correct_coordinates(x, y, i)`` or ``result.correct_movie(movie)``
+    directly.
     """
     if not isinstance(result, DriftCorrectionResult):
         msg = f"result must be a DriftCorrectionResult, got {type(result).__name__}"

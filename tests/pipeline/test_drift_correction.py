@@ -47,21 +47,21 @@ class TestDriftCorrectionFunction:
     def test_subtracts_vector_at_integer_frame(self):
         vector = DriftVector(np.array([1.0, 2.0, 3.0]), np.array([4.0, 5.0, 6.0]))
         correct = DriftCorrectionFunction(vector=vector)
-        x, y = correct(10.0, 20.0, 1)
+        x, y = correct.correct_coordinates(10.0, 20.0, 1)
         assert x == pytest.approx(10.0 - 2.0)
         assert y == pytest.approx(20.0 - 5.0)
 
     def test_interpolates_between_frames(self):
         vector = DriftVector(np.array([0.0, 2.0]), np.array([0.0, -4.0]))
         correct = DriftCorrectionFunction(vector=vector)
-        x, y = correct(0.0, 0.0, 0.5)
+        x, y = correct.correct_coordinates(0.0, 0.0, 0.5)
         assert x == pytest.approx(-1.0)
         assert y == pytest.approx(2.0)
 
     def test_clamps_out_of_range(self):
         vector = DriftVector(np.array([1.0, 2.0]), np.array([1.0, 2.0]))
         correct = DriftCorrectionFunction(vector=vector)
-        x, y = correct(0.0, 0.0, 100)
+        x, y = correct.correct_coordinates(0.0, 0.0, 100)
         assert x == pytest.approx(-2.0)
         assert y == pytest.approx(-2.0)
 
@@ -71,7 +71,7 @@ class TestDriftCorrectionFunction:
         xs = np.array([10.0, 10.0, 10.0])
         ys = np.array([10.0, 10.0, 10.0])
         i = np.array([0, 1, 2])
-        x, y = correct(xs, ys, i)
+        x, y = correct.correct_coordinates(xs, ys, i)
         np.testing.assert_allclose(x, [10.0, 9.0, 8.0])
         np.testing.assert_allclose(y, [10.0, 9.0, 8.0])
 
@@ -83,9 +83,86 @@ class TestDriftCorrectionFunction:
             pickle.dump(correct, fh)
         with path.open("rb") as fh:
             loaded = pickle.load(fh)
-        x, y = loaded(5.0, 5.0, 0)
+        x, y = loaded.correct_coordinates(5.0, 5.0, 0)
         assert x == pytest.approx(4.0)
         assert y == pytest.approx(3.0)
+
+
+# ---------------------------------------------------------------------------
+# DriftCorrectionFunction.correct_movie
+# ---------------------------------------------------------------------------
+
+
+def _rmse(a, b):
+    return float(np.sqrt(np.mean((a - b) ** 2)))
+
+
+class TestCorrectMovie:
+    def _make_drifting_movie(self, dxs, dys, size=21):
+        """Build a movie whose frames are shifted copies of a fixed base image."""
+        from scipy.ndimage import shift
+
+        rng = np.random.default_rng(0)
+        base = rng.normal(0.0, 1.0, size=(size, size))
+        return np.array(
+            [shift(base, (dy, dx)) for dx, dy in zip(dxs, dys, strict=True)]
+        )
+
+    def test_default_i_matches_full_vector(self):
+        dxs, dys = [0.0, 1.0, 2.0], [0.0, -1.0, -2.0]
+        movie = self._make_drifting_movie(dxs, dys)
+        vector = DriftVector(np.array(dxs), np.array(dys))
+        correct = DriftCorrectionFunction(vector=vector)
+
+        corrected = correct.correct_movie(movie, parallel=False)
+
+        assert corrected.shape[0] == len(movie)
+        # Correction should shrink the frame (cropped to the always-visible
+        # region) and make the frames agree with each other far better than
+        # the raw (drifting) input did.
+        assert corrected.shape[1] < movie.shape[1] or corrected.shape[2] < movie.shape[2]
+        rmse_before = np.mean([_rmse(movie[0], movie[k]) for k in range(1, len(movie))])
+        rmse_after = np.mean(
+            [_rmse(corrected[0], corrected[k]) for k in range(1, len(corrected))]
+        )
+        assert rmse_after < rmse_before * 0.5
+
+    def test_rejects_mismatched_i_length(self):
+        vector = DriftVector(np.array([0.0, 1.0, 2.0]), np.array([0.0, 0.0, 0.0]))
+        correct = DriftCorrectionFunction(vector=vector)
+        movie = np.zeros((3, 10, 10))
+        with pytest.raises(ValueError, match="length"):
+            correct.correct_movie(movie, i=np.array([0.0, 1.0]), parallel=False)
+
+    def test_custom_i_resamples_vector(self):
+        # Vector estimated over 5 frames; movie only covers the last 3 —
+        # pass their original indices so the right sub-range of drift is used.
+        dxs, dys = [0.0, 1.0, 2.0, 3.0, 4.0], [0.0, -1.0, -2.0, -3.0, -4.0]
+        full_movie = self._make_drifting_movie(dxs, dys)
+        vector = DriftVector(np.array(dxs), np.array(dys))
+        correct = DriftCorrectionFunction(vector=vector)
+
+        sub_movie = full_movie[2:]
+        corrected = correct.correct_movie(
+            sub_movie, i=np.array([2.0, 3.0, 4.0]), parallel=False
+        )
+
+        assert corrected.shape[0] == len(sub_movie)
+        rmse_before = np.mean(
+            [_rmse(sub_movie[0], sub_movie[k]) for k in range(1, len(sub_movie))]
+        )
+        rmse_after = np.mean(
+            [_rmse(corrected[0], corrected[k]) for k in range(1, len(corrected))]
+        )
+        assert rmse_after < rmse_before * 0.5
+
+    def test_returns_ndarray(self):
+        vector = DriftVector(np.zeros(3), np.zeros(3))
+        correct = DriftCorrectionFunction(vector=vector)
+        movie = np.random.default_rng(1).normal(size=(3, 12, 12))
+        corrected = correct.correct_movie(movie, parallel=False)
+        assert isinstance(corrected, np.ndarray)
+        assert corrected.ndim == 3
 
 
 # ---------------------------------------------------------------------------
@@ -218,7 +295,7 @@ class TestSaveLoadCorrectionFunction:
 
         loaded = load_correction_function(path)
         assert isinstance(loaded, DriftCorrectionFunction)
-        x, y = loaded(10.0, 10.0, 1)
+        x, y = loaded.correct_coordinates(10.0, 10.0, 1)
         assert x == pytest.approx(9.0)
         assert y == pytest.approx(11.0)
 
