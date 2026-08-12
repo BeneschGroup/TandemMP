@@ -118,9 +118,35 @@ def _float_to_slice(n: float) -> slice:
     return slice(None, int(n) - 1)
 
 
-def stabilise(frame: FloatArray, x: float, y: float) -> FloatArray:
-    """Shift *frame* by ``(-y, -x)`` to undo a drift of ``(x, y)``."""
+def stabilise(
+    frame: FloatArray, x: float, y: float, *, use_rust: bool = False
+) -> FloatArray:
+    """Shift *frame* by ``(-y, -x)`` to undo a drift of ``(x, y)``.
+
+    ``use_rust=True`` prefers the compiled ``tandemmp._rust.drift_correction``
+    extension (see WORKLIST.md priority 6) when it has been built; otherwise
+    (or if it isn't available) falls back transparently to the
+    :func:`scipy.ndimage.shift` implementation below. Default behaviour
+    (``use_rust=False``) is unchanged.
+    """
+    if use_rust:
+        try:
+            return _stabilise_rust(frame, x, y)
+        except ImportError:
+            logger.debug(
+                "Rust drift-correction module unavailable, falling back to Python"
+            )
+        except Exception:  # noqa: BLE001
+            logger.debug("Rust stabilise failed, falling back to Python", exc_info=True)
     return shift(frame, (-y, -x))  # type: ignore[no-any-return]
+
+
+def _stabilise_rust(frame: FloatArray, x: float, y: float) -> FloatArray:
+    """Rust-backed :func:`stabilise`, via ``tandemmp._rust.drift_correction``."""
+    from tandemmp._rust import drift_correction as _dc
+
+    out = _dc.stabilise(np.asarray(frame, dtype=np.float64), float(x), float(y))
+    return np.asarray(out, dtype=float)
 
 
 def _shift_compare(
@@ -146,6 +172,8 @@ def _solve(
     baseline_frame: FloatArray,
     bounds: tuple[float, float] = (-6.0, 6.0),
     seed: int | np.random.Generator | np.random.RandomState | None = None,
+    *,
+    use_rust: bool = False,
 ) -> FloatArray:
     """Find the ``(x, y)`` shift minimising RMSE between two frames.
 
@@ -153,7 +181,27 @@ def _solve(
     Left as ``None`` (the default) the search is genuinely stochastic, which
     is what real usage wants; pass an explicit seed for reproducible runs
     (e.g. in tests).
+
+    ``use_rust=True`` prefers the fused Rust ``solve`` entry point (a single
+    differential-evolution + shift + RMSE call, see WORKLIST.md priority 6)
+    when the compiled ``tandemmp._rust.drift_correction`` extension is
+    available; otherwise falls back transparently to
+    :func:`scipy.optimize.differential_evolution` below. Only plain ``int``
+    (or ``None``) seeds are supported by the Rust path — an
+    :class:`~numpy.random.Generator`/:class:`~numpy.random.RandomState`
+    ``seed`` also falls back to Python. Default behaviour (``use_rust=False``)
+    is unchanged.
     """
+    if use_rust:
+        try:
+            return _solve_rust(input_frame, baseline_frame, bounds, seed)
+        except ImportError:
+            logger.debug(
+                "Rust drift-correction module unavailable, falling back to Python"
+            )
+        except Exception:  # noqa: BLE001
+            logger.debug("Rust _solve failed, falling back to Python", exc_info=True)
+
     res = differential_evolution(
         _shift_compare,
         bounds=[bounds, bounds],
@@ -163,6 +211,30 @@ def _solve(
         seed=seed,
     )
     return np.asarray(res.x, dtype=float)
+
+
+def _solve_rust(
+    input_frame: FloatArray,
+    baseline_frame: FloatArray,
+    bounds: tuple[float, float],
+    seed: int | np.random.Generator | np.random.RandomState | None,
+) -> FloatArray:
+    """Rust-backed :func:`_solve`, via ``tandemmp._rust.drift_correction``.
+
+    Raises :class:`ImportError` if the extension hasn't been built, or
+    :class:`TypeError` if *seed* isn't a plain ``int``/``None`` — both are
+    caught by :func:`_solve`'s fallback.
+    """
+    from tandemmp._rust import drift_correction as _dc
+
+    rust_seed = None if seed is None else int(seed)  # type: ignore[arg-type]
+    x, y = _dc.solve(
+        np.asarray(input_frame, dtype=np.float64),
+        np.asarray(baseline_frame, dtype=np.float64),
+        bounds,
+        rust_seed,
+    )
+    return np.array([x, y], dtype=float)
 
 
 # ---------------------------------------------------------------------------
@@ -177,6 +249,8 @@ def _get_initial_vector(
     parallel: bool,
     n_jobs: int | None,
     seed: int | np.random.Generator | np.random.RandomState | None = None,
+    *,
+    use_rust: bool = False,
 ) -> DriftVector:
     """Estimate per-index ``(x, y)`` shifts for *movie* against a baseline.
 
@@ -185,7 +259,8 @@ def _get_initial_vector(
     returned trajectory.
 
     ``seed`` is forwarded to :func:`_solve` for each frame — see its
-    docstring for why it defaults to ``None``.
+    docstring for why it defaults to ``None``. ``use_rust`` is likewise
+    forwarded to each :func:`_solve` call — see its docstring.
     """
     frames = np.asarray([movie[i] for i in indexes], dtype=float)
 
@@ -194,7 +269,7 @@ def _get_initial_vector(
         baselines[2:] = [np.asarray(movie[i], dtype=float) for i in indexes[1:-1]]
 
     args = [
-        {"input_frame": f, "baseline_frame": b, "seed": seed}
+        {"input_frame": f, "baseline_frame": b, "seed": seed, "use_rust": use_rust}
         for f, b in zip(frames, baselines, strict=True)
     ]
 
@@ -218,6 +293,7 @@ def get_vector(
     parallel: bool = True,
     n_jobs: int | None = None,
     seed: int | np.random.Generator | np.random.RandomState | None = None,
+    use_rust: bool = False,
 ) -> DriftVector:
     """Estimate a drift vector for an entire movie.
 
@@ -246,6 +322,10 @@ def get_vector(
         call for each frame. Left as ``None`` (the default), the search is
         genuinely stochastic — appropriate for real usage. Pass an explicit
         seed for reproducible results, e.g. in tests.
+    use_rust:
+        Forwarded to :func:`_solve` for each frame — prefer the compiled
+        Rust extension when available, falling back to Python transparently
+        otherwise. Default ``False`` leaves behaviour unchanged.
     """
     all_frames_to_check: IntArray = np.arange(0, len(movie), frame_gap, dtype=int)
 
@@ -282,6 +362,7 @@ def get_vector(
         parallel=parallel,
         n_jobs=n_jobs,
         seed=seed,
+        use_rust=use_rust,
     )
 
     delta_x = initial_vector.x[1:] - initial_vector.x[:-1]
@@ -364,6 +445,7 @@ def get_corrected_movie(
     full_output: bool = False,
     parallel: bool = True,
     n_jobs: int | None = None,
+    use_rust: bool = False,
     **kwargs: Any,  # noqa: ANN401
 ) -> tuple[FloatArray, DriftVector] | tuple[FloatArray, DriftVector, tuple[slice, ...]]:
     """Apply drift correction to *movie*.
@@ -371,9 +453,16 @@ def get_corrected_movie(
     If *vector* is *None*, one is estimated by calling :func:`get_vector` with
     any extra ``kwargs``.  The returned movie is cropped to the region that
     remains in view across every frame.
+
+    ``use_rust`` is forwarded both to :func:`get_vector` (when *vector* is
+    estimated here) and to each :func:`stabilise` call below — prefer the
+    compiled Rust extension when available, falling back to Python
+    transparently otherwise. Default ``False`` leaves behaviour unchanged.
     """
     if vector is None:
-        vector = get_vector(movie, parallel=parallel, n_jobs=n_jobs, **kwargs)
+        vector = get_vector(
+            movie, parallel=parallel, n_jobs=n_jobs, use_rust=use_rust, **kwargs
+        )
 
     if len(movie) != len(vector):
         raise ValueError(
@@ -381,7 +470,7 @@ def get_corrected_movie(
         )
 
     args = [
-        {"frame": f, "x": float(x), "y": float(y)}
+        {"frame": f, "x": float(x), "y": float(y), "use_rust": use_rust}
         for f, (x, y) in zip(movie, vector, strict=True)
     ]
     stabilised_movie = np.array(

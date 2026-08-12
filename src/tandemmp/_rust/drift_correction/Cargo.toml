@@ -2,10 +2,22 @@
 name = "drift_correction"
 version = "0.1.0"
 edition = "2021"
-description = "Native shift + RMSE hot path for tandemmp.drift.corrector (WORKLIST.md priority 6)."
+description = "Native shift + RMSE hot path for tandemmp.drift.corrector (WORKLIST.md priority 6), with PyO3 bindings exposed as tandemmp._rust.drift_correction."
+
+# `cdylib` is what maturin loads as the `tandemmp._rust.drift_correction`
+# extension module; `rlib` keeps `cargo test`/`cargo doc` working (a
+# cdylib-only crate can't be linked into `cargo test`'s harness binary).
+[lib]
+name = "drift_correction"
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 rand = "0.8"
 rand_chacha = "0.3"
+# abi3-py310 builds a single wheel usable across Python 3.10-3.12+ (the
+# project's `requires-python`), instead of one wheel per interpreter minor
+# version — see the crate's packaging notes in `pyproject.toml`.
+pyo3 = { version = "0.29", features = ["abi3-py310"] }
+numpy = "0.29"
 
 [dev-dependencies]

@@ -1,7 +1,10 @@
 //! Native shift + RMSE hot path for `tandemmp.drift.corrector`.
 //!
-//! This is a pure Rust library crate — **no `pyo3` dependency and no
-//! Python bindings live here**. It is the WORKLIST.md priority-6 target
+//! This crate's core modules (everything except [`python`]) started out as
+//! pure Rust with no `pyo3` dependency and no Python bindings; the [`python`]
+//! module now wraps them for `tandemmp._rust.drift_correction`, but the core
+//! modules themselves remain plain `&[f64]`-based Rust, independently
+//! testable via `cargo test`. It is the WORKLIST.md priority-6 target
 //! ("Drift correction shift+RMSE" / `differential_evolution` inner loop):
 //! a from-scratch port of `_rmse`, `_most_positive`, `_most_negative`,
 //! `_float_to_slice`, `_shift_compare`, `_solve`, and `stabilise` from
@@ -23,14 +26,18 @@
 //!
 //! # Binding split
 //!
-//! This crate is meant to be wrapped by a separate PyO3 crate (per
-//! `WORKLIST.md`'s "each should be implemented as a PyO3 crate under
-//! `src/tandemmp/_rust/`" convention) — that binding/maturin packaging
-//! work is a distinct follow-up step, not part of this crate. The public
-//! functions here deliberately take plain `&[f64]` slices plus explicit
+//! Per `WORKLIST.md`'s "each should be implemented as a PyO3 crate under
+//! `src/tandemmp/_rust/`" convention, the PyO3/numpy bindings live in their
+//! own module ([`python`]) rather than being mixed into the core modules
+//! below — those keep taking plain `&[f64]` slices plus explicit
 //! `rows`/`cols` dimensions (row-major layout) rather than anything
-//! Python- or NumPy-specific, so wrapping them with PyO3 (e.g. via
-//! `numpy::PyReadonlyArray2`) should be mechanical.
+//! Python- or NumPy-specific. [`python`] is thin: it validates shapes,
+//! copies numpy arrays into row-major `Vec<f64>`s (via
+//! `ndarray::ArrayView::as_standard_layout`, so non-contiguous/Fortran-order
+//! input is handled correctly), and calls straight through to the functions
+//! below. See `Cargo.toml`/`pyproject.toml` in this directory for how the
+//! crate is packaged as the `tandemmp._rust.drift_correction` extension
+//! module via maturin.
 //!
 //! # Modules
 //!
@@ -45,8 +52,11 @@
 //! - [`solve`] — [`solve::BaselineFrame`] (prefilter-once, compare-many)
 //!   and [`solve::solve`], the fused hot-loop entry point matching
 //!   `_solve`.
+//! - [`python`] — the PyO3 `#[pymodule]` wrapping the above for
+//!   `tandemmp._rust.drift_correction`.
 
 pub mod optimize;
+pub mod python;
 pub mod scalar;
 pub mod solve;
 pub mod spline;

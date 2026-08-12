@@ -74,7 +74,12 @@ ignore = [
 python_version = "3.10"
 strict = true
 ignore_missing_imports = true
-exclude = ["notebooks/", "tests/", "alex_area/", "deprecated/"]
+# `_rust/*/target/` is each Rust crate's `cargo build` output (per-crate
+# under `src/tandemmp/_rust/`, per WORKLIST.md's Rust-acceleration
+# convention) — not Python source, and mypy's directory walker can crash on
+# cargo's transient incremental-compilation files (long/short-lived paths)
+# if it isn't excluded.
+exclude = ["notebooks/", "tests/", "alex_area/", "deprecated/", "_rust/.*/target/"]
 
 [[tool.mypy.overrides]]
 # Old pre-refactor Rust extension — not typed; suppress errors from transitive imports.
