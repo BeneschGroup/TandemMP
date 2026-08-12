@@ -11,7 +11,7 @@
 
 use crate::optimize::{differential_evolution, Bound, DeConfig};
 use crate::scalar::float_to_slice;
-use crate::spline::{base_index, weights_for_shift, SplineCoefficients2D};
+use crate::spline::{cubic_weights, SplineCoefficients2D};
 
 /// A baseline frame with its cubic B-spline coefficients precomputed once,
 /// ready to be repeatedly shifted and compared against candidate `(x, y)`
@@ -62,28 +62,31 @@ impl BaselineFrame {
             return f64::NAN;
         }
 
-        // The B-spline weights depend only on the shift's fractional part,
-        // which is identical for every integer row/column (adding an
-        // integer to a coordinate never changes its fractional part) — so
-        // they're computed exactly once for this whole call, not once per
-        // pixel. `float_to_slice`'s cropping already guarantees every
+        // Precompute each cropped column's (weights, base) once — still
+        // O(rows + cols) work rather than O(rows * cols) — but always
+        // derived from the exact same `cubic_weights(x_coord)` call as the
+        // per-pixel `base`, so the two can never desynchronise at floating-
+        // point precision the way a single call-wide cached array can (see
+        // `SplineCoefficients2D::sample_with_weights`'s docs: this bit us
+        // for real for near-zero-but-not-exactly-zero shifts, which a DE
+        // polish step converging on a true-zero optimum produces easily).
+        // `float_to_slice`'s cropping already guarantees every
         // `(row_start..row_stop, col_start..col_stop)` coordinate is
         // in-domain, so no boundary short-circuit is needed here (unlike
-        // `shift2d`, which scans the full uncropped frame). See
-        // `SplineCoefficients2D::sample_with_weights`'s docs.
-        let wy = weights_for_shift(y);
-        let wx = weights_for_shift(x);
+        // `shift2d`, which scans the full uncropped frame).
+        let col_taps: Vec<([f64; 4], i64)> = (col_start..col_stop)
+            .map(|c| cubic_weights(c as f64 - x))
+            .collect();
 
         let mut sum_sq = 0.0;
         for r in row_start..row_stop {
             let y_coord = r as f64 - y;
-            let base_y = base_index(y_coord);
+            let (wy, base_y) = cubic_weights(y_coord);
             let input_row = &input_frame[r * cols..r * cols + cols];
-            for (c, &actual) in input_row.iter().enumerate().take(col_stop).skip(col_start) {
-                let x_coord = c as f64 - x;
-                let base_x = base_index(x_coord);
-                let shifted = self.coeffs.sample_with_weights(&wy, base_y, &wx, base_x);
-                let diff = shifted - actual;
+            for (col_idx, c) in (col_start..col_stop).enumerate() {
+                let (wx, base_x) = &col_taps[col_idx];
+                let shifted = self.coeffs.sample_with_weights(&wy, base_y, wx, *base_x);
+                let diff = shifted - input_row[c];
                 sum_sq += diff * diff;
             }
         }
@@ -259,5 +262,31 @@ mod tests {
         let first = solve(&shifted, &base, 31, 31, SolveBounds::default(), Some(123));
         let second = solve(&shifted, &base, 31, 31, SolveBounds::default(), Some(123));
         assert_eq!(first, second);
+    }
+
+    /// Regression test for a real bug (see `spline.rs`'s matching test for
+    /// the full explanation): on a wide (150-column) frame, `shift_compare`
+    /// at a shift below the ULP at that coordinate magnitude (e.g. `1e-14`)
+    /// used to blow up to a huge RMSE instead of staying close to the
+    /// zero-shift RMSE, because the DE polish step can converge on exactly
+    /// such a near-zero-but-not-exactly-zero shift for a true-zero optimum.
+    #[test]
+    fn shift_compare_sub_ulp_shift_stays_near_zero_shift_rmse() {
+        let rows = 59;
+        let cols = 150;
+        let mut frame = vec![0.0; rows * cols];
+        for (i, v) in frame.iter_mut().enumerate() {
+            *v = 47000.0
+                + ((i as f64) * 0.037).sin() * 12000.0
+                + ((i as f64) * 0.011).cos() * 5000.0;
+        }
+        let rmse_at_zero = shift_compare(0.0, 0.0, &frame, &frame, rows, cols);
+        for &eps in &[1e-14_f64, 1e-15, 1e-16, -1.683_322_61e-16] {
+            let rmse = shift_compare(eps, eps, &frame, &frame, rows, cols);
+            assert!(
+                (rmse - rmse_at_zero).abs() < 1.0,
+                "eps={eps}: rmse={rmse} vs rmse_at_zero={rmse_at_zero}"
+            );
+        }
     }
 }

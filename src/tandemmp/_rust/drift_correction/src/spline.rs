@@ -182,18 +182,29 @@ impl SplineCoefficients2D {
     /// indices.
     ///
     /// Exists so [`shift2d`] and `solve::BaselineFrame::shift_compare`'s
-    /// pixel loops can pass in weights computed *once per call* rather than
-    /// recomputing them per pixel: for a constant real-valued shift `s`,
-    /// `cubic_weights(idx - s)`'s weights depend only on `frac(idx - s)`,
-    /// which is identical for every integer `idx` (adding an integer never
-    /// changes a fractional part) — only the integer `base` tap index
-    /// advances by exactly 1 per step. Recomputing the weight polynomial
-    /// (a handful of multiplies plus a `floor`) on every one of a frame's
-    /// pixels was, after the `mirror_index` fast path above, the next
-    /// largest cost in the DE inner loop; callers now compute `wy`/`wx`
-    /// once per axis per call (via [`cubic_weights`] or [`weights_for_shift`])
-    /// and only pay a cheap `floor` (via [`base_index`]) per row/column to
-    /// track `base_y`/`base_x`.
+    /// pixel loops can pass in weights computed once per **row or column**
+    /// rather than recomputing them per pixel — a real cost win since a
+    /// frame has far more pixels than rows+columns. Both callers compute
+    /// `(wy, base_y)` fresh per row and `(wx, base_x)` fresh per column via
+    /// [`cubic_weights`], then reuse that same pair across the row/column's
+    /// pixels.
+    ///
+    /// An earlier version instead hoisted a *single* weight array for the
+    /// whole call, computed once from the raw shift `s` alone
+    /// (`cubic_weights(-s)`), on the theory that `frac(idx - s)` is
+    /// mathematically identical for every integer `idx`. That's true in
+    /// exact arithmetic, but not in floating point: when `|s|` is smaller
+    /// than the ULP at the frame's coordinate magnitudes (e.g. `~3.5e-14`
+    /// at column 149 of a 150-wide frame — well within reach of a
+    /// differential-evolution polish step converging on a true-zero shift),
+    /// `idx as f64 - s` silently rounds back to exactly `idx` for most
+    /// rows/columns while `idx = 0` still resolves the tiny epsilon
+    /// distinctly, desynchronising the globally-cached weights from the
+    /// per-pixel `base` they were paired with and producing wildly wrong
+    /// output for the affected frame. Computing weights fresh per row/column
+    /// (this version) costs a few extra `floor`s but is immune to this,
+    /// since `wy`/`base_y` (and `wx`/`base_x`) always come from the exact
+    /// same [`cubic_weights`] call.
     #[inline]
     pub(crate) fn sample_with_weights(
         &self,
@@ -252,28 +263,6 @@ impl SplineCoefficients2D {
     }
 }
 
-/// Weights-only variant of [`cubic_weights`] for a constant shift `s`,
-/// evaluated at the reference coordinate `0 - s`: since `frac(idx - s)` is
-/// identical for every integer `idx`, this is the one weight array a whole
-/// `shift2d`/`shift_compare` call needs for that axis — see
-/// [`SplineCoefficients2D::sample_with_weights`]'s docs. Pair with
-/// [`base_index`] per row/column to track the (still `idx`-dependent) tap
-/// window position.
-#[inline]
-pub(crate) fn weights_for_shift(shift: f64) -> [f64; 4] {
-    cubic_weights(-shift).0
-}
-
-/// The leftmost of the 4 support taps covering coordinate `u`
-/// (`floor(u) - 1`), i.e. just the `base` half of [`cubic_weights`]'s
-/// return value, for callers that already have the weight array from
-/// [`weights_for_shift`] and only need the (cheap, per-pixel) integer part
-/// tracked.
-#[inline]
-pub(crate) fn base_index(u: f64) -> i64 {
-    u.floor() as i64 - 1
-}
-
 /// Is `u` within the closed interval `[0, len-1]` — the range scipy treats
 /// as "close enough to interpolate" for `mode='constant'` before falling
 /// back to a hard `cval`? An empty axis (`len == 0`) is never in-domain.
@@ -302,7 +291,7 @@ fn mirror_index(idx: i64, len: usize) -> usize {
 /// The four uniform cubic B-spline basis weights covering coordinate `u`,
 /// plus the index of the first (leftmost) support tap
 /// (`floor(u) - 1 .. floor(u) + 2` inclusive, i.e. 4 consecutive taps).
-fn cubic_weights(u: f64) -> ([f64; 4], i64) {
+pub(crate) fn cubic_weights(u: f64) -> ([f64; 4], i64) {
     let floor_u = u.floor();
     let t = u - floor_u;
     let base = floor_u as i64 - 1;
@@ -326,11 +315,17 @@ pub fn shift2d(frame: &[f64], rows: usize, cols: usize, dy: f64, dx: f64) -> Vec
     let coeffs = SplineCoefficients2D::new(frame, rows, cols);
     let mut out = vec![0.0; rows * cols];
 
-    // Weights depend only on the shift's fractional part, identical for
-    // every row/column — computed once for the whole frame instead of
-    // once per pixel (see `SplineCoefficients2D::sample_with_weights`).
-    let wy = weights_for_shift(dy);
-    let wx = weights_for_shift(dx);
+    // Precompute each column's (weights, base) once — still O(rows + cols)
+    // work rather than O(rows * cols), but each pair comes from the same
+    // `cubic_weights(x)` call so it can never drift out of sync with the
+    // per-pixel coordinate the way a single frame-wide cached array can
+    // (see `SplineCoefficients2D::sample_with_weights`'s docs).
+    let col_taps: Vec<Option<([f64; 4], i64)>> = (0..cols)
+        .map(|c| {
+            let x = c as f64 - dx;
+            in_domain(x, cols).then(|| cubic_weights(x))
+        })
+        .collect();
 
     for r in 0..rows {
         let y = r as f64 - dy;
@@ -339,15 +334,12 @@ pub fn shift2d(frame: &[f64], rows: usize, cols: usize, dy: f64, dx: f64) -> Vec
         if !in_domain(y, rows) {
             continue;
         }
-        let base_y = base_index(y);
+        let (wy, base_y) = cubic_weights(y);
         let out_row = &mut out[r * cols..r * cols + cols];
         for (c, out_val) in out_row.iter_mut().enumerate() {
-            let x = c as f64 - dx;
-            if !in_domain(x, cols) {
-                continue;
+            if let Some((wx, base_x)) = &col_taps[c] {
+                *out_val = coeffs.sample_with_weights(&wy, base_y, wx, *base_x);
             }
-            let base_x = base_index(x);
-            *out_val = coeffs.sample_with_weights(&wy, base_y, &wx, base_x);
         }
     }
     out
@@ -635,6 +627,64 @@ mod tests {
                 let b = frame[r * cols + c];
                 assert!((a - b).abs() < 1e-6, "r={r} c={c} a={a} b={b}");
             }
+        }
+    }
+
+    /// Regression test for a real bug: an earlier version hoisted a single
+    /// weight array for the whole call from the raw shift `s` alone
+    /// (`cubic_weights(-s)`), reasoning that `frac(idx - s)` is
+    /// mathematically identical for every integer `idx`. True in exact
+    /// arithmetic, but not in floating point — once `|s|` drops below the
+    /// ULP at the frame's coordinate magnitudes, `idx as f64 - s` silently
+    /// rounds back to exactly `idx` for most rows/columns while `idx = 0`
+    /// still resolves the epsilon distinctly, desynchronising the cached
+    /// weights from the per-pixel base they were paired with. On a 150-wide
+    /// frame this produced a >11000-magnitude corruption (frame values
+    /// ~35000-63000) for a shift as small as 1e-14 — found via a real
+    /// differential-evolution run whose Nelder-Mead polish converged on
+    /// `-1.68e-16` instead of an exact `0.0` for a true-zero optimum (unlike
+    /// SciPy's L-BFGS-B polish, which reliably lands on exact `0.0`).
+    ///
+    /// Note this deliberately compares against a naive per-pixel reference
+    /// (`SplineCoefficients2D::sample`, which never hoists anything) rather
+    /// than against plain identity: a genuinely tiny but nonzero shift can
+    /// legitimately push row/column 0's query coordinate a hair below `0`,
+    /// and per this module's documented two-tier boundary rule that
+    /// correctly zeros the *whole* affected row/column (matching real
+    /// SciPy) — that's expected of both implementations equally, not a bug.
+    /// What must hold is that the optimised (row/column-hoisted) path and
+    /// the naive (fully per-pixel) path agree with each other.
+    #[test]
+    fn sub_ulp_shift_matches_naive_per_pixel_reference_on_a_wide_frame() {
+        let rows = 59;
+        let cols = 150;
+        let mut frame = vec![0.0; rows * cols];
+        for (i, v) in frame.iter_mut().enumerate() {
+            *v = 47000.0
+                + ((i as f64) * 0.037).sin() * 12000.0
+                + ((i as f64) * 0.011).cos() * 5000.0;
+        }
+        let coeffs = SplineCoefficients2D::new(&frame, rows, cols);
+        for &eps in &[1e-14_f64, 1e-15, 1e-16, 5e-17, -1e-14, -1.683_322_61e-16] {
+            let out = shift2d(&frame, rows, cols, eps, eps);
+            let mut naive = vec![0.0; rows * cols];
+            for r in 0..rows {
+                let y = r as f64 - eps;
+                for c in 0..cols {
+                    let x = c as f64 - eps;
+                    naive[r * cols + c] = coeffs.sample(y, x);
+                }
+            }
+            let max_abs_diff = out
+                .iter()
+                .zip(naive.iter())
+                .map(|(a, b)| (a - b).abs())
+                .fold(0.0_f64, f64::max);
+            assert!(
+                max_abs_diff < 1e-6,
+                "eps={eps}: shift2d disagreed with the naive per-pixel reference by \
+                 {max_abs_diff} (weights and base desynchronised again?)"
+            );
         }
     }
 }
