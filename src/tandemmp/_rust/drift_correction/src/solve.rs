@@ -11,7 +11,7 @@
 
 use crate::optimize::{differential_evolution, Bound, DeConfig};
 use crate::scalar::float_to_slice;
-use crate::spline::SplineCoefficients2D;
+use crate::spline::{base_index, weights_for_shift, SplineCoefficients2D};
 
 /// A baseline frame with its cubic B-spline coefficients precomputed once,
 /// ready to be repeatedly shifted and compared against candidate `(x, y)`
@@ -62,13 +62,27 @@ impl BaselineFrame {
             return f64::NAN;
         }
 
+        // The B-spline weights depend only on the shift's fractional part,
+        // which is identical for every integer row/column (adding an
+        // integer to a coordinate never changes its fractional part) — so
+        // they're computed exactly once for this whole call, not once per
+        // pixel. `float_to_slice`'s cropping already guarantees every
+        // `(row_start..row_stop, col_start..col_stop)` coordinate is
+        // in-domain, so no boundary short-circuit is needed here (unlike
+        // `shift2d`, which scans the full uncropped frame). See
+        // `SplineCoefficients2D::sample_with_weights`'s docs.
+        let wy = weights_for_shift(y);
+        let wx = weights_for_shift(x);
+
         let mut sum_sq = 0.0;
         for r in row_start..row_stop {
             let y_coord = r as f64 - y;
+            let base_y = base_index(y_coord);
             let input_row = &input_frame[r * cols..r * cols + cols];
             for (c, &actual) in input_row.iter().enumerate().take(col_stop).skip(col_start) {
                 let x_coord = c as f64 - x;
-                let shifted = self.coeffs.sample(y_coord, x_coord);
+                let base_x = base_index(x_coord);
+                let shifted = self.coeffs.sample_with_weights(&wy, base_y, &wx, base_x);
                 let diff = shifted - actual;
                 sum_sq += diff * diff;
             }

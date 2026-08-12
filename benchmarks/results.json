@@ -9,13 +9,32 @@
     "serial": {
       "parallel": false,
       "n_jobs": null,
-      "elapsed_seconds": 72.365
+      "use_rust": false,
+      "elapsed_seconds": 72.63973279995844,
+      "vector_len": 3000
     },
     "parallel": {
       "parallel": true,
       "n_jobs": null,
-      "elapsed_seconds": 21.686
+      "use_rust": false,
+      "elapsed_seconds": 24.334294100059196,
+      "vector_len": 3000
     }
   },
-  "rust_port": null
+  "rust_port": {
+    "serial": {
+      "parallel": false,
+      "n_jobs": null,
+      "use_rust": true,
+      "elapsed_seconds": 11.005690799909644,
+      "vector_len": 3000
+    },
+    "parallel": {
+      "parallel": true,
+      "n_jobs": null,
+      "use_rust": true,
+      "elapsed_seconds": 2.696904700016603,
+      "vector_len": 3000
+    }
+  }
 }

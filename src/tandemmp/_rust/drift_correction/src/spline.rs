@@ -171,9 +171,67 @@ impl SplineCoefficients2D {
         if !in_domain(y, self.rows) || !in_domain(x, self.cols) {
             return 0.0;
         }
-
         let (wy, base_y) = cubic_weights(y);
         let (wx, base_x) = cubic_weights(x);
+        self.sample_with_weights(&wy, base_y, &wx, base_x)
+    }
+
+    /// Evaluate at an explicit tap window: `wy`/`wx` are the 4 uniform
+    /// cubic B-spline basis weights for the y/x axes (as returned by
+    /// [`cubic_weights`]), `base_y`/`base_x` the corresponding leftmost tap
+    /// indices.
+    ///
+    /// Exists so [`shift2d`] and `solve::BaselineFrame::shift_compare`'s
+    /// pixel loops can pass in weights computed *once per call* rather than
+    /// recomputing them per pixel: for a constant real-valued shift `s`,
+    /// `cubic_weights(idx - s)`'s weights depend only on `frac(idx - s)`,
+    /// which is identical for every integer `idx` (adding an integer never
+    /// changes a fractional part) — only the integer `base` tap index
+    /// advances by exactly 1 per step. Recomputing the weight polynomial
+    /// (a handful of multiplies plus a `floor`) on every one of a frame's
+    /// pixels was, after the `mirror_index` fast path above, the next
+    /// largest cost in the DE inner loop; callers now compute `wy`/`wx`
+    /// once per axis per call (via [`cubic_weights`] or [`weights_for_shift`])
+    /// and only pay a cheap `floor` (via [`base_index`]) per row/column to
+    /// track `base_y`/`base_x`.
+    #[inline]
+    pub(crate) fn sample_with_weights(
+        &self,
+        wy: &[f64; 4],
+        base_y: i64,
+        wx: &[f64; 4],
+        base_x: i64,
+    ) -> f64 {
+        // Fast path: the overwhelming majority of samples (any pixel not
+        // within 1-2 taps of an edge) have their whole 4x4 support window
+        // in-bounds, so no tap needs mirror reflection. `mirror_index`'s
+        // `rem_euclid` is a genuine integer division — one of the most
+        // expensive scalar ALU ops — so paying it unconditionally for all
+        // 16 taps of every sample, even when every tap is already in
+        // range, was the dominant cost of the whole DE inner loop (each
+        // `shift_compare` call does this for every pixel in the frame).
+        if base_y >= 0
+            && base_y + 3 < self.rows as i64
+            && base_x >= 0
+            && base_x + 3 < self.cols as i64
+        {
+            let by = base_y as usize;
+            let bx = base_x as usize;
+            let mut acc = 0.0;
+            for (ky, &wyk) in wy.iter().enumerate() {
+                let row_start = (by + ky) * self.cols + bx;
+                // SAFETY: the branch above proves `0 <= by`, `by + 3 <
+                // self.rows`, `0 <= bx`, `bx + 3 < self.cols`, so for every
+                // `ky` in `0..4`, `row_start + 3 == (by + ky) * self.cols +
+                // bx + 3 < self.rows * self.cols == self.data.len()` (the
+                // invariant `SplineCoefficients2D::new` establishes and
+                // never mutates afterwards) — i.e. `row_start..row_start+4`
+                // is always a valid range into `self.data`.
+                let row = unsafe { self.data.get_unchecked(row_start..row_start + 4) };
+                acc += wyk * (wx[0] * row[0] + wx[1] * row[1] + wx[2] * row[2] + wx[3] * row[3]);
+            }
+            return acc;
+        }
 
         let mut acc = 0.0;
         for (ky, &wyk) in wy.iter().enumerate() {
@@ -192,6 +250,28 @@ impl SplineCoefficients2D {
         }
         acc
     }
+}
+
+/// Weights-only variant of [`cubic_weights`] for a constant shift `s`,
+/// evaluated at the reference coordinate `0 - s`: since `frac(idx - s)` is
+/// identical for every integer `idx`, this is the one weight array a whole
+/// `shift2d`/`shift_compare` call needs for that axis — see
+/// [`SplineCoefficients2D::sample_with_weights`]'s docs. Pair with
+/// [`base_index`] per row/column to track the (still `idx`-dependent) tap
+/// window position.
+#[inline]
+pub(crate) fn weights_for_shift(shift: f64) -> [f64; 4] {
+    cubic_weights(-shift).0
+}
+
+/// The leftmost of the 4 support taps covering coordinate `u`
+/// (`floor(u) - 1`), i.e. just the `base` half of [`cubic_weights`]'s
+/// return value, for callers that already have the weight array from
+/// [`weights_for_shift`] and only need the (cheap, per-pixel) integer part
+/// tracked.
+#[inline]
+pub(crate) fn base_index(u: f64) -> i64 {
+    u.floor() as i64 - 1
 }
 
 /// Is `u` within the closed interval `[0, len-1]` — the range scipy treats
@@ -245,11 +325,29 @@ fn cubic_weights(u: f64) -> ([f64; 4], i64) {
 pub fn shift2d(frame: &[f64], rows: usize, cols: usize, dy: f64, dx: f64) -> Vec<f64> {
     let coeffs = SplineCoefficients2D::new(frame, rows, cols);
     let mut out = vec![0.0; rows * cols];
+
+    // Weights depend only on the shift's fractional part, identical for
+    // every row/column — computed once for the whole frame instead of
+    // once per pixel (see `SplineCoefficients2D::sample_with_weights`).
+    let wy = weights_for_shift(dy);
+    let wx = weights_for_shift(dx);
+
     for r in 0..rows {
         let y = r as f64 - dy;
-        for c in 0..cols {
+        // Out-of-domain rows stay all-zero (`out` was zero-initialised
+        // above), matching `cval = 0.0`.
+        if !in_domain(y, rows) {
+            continue;
+        }
+        let base_y = base_index(y);
+        let out_row = &mut out[r * cols..r * cols + cols];
+        for (c, out_val) in out_row.iter_mut().enumerate() {
             let x = c as f64 - dx;
-            out[r * cols + c] = coeffs.sample(y, x);
+            if !in_domain(x, cols) {
+                continue;
+            }
+            let base_x = base_index(x);
+            *out_val = coeffs.sample_with_weights(&wy, base_y, &wx, base_x);
         }
     }
     out

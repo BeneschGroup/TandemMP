@@ -27,19 +27,23 @@ SEED = 42
 FRAME_GAP = 25
 
 
-def bench(mp_file: str, *, parallel: bool, n_jobs: int | None = None) -> dict:
+def bench(
+    mp_file: str, *, parallel: bool, n_jobs: int | None = None, use_rust: bool = False
+) -> dict:
     t0 = time.perf_counter()
     result = run_drift_correction(
         mp_file,
         frame_gap=FRAME_GAP,
         parallel=parallel,
         n_jobs=n_jobs,
+        use_rust=use_rust,
         seed=SEED,
     )
     elapsed = time.perf_counter() - t0
     return {
         "parallel": parallel,
         "n_jobs": n_jobs,
+        "use_rust": use_rust,
         "elapsed_seconds": elapsed,
         "vector_len": len(result.vector),
     }
@@ -54,8 +58,19 @@ def main() -> None:
         "mp_file": mp_file,
         "frame_gap": FRAME_GAP,
         "seed": SEED,
-        "serial": bench(mp_file, parallel=False),
-        "parallel": bench(mp_file, parallel=True),
+        "python_baseline": {
+            "serial": bench(mp_file, parallel=False),
+            "parallel": bench(mp_file, parallel=True),
+        },
+        "rust_port": {
+            # Apples-to-apples against python_baseline.serial: isolates the
+            # algorithmic (Rust-vs-Python) speedup from multiprocessing.
+            "serial": bench(mp_file, parallel=False, use_rust=True),
+            # Realistic production config: Rust solve() per frame, still
+            # dispatched across frames via the existing
+            # tandemmp.core.parallel multiprocessing pool.
+            "parallel": bench(mp_file, parallel=True, use_rust=True),
+        },
     }
     print(json.dumps(out, indent=2))
 

@@ -21,3 +21,14 @@ pyo3 = { version = "0.29", features = ["abi3-py310"] }
 numpy = "0.29"
 
 [dev-dependencies]
+
+# The DE inner loop is pure numeric CPU work (millions of tiny
+# `sample()`/`shift_compare` calls per movie), so it's worth paying extra
+# compile time for cross-crate inlining and single-codegen-unit
+# optimisation. `panic = "abort"` is deliberately NOT set here: PyO3 relies
+# on catching unwinding panics at the FFI boundary to turn them into Python
+# exceptions (see `python.rs`'s module docs) — aborting would take the
+# whole interpreter down instead.
+[profile.release]
+lto = "fat"
+codegen-units = 1

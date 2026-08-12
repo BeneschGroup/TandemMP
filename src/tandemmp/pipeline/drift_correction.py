@@ -161,6 +161,7 @@ def run_drift_correction(
     seed: int | np.random.Generator | np.random.RandomState | None = None,
     frame_start: int | None = None,
     frame_end: int | None = None,
+    use_rust: bool = False,
 ) -> DriftCorrectionResult:
     """Load a movie and estimate its :class:`~tandemmp.drift.corrector.DriftVector`.
 
@@ -171,7 +172,7 @@ def run_drift_correction(
     silently applied and discarded inside the loader. See
     :func:`~tandemmp.drift.corrector.get_vector` for the meaning of
     *frame_gap*, *rolling_baseline*, *threshold*, *threshold_margin*,
-    *parallel*, *n_jobs* and *seed*.
+    *parallel*, *n_jobs*, *seed* and *use_rust*.
     """
     movie = Loader(
         filepath,
@@ -189,6 +190,7 @@ def run_drift_correction(
         threshold_margin=threshold_margin,
         parallel=parallel,
         n_jobs=n_jobs,
+        use_rust=use_rust,
         seed=seed,
     )
 
