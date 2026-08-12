@@ -66,7 +66,10 @@ fn solve(
     let input_view = input_frame.as_array();
     let baseline_view = baseline_frame.as_array();
     if input_view.shape() != baseline_view.shape() {
-        return Err(shape_mismatch_err(input_view.shape(), baseline_view.shape()));
+        return Err(shape_mismatch_err(
+            input_view.shape(),
+            baseline_view.shape(),
+        ));
     }
 
     let (input_vec, rows, cols) = to_row_major(&input_view);
@@ -81,9 +84,8 @@ fn solve(
     // PyO3 0.29's rename of the old `allow_threads`) lets other Python
     // threads (e.g. the `dispatch_kwargs` process pool's parent, or a
     // future threaded caller) run concurrently while this frame solves.
-    let (x, y) = py.detach(|| {
-        solve_native::solve(&input_vec, &baseline_vec, rows, cols, solve_bounds, seed)
-    });
+    let (x, y) = py
+        .detach(|| solve_native::solve(&input_vec, &baseline_vec, rows, cols, solve_bounds, seed));
     Ok((x, y))
 }
 
@@ -141,7 +143,10 @@ fn shift_compare(
     let input_view = input_frame.as_array();
     let baseline_view = baseline_frame.as_array();
     if input_view.shape() != baseline_view.shape() {
-        return Err(shape_mismatch_err(input_view.shape(), baseline_view.shape()));
+        return Err(shape_mismatch_err(
+            input_view.shape(),
+            baseline_view.shape(),
+        ));
     }
 
     let (input_vec, rows, cols) = to_row_major(&input_view);

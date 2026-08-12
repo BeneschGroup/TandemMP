@@ -10,6 +10,35 @@ on:
       - 'pyproject.toml'
 
 jobs:
+  rust:
+    name: Rust (drift_correction crate)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src/tandemmp/_rust/drift_correction
+
+      - name: cargo fmt --check
+        working-directory: src/tandemmp/_rust/drift_correction
+        run: cargo fmt --check
+
+      - name: cargo clippy
+        working-directory: src/tandemmp/_rust/drift_correction
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo test
+        working-directory: src/tandemmp/_rust/drift_correction
+        run: cargo test --release
+
   test:
     name: pytest (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
@@ -29,6 +58,25 @@ jobs:
 
       - name: Install project + test dependencies
         run: pip install ".[dev]"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src/tandemmp/_rust/drift_correction
+          # abi3 wheels aren't Python-version-specific, but each matrix job
+          # builds independently (maturin develop installs into that job's
+          # venv) — separate cache keys avoid cross-job artifact reuse
+          # across different CPython headers.
+          key: ${{ matrix.python-version }}
+
+      - name: Build & install tandemmp._rust.drift_correction (maturin)
+        working-directory: src/tandemmp/_rust/drift_correction
+        run: |
+          pip install maturin
+          maturin develop --release
 
       - name: Run tests
         run: pytest
