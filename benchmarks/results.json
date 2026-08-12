@@ -1,0 +1,21 @@
+{
+  "mp_file": "012_20250717_beta_gal_6nM.mp",
+  "movie_shape": [3000, 59, 150],
+  "frame_gap": 25,
+  "sampled_frames": 120,
+  "seed": 42,
+  "cpu_logical_cores": 20,
+  "python_baseline": {
+    "serial": {
+      "parallel": false,
+      "n_jobs": null,
+      "elapsed_seconds": 72.365
+    },
+    "parallel": {
+      "parallel": true,
+      "n_jobs": null,
+      "elapsed_seconds": 21.686
+    }
+  },
+  "rust_port": null
+}
