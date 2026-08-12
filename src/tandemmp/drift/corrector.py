@@ -119,7 +119,7 @@ def _float_to_slice(n: float) -> slice:
 
 
 def stabilise(
-    frame: FloatArray, x: float, y: float, *, use_rust: bool = False
+    frame: FloatArray, x: float, y: float, *, use_rust: bool = True
 ) -> FloatArray:
     """Shift *frame* by ``(-y, -x)`` to undo a drift of ``(x, y)``.
 
@@ -173,7 +173,7 @@ def _solve(
     bounds: tuple[float, float] = (-6.0, 6.0),
     seed: int | np.random.Generator | np.random.RandomState | None = None,
     *,
-    use_rust: bool = False,
+    use_rust: bool = True,
 ) -> FloatArray:
     """Find the ``(x, y)`` shift minimising RMSE between two frames.
 
@@ -250,7 +250,7 @@ def _get_initial_vector(
     n_jobs: int | None,
     seed: int | np.random.Generator | np.random.RandomState | None = None,
     *,
-    use_rust: bool = False,
+    use_rust: bool = True,
 ) -> DriftVector:
     """Estimate per-index ``(x, y)`` shifts for *movie* against a baseline.
 
@@ -293,7 +293,7 @@ def get_vector(
     parallel: bool = True,
     n_jobs: int | None = None,
     seed: int | np.random.Generator | np.random.RandomState | None = None,
-    use_rust: bool = False,
+    use_rust: bool = True,
 ) -> DriftVector:
     """Estimate a drift vector for an entire movie.
 
@@ -445,7 +445,7 @@ def get_corrected_movie(
     full_output: bool = False,
     parallel: bool = True,
     n_jobs: int | None = None,
-    use_rust: bool = False,
+    use_rust: bool = True,
     **kwargs: Any,  # noqa: ANN401
 ) -> tuple[FloatArray, DriftVector] | tuple[FloatArray, DriftVector, tuple[slice, ...]]:
     """Apply drift correction to *movie*.

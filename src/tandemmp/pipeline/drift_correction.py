@@ -161,7 +161,7 @@ def run_drift_correction(
     seed: int | np.random.Generator | np.random.RandomState | None = None,
     frame_start: int | None = None,
     frame_end: int | None = None,
-    use_rust: bool = False,
+    use_rust: bool = True,
 ) -> DriftCorrectionResult:
     """Load a movie and estimate its :class:`~tandemmp.drift.corrector.DriftVector`.
 
