@@ -1,0 +1,11 @@
+[package]
+name = "drift_correction"
+version = "0.1.0"
+edition = "2021"
+description = "Native shift + RMSE hot path for tandemmp.drift.corrector (WORKLIST.md priority 6)."
+
+[dependencies]
+rand = "0.8"
+rand_chacha = "0.3"
+
+[dev-dependencies]
