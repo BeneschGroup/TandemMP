@@ -123,11 +123,10 @@ def stabilise(
 ) -> FloatArray:
     """Shift *frame* by ``(-y, -x)`` to undo a drift of ``(x, y)``.
 
-    ``use_rust=True`` prefers the compiled ``tandemmp._rust.drift_correction``
-    extension (see WORKLIST.md priority 6) when it has been built; otherwise
-    (or if it isn't available) falls back transparently to the
-    :func:`scipy.ndimage.shift` implementation below. Default behaviour
-    (``use_rust=False``) is unchanged.
+    ``use_rust=True`` (the default) prefers the compiled
+    ``tandemmp._rust.drift_correction`` extension (see WORKLIST.md priority 6)
+    when it has been built; otherwise (or if it isn't available) falls back
+    transparently to the :func:`scipy.ndimage.shift` implementation below.
     """
     if use_rust:
         try:
@@ -137,7 +136,7 @@ def stabilise(
                 "Rust drift-correction module unavailable, falling back to Python"
             )
         except Exception:  # noqa: BLE001
-            logger.debug("Rust stabilise failed, falling back to Python", exc_info=True)
+            logger.warning("Rust stabilise failed, falling back to Python", exc_info=True)
     return shift(frame, (-y, -x))  # type: ignore[no-any-return]
 
 
@@ -182,15 +181,14 @@ def _solve(
     is what real usage wants; pass an explicit seed for reproducible runs
     (e.g. in tests).
 
-    ``use_rust=True`` prefers the fused Rust ``solve`` entry point (a single
-    differential-evolution + shift + RMSE call, see WORKLIST.md priority 6)
-    when the compiled ``tandemmp._rust.drift_correction`` extension is
-    available; otherwise falls back transparently to
-    :func:`scipy.optimize.differential_evolution` below. Only plain ``int``
-    (or ``None``) seeds are supported by the Rust path — an
-    :class:`~numpy.random.Generator`/:class:`~numpy.random.RandomState`
-    ``seed`` also falls back to Python. Default behaviour (``use_rust=False``)
-    is unchanged.
+    ``use_rust=True`` (the default) prefers the fused Rust ``solve`` entry
+    point (a single differential-evolution + shift + RMSE call, see
+    WORKLIST.md priority 6) when the compiled
+    ``tandemmp._rust.drift_correction`` extension is available; otherwise
+    falls back transparently to :func:`scipy.optimize.differential_evolution`
+    below. Only plain ``int`` (or ``None``) seeds are supported by the Rust
+    path — an :class:`~numpy.random.Generator`/:class:`~numpy.random.RandomState`
+    ``seed`` also falls back to Python.
     """
     if use_rust:
         try:
@@ -200,7 +198,7 @@ def _solve(
                 "Rust drift-correction module unavailable, falling back to Python"
             )
         except Exception:  # noqa: BLE001
-            logger.debug("Rust _solve failed, falling back to Python", exc_info=True)
+            logger.warning("Rust _solve failed, falling back to Python", exc_info=True)
 
     res = differential_evolution(
         _shift_compare,
@@ -325,7 +323,7 @@ def get_vector(
     use_rust:
         Forwarded to :func:`_solve` for each frame — prefer the compiled
         Rust extension when available, falling back to Python transparently
-        otherwise. Default ``False`` leaves behaviour unchanged.
+        otherwise. Defaults to ``True``.
     """
     all_frames_to_check: IntArray = np.arange(0, len(movie), frame_gap, dtype=int)
 
@@ -457,7 +455,7 @@ def get_corrected_movie(
     ``use_rust`` is forwarded both to :func:`get_vector` (when *vector* is
     estimated here) and to each :func:`stabilise` call below — prefer the
     compiled Rust extension when available, falling back to Python
-    transparently otherwise. Default ``False`` leaves behaviour unchanged.
+    transparently otherwise. Defaults to ``True``.
     """
     if vector is None:
         vector = get_vector(

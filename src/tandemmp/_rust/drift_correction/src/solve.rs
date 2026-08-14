@@ -255,6 +255,19 @@ mod tests {
     }
 
     #[test]
+    fn solve_on_small_frame_with_default_bounds_does_not_panic() {
+        // Regression test: a frame small enough that most of the default
+        // `(-6, 6)` search bounds crop it to zero pixels (`shift_compare`
+        // returns NaN there, see the `count == 0` branch above). This used
+        // to panic inside the optimiser's `argmin`/simplex sort; it should
+        // instead just complete and return *some* finite-ish result.
+        let base = textured_frame(5);
+        let (x, y) = solve(&base, &base, 5, 5, SolveBounds::default(), Some(7));
+        assert!(x.is_finite(), "x={x}");
+        assert!(y.is_finite(), "y={y}");
+    }
+
+    #[test]
     fn solve_same_seed_gives_reproducible_result() {
         let base = textured_frame(31);
         let shifted = shift2d(&base, 31, 31, -1.0, 2.0);

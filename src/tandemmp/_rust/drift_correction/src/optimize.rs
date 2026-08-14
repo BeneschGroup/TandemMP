@@ -166,11 +166,37 @@ where
     }
 }
 
+/// Total order over fitness values that never panics on `NaN`.
+///
+/// `objective` (ultimately [`solve.rs`](crate::solve)'s `shift_compare`) can
+/// return `NaN` for a candidate `(x, y)` that crops the frame to zero
+/// pixels — reachable on small frames with the default `(-6, 6)` search
+/// bounds. Every *direct* comparison elsewhere in this module (`<`, `<=`)
+/// already handles that gracefully: IEEE 754 makes any comparison against
+/// `NaN` evaluate to `false`, so a `NaN`-fitness candidate already never
+/// *wins* a `trial_fitness < fitness[i]`-style check, exactly mirroring
+/// how `scipy.optimize.differential_evolution`'s own such comparisons
+/// silently reject `NaN`-scored trials in the Python implementation this
+/// ports. But `argmin` and sorting the simplex need a *total* order, which
+/// bare `f64` doesn't provide when `NaN` is involved — `partial_cmp`
+/// returns `None`. This makes that total order explicit instead of calling
+/// `.unwrap()`/`.expect()` on it: `NaN` sorts as worse than any real
+/// number, so it behaves like `+inf` and simply never gets picked as the
+/// best value, same as every other comparison here already treats it.
+fn cmp_fitness(a: &f64, b: &f64) -> std::cmp::Ordering {
+    match (a.is_nan(), b.is_nan()) {
+        (true, true) => std::cmp::Ordering::Equal,
+        (true, false) => std::cmp::Ordering::Greater,
+        (false, true) => std::cmp::Ordering::Less,
+        (false, false) => a.partial_cmp(b).unwrap(),
+    }
+}
+
 fn argmin(values: &[f64]) -> usize {
     values
         .iter()
         .enumerate()
-        .min_by(|a, b| a.1.partial_cmp(b.1).expect("NaN in fitness values"))
+        .min_by(|a, b| cmp_fitness(a.1, b.1))
         .map(|(i, _)| i)
         .expect("argmin: empty slice")
 }
@@ -237,7 +263,7 @@ where
     for _ in 0..MAX_ITER {
         // Sort simplex vertices by objective value, best first.
         let mut order: Vec<usize> = (0..simplex.len()).collect();
-        order.sort_by(|&a, &b| values[a].partial_cmp(&values[b]).unwrap());
+        order.sort_by(|&a, &b| cmp_fitness(&values[a], &values[b]));
         simplex = order.iter().map(|&i| simplex[i].clone()).collect();
         values = order.iter().map(|&i| values[i]).collect();
 
@@ -345,6 +371,42 @@ mod tests {
         let a = differential_evolution(objective, &bounds, &config, 123);
         let b = differential_evolution(objective, &bounds, &config, 123);
         assert_eq!(a.x, b.x);
+    }
+
+    #[test]
+    fn nan_fitness_candidates_never_win_and_never_panic() {
+        // Regression test for a real panic: an objective that returns NaN
+        // for part of the search space (mirrors `solve.rs::shift_compare`
+        // returning NaN when a candidate (x, y) crops a small frame to zero
+        // pixels) used to panic in `argmin`/the Nelder-Mead sort via
+        // `.expect()`/`.unwrap()` on `partial_cmp`. It should instead just
+        // never let a NaN-scored candidate win, and converge on the finite
+        // minimum in the region that isn't NaN.
+        let objective = |v: &[f64]| {
+            if v[0].abs() > 3.0 || v[1].abs() > 3.0 {
+                return f64::NAN;
+            }
+            (v[0] - 1.3).powi(2) + (v[1] + 2.1).powi(2)
+        };
+        let bounds = [Bound::new(-6.0, 6.0), Bound::new(-6.0, 6.0)];
+        let config = DeConfig::default();
+        let result = differential_evolution(objective, &bounds, &config, 42);
+        assert!(!result.fun.is_nan(), "fun={}", result.fun);
+        assert!((result.x[0] - 1.3).abs() < 0.1, "x={:?}", result.x);
+        assert!((result.x[1] + 2.1).abs() < 0.1, "x={:?}", result.x);
+    }
+
+    #[test]
+    fn all_nan_fitness_does_not_panic() {
+        // Degenerate case: every candidate in bounds is NaN (mirrors a
+        // frame so small that no shift within the default bounds leaves
+        // any pixels after cropping). Must not panic, even though there's
+        // no meaningful finite result to converge on.
+        let objective = |_: &[f64]| f64::NAN;
+        let bounds = [Bound::new(-6.0, 6.0), Bound::new(-6.0, 6.0)];
+        let config = DeConfig::default();
+        let result = differential_evolution(objective, &bounds, &config, 42);
+        assert!(result.fun.is_nan());
     }
 
     #[test]
