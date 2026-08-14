@@ -82,6 +82,29 @@ jobs:
           # `pip install` of the resulting wheel needs neither.
           maturin build --release --out dist
           pip install dist/*.whl
+          # The wheel install above lands in site-packages, but this
+          # project's pyproject.toml sets `pythonpath = ["src"]` for pytest,
+          # which puts the repo checkout's src/ ahead of site-packages on
+          # sys.path. Once `tandemmp` resolves from src/ (a regular
+          # package), Python never falls through to site-packages for its
+          # `_rust` submodule — it only looks inside src/tandemmp/_rust/,
+          # where the crate's own *source* directory (this directory, with
+          # no __init__.py) still sits from the git checkout and gets
+          # treated as an empty implicit namespace package, shadowing the
+          # wheel entirely. So also copy the compiled extension directly
+          # into src/tandemmp/_rust/ — what `maturin develop` would do,
+          # without needing its VIRTUAL_ENV/CONDA_PREFIX detection.
+          python -c "
+          import glob, zipfile, shutil
+          wheel = glob.glob('dist/*.whl')[0]
+          with zipfile.ZipFile(wheel) as zf:
+              for name in zf.namelist():
+                  if name.startswith('tandemmp/_rust/drift_correction.') and not name.endswith('/'):
+                      dest = '../' + name.rsplit('/', 1)[-1]
+                      with zf.open(name) as src, open(dest, 'wb') as out:
+                          shutil.copyfileobj(src, out)
+                      print(f'Copied {name} -> src/tandemmp/_rust/{name.rsplit(\"/\", 1)[-1]}')
+          "
 
       - name: Run tests
         run: pytest
