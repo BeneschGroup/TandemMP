@@ -70,6 +70,23 @@ def _make_drifting_movie(
 
 class TestBindingRmse:
     def test_zero_for_identical(self):
+        import sys
+
+        print("DEBUG _dc.__file__ =", getattr(_dc, "__file__", None), file=sys.stderr)
+        print("DEBUG _dc.__spec__ =", getattr(_dc, "__spec__", None), file=sys.stderr)
+        print("DEBUG _dc.__loader__ =", getattr(_dc, "__loader__", None), file=sys.stderr)
+        print("DEBUG _dc.__path__ =", getattr(_dc, "__path__", "NO __path__"), file=sys.stderr)
+        print("DEBUG dir(_dc) =", sorted(dir(_dc)), file=sys.stderr)
+        import tandemmp._rust as _rust_pkg
+
+        print("DEBUG _rust_pkg.__path__ =", list(_rust_pkg.__path__), file=sys.stderr)
+        import importlib
+
+        fresh = importlib.import_module("tandemmp._rust.drift_correction")
+        print("DEBUG fresh is _dc:", fresh is _dc, file=sys.stderr)
+        print("DEBUG fresh.__file__ =", getattr(fresh, "__file__", None), file=sys.stderr)
+        print("DEBUG has rmse on fresh:", hasattr(fresh, "rmse"), file=sys.stderr)
+
         a = np.array([1.0, 2.0, 3.0])
         assert _dc.rmse(a, a) == pytest.approx(0.0)
 
