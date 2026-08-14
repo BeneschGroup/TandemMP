@@ -14,9 +14,9 @@ Two on-disk representations are supported for the resulting
 :class:`~tandemmp.drift.corrector.DriftVector`:
 
 - :func:`save_drift_vector` / :func:`load_drift_vector` — plain JSON
-  (``source_filepath`` plus per-frame ``x``/``y`` arrays), human-readable
-  and hand-editable, mirroring :mod:`tandemmp.pipeline.calibration`'s save
-  format.
+  (``source_filepath``, ``frame_start``/``frame_end``, and per-frame
+  ``x``/``y`` arrays), human-readable and hand-editable, mirroring
+  :mod:`tandemmp.pipeline.calibration`'s save format.
 - :func:`save_correction_function` / :func:`load_correction_function` —
   pickles a :class:`DriftCorrectionFunction`, a small wrapper exposing the
   same vector as ``correct_coordinates(x, y, i) -> (x_corrected,
@@ -74,6 +74,14 @@ class DriftCorrectionFunction:
         y: float | npt.NDArray[np.floating[Any]],
         i: float | npt.NDArray[np.floating[Any]],
     ) -> tuple[Any, Any]:
+        x_shape, y_shape, i_shape = np.shape(x), np.shape(y), np.shape(i)
+        non_scalar_shapes = {s for s in (x_shape, y_shape, i_shape) if s != ()}
+        if len(non_scalar_shapes) > 1:
+            msg = (
+                "x, y and i must be scalars or arrays of the same shape "
+                f"(got shapes {x_shape}, {y_shape}, {i_shape})"
+            )
+            raise ValueError(msg)
         frames = np.arange(len(self.vector), dtype=float)
         dx = np.interp(i, frames, self.vector.x)
         dy = np.interp(i, frames, self.vector.y)
@@ -82,7 +90,7 @@ class DriftCorrectionFunction:
     def correct_movie(
         self,
         movie: FloatArray | IntArray,
-        i: npt.NDArray[np.floating[Any]] | npt.NDArray[np.integer[Any]] | None = None,
+        i: FloatArray | IntArray | None = None,
         *,
         parallel: bool = True,
         n_jobs: int | None = None,
@@ -104,16 +112,25 @@ class DriftCorrectionFunction:
         vector resampled onto *i*.
         """
         movie_arr: FloatArray = np.asarray(movie, dtype=float)
-        frame_indices = (
-            np.arange(len(movie_arr), dtype=float)
-            if i is None
-            else np.asarray(i, dtype=float)
-        )
-        if len(frame_indices) != len(movie_arr):
-            msg = (
-                f"i has length {len(frame_indices)}, movie has length {len(movie_arr)}"
-            )
-            raise ValueError(msg)
+        frame_indices: FloatArray
+        if i is None:
+            if len(movie_arr) != len(self.vector):
+                msg = (
+                    f"movie has {len(movie_arr)} frames but this vector has "
+                    f"{len(self.vector)}; pass i explicitly to correct a movie "
+                    "that is a different slice than the one the vector was "
+                    "estimated from"
+                )
+                raise ValueError(msg)
+            frame_indices = np.arange(len(movie_arr), dtype=float)
+        else:
+            frame_indices = np.asarray(i, dtype=float)
+            if len(frame_indices) != len(movie_arr):
+                msg = (
+                    f"i has length {len(frame_indices)}, "
+                    f"movie has length {len(movie_arr)}"
+                )
+                raise ValueError(msg)
 
         frames = np.arange(len(self.vector), dtype=float)
         resampled_vector = DriftVector(
@@ -134,10 +151,22 @@ class DriftCorrectionFunction:
 
 @dataclasses.dataclass(frozen=True)
 class DriftCorrectionResult:
-    """A movie's estimated :class:`DriftVector` plus its source filepath."""
+    """A movie's estimated :class:`DriftVector` plus its source filepath.
+
+    ``frame_start``/``frame_end`` record the slice of the *source* movie the
+    vector was estimated over (i.e. the ``frame_start``/``frame_end`` passed
+    to :func:`run_drift_correction`, ``None`` meaning "from the start" /
+    "to the end"). The vector's own index ``0`` always corresponds to
+    ``frame_start`` (or the source movie's first frame if ``None``), *not*
+    necessarily raw frame ``0`` of the file on disk — persisting these two
+    values lets a later caller recover that offset instead of having to
+    remember it out-of-band.
+    """
 
     vector: DriftVector
     source_filepath: str
+    frame_start: int | None = None
+    frame_end: int | None = None
 
     def as_function(self) -> DriftCorrectionFunction:
         """Wrap this result's vector as a :class:`DriftCorrectionFunction`."""
@@ -192,7 +221,12 @@ def run_drift_correction(
         seed=seed,
     )
 
-    return DriftCorrectionResult(vector=vector, source_filepath=str(filepath))
+    return DriftCorrectionResult(
+        vector=vector,
+        source_filepath=str(filepath),
+        frame_start=frame_start,
+        frame_end=frame_end,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -206,6 +240,8 @@ def run_drift_correction(
 def _drift_vector_to_mapping(result: DriftCorrectionResult) -> dict[str, Any]:
     return {
         "source_filepath": result.source_filepath,
+        "frame_start": result.frame_start,
+        "frame_end": result.frame_end,
         "x": result.vector.x.tolist(),
         "y": result.vector.y.tolist(),
     }
@@ -223,6 +259,8 @@ def _drift_vector_from_mapping(
     return DriftCorrectionResult(
         vector=DriftVector(np.asarray(x, dtype=float), np.asarray(y, dtype=float)),
         source_filepath=str(payload.get("source_filepath", default_source_filepath)),
+        frame_start=payload.get("frame_start"),
+        frame_end=payload.get("frame_end"),
     )
 
 

@@ -75,6 +75,15 @@ class TestDriftCorrectionFunction:
         np.testing.assert_allclose(x, [10.0, 9.0, 8.0])
         np.testing.assert_allclose(y, [10.0, 9.0, 8.0])
 
+    def test_rejects_mismatched_shapes(self):
+        vector = DriftVector(np.array([0.0, 1.0, 2.0]), np.array([0.0, 1.0, 2.0]))
+        correct = DriftCorrectionFunction(vector=vector)
+        xs = np.array([10.0, 10.0, 10.0])
+        ys = np.array([10.0, 10.0, 10.0])
+        i = np.array([[0], [1], [2]])  # shape (3, 1), broadcastable but wrong
+        with pytest.raises(ValueError, match="same shape"):
+            correct.correct_coordinates(xs, ys, i)
+
     def test_picklable(self, tmp_path):
         vector = DriftVector(np.array([1.0]), np.array([2.0]))
         correct = DriftCorrectionFunction(vector=vector)
@@ -135,6 +144,17 @@ class TestCorrectMovie:
         movie = np.zeros((3, 10, 10))
         with pytest.raises(ValueError, match="length"):
             correct.correct_movie(movie, i=np.array([0.0, 1.0]), parallel=False)
+
+    def test_rejects_default_i_when_movie_length_differs_from_vector(self):
+        # Vector has 5 frames; movie only has 3 and no explicit i is given —
+        # this is very likely a caller mistake (movie is a different slice
+        # than the one the vector was estimated from), so it should raise
+        # rather than silently clamping via np.interp.
+        vector = DriftVector(np.zeros(5), np.zeros(5))
+        correct = DriftCorrectionFunction(vector=vector)
+        movie = np.zeros((3, 10, 10))
+        with pytest.raises(ValueError, match="frames"):
+            correct.correct_movie(movie, parallel=False)
 
     def test_custom_i_resamples_vector(self):
         # Vector estimated over 5 frames; movie only covers the last 3 —
@@ -198,13 +218,46 @@ class TestRunDriftCorrection:
         monkeypatch.setattr(dc, "Loader", _FakeLoader)
         monkeypatch.setattr(dc, "get_vector", _spy_get_vector)
 
-        result = run_drift_correction("movie.mp", frame_gap=10, parallel=False)
+        result = run_drift_correction(
+            "movie.mp",
+            frame_gap=10,
+            rolling_baseline=True,
+            threshold=1.5,
+            threshold_margin=2,
+            parallel=False,
+            n_jobs=3,
+            seed=42,
+        )
 
         assert isinstance(result, DriftCorrectionResult)
         assert result.source_filepath == "movie.mp"
         assert calls["movie_shape"] == (4, 8, 8)
         assert calls["frame_gap"] == 10
+        assert calls["rolling_baseline"] is True
+        assert calls["threshold"] == 1.5
+        assert calls["threshold_margin"] == 2
         assert calls["parallel"] is False
+        assert calls["n_jobs"] == 3
+        assert calls["seed"] == 42
+
+    def test_forwards_frame_start_end_to_loader(self, monkeypatch):
+        seen: dict[str, Any] = {}
+
+        class _CapturingLoader(_FakeLoader):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                seen["frame_start"] = kwargs["frame_start"]
+                seen["frame_end"] = kwargs["frame_end"]
+                super().__init__(*args, **kwargs)
+
+        monkeypatch.setattr(dc, "Loader", _CapturingLoader)
+        monkeypatch.setattr(dc, "get_vector", _fake_get_vector)
+
+        result = run_drift_correction("movie.mp", frame_start=5, frame_end=15)
+
+        assert seen["frame_start"] == 5
+        assert seen["frame_end"] == 15
+        assert result.frame_start == 5
+        assert result.frame_end == 15
 
     def test_returns_estimated_vector(self, monkeypatch):
         monkeypatch.setattr(dc, "Loader", _FakeLoader)
@@ -254,9 +307,22 @@ class TestSaveLoadDriftVector:
         payload = json.loads(path.read_text(encoding="utf-8"))
         assert payload == {
             "source_filepath": "foo.mp",
+            "frame_start": None,
+            "frame_end": None,
             "x": [1.0, 2.0],
             "y": [3.0, 4.0],
         }
+
+    def test_round_trip_preserves_frame_start_end(self, tmp_path):
+        vector = DriftVector(np.array([0.0, 1.0]), np.array([0.0, -1.0]))
+        result = DriftCorrectionResult(
+            vector=vector, source_filepath="foo.mp", frame_start=5, frame_end=15
+        )
+        path = save_drift_vector(tmp_path / "vec.json", result)
+
+        loaded = load_drift_vector(path)
+        assert loaded.frame_start == 5
+        assert loaded.frame_end == 15
 
     def test_save_creates_parent_directories(self, tmp_path):
         vector = DriftVector(np.array([1.0]), np.array([2.0]))
