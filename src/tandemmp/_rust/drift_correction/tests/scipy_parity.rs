@@ -1,0 +1,139 @@
+//! Broader numerical cross-checks against `scipy.ndimage.shift` (order=3,
+//! `mode='constant'`, `cval=0.0`) than the small hand-embedded arrays in
+//! `src/spline.rs`'s unit tests.
+//!
+//! Each fixture in `tests/fixtures/*.txt` was generated directly by SciPy
+//! (see the generation script noted below) on the `tandemmp-refactor`
+//! conda environment and has the format:
+//!
+//! ```text
+//! <rows> <cols> <dy> <dx>
+//! <rows*cols input values, space-separated>
+//! <rows*cols expected shift(input, (dy, dx)) values, space-separated>
+//! ```
+//!
+//! Fixtures span realistic movie-frame sizes (including the 59x150 shape
+//! from `benchmarks/README.md`'s real benchmark movie), sub-pixel and
+//! negative shifts, shifts right at the +/-6px `_solve` bounds, and shifts
+//! far outside the array (to exercise the whole-pixel `cval` fast path).
+
+use std::fs;
+use std::path::Path;
+
+fn fixture_dir() -> &'static Path {
+    Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures"))
+}
+
+fn parse_floats(line: &str) -> Vec<f64> {
+    line.split_whitespace()
+        .map(|s| s.parse::<f64>().expect("fixture value must parse as f64"))
+        .collect()
+}
+
+struct Fixture {
+    rows: usize,
+    cols: usize,
+    dy: f64,
+    dx: f64,
+    input: Vec<f64>,
+    expected: Vec<f64>,
+}
+
+fn load_fixture(name: &str) -> Fixture {
+    let path = fixture_dir().join(format!("{name}.txt"));
+    let text = fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("failed to read fixture {path:?}: {e}"));
+    let mut lines = text.lines();
+
+    let header = lines.next().expect("fixture missing header line");
+    let mut header_parts = header.split_whitespace();
+    let rows: usize = header_parts.next().unwrap().parse().unwrap();
+    let cols: usize = header_parts.next().unwrap().parse().unwrap();
+    let dy: f64 = header_parts.next().unwrap().parse().unwrap();
+    let dx: f64 = header_parts.next().unwrap().parse().unwrap();
+
+    let input = parse_floats(lines.next().expect("fixture missing input line"));
+    let expected = parse_floats(lines.next().expect("fixture missing expected line"));
+
+    assert_eq!(input.len(), rows * cols);
+    assert_eq!(expected.len(), rows * cols);
+
+    Fixture {
+        rows,
+        cols,
+        dy,
+        dx,
+        input,
+        expected,
+    }
+}
+
+fn check_fixture(name: &str) {
+    let f = load_fixture(name);
+    let actual = drift_correction::shift2d(&f.input, f.rows, f.cols, f.dy, f.dx);
+    assert_eq!(actual.len(), f.expected.len());
+
+    let mut max_diff = 0.0f64;
+    for (i, (a, e)) in actual.iter().zip(f.expected.iter()).enumerate() {
+        let diff = (a - e).abs();
+        max_diff = max_diff.max(diff);
+        assert!(
+            diff <= 1e-8,
+            "fixture={name} index={i} actual={a} expected={e} diff={diff}"
+        );
+    }
+    eprintln!(
+        "fixture={name} rows={} cols={} dy={} dx={} max_diff={max_diff:e}",
+        f.rows, f.cols, f.dy, f.dx
+    );
+}
+
+#[test]
+fn small_15x15_int() {
+    check_fixture("small_15x15_int");
+}
+
+#[test]
+fn mid_31x31_subpixel() {
+    check_fixture("mid_31x31_subpixel");
+}
+
+#[test]
+fn mid_31x31_neg_subpixel() {
+    check_fixture("mid_31x31_neg_subpixel");
+}
+
+#[test]
+fn large_41x41_zero() {
+    check_fixture("large_41x41_zero");
+}
+
+#[test]
+fn large_41x41_bounds_pos() {
+    check_fixture("large_41x41_bounds_pos");
+}
+
+#[test]
+fn large_41x41_bounds_neg() {
+    check_fixture("large_41x41_bounds_neg");
+}
+
+#[test]
+fn rect_59x150_realistic() {
+    check_fixture("rect_59x150_realistic");
+}
+
+#[test]
+fn rect_59x150_edge() {
+    check_fixture("rect_59x150_edge");
+}
+
+#[test]
+fn tiny_5x7() {
+    check_fixture("tiny_5x7");
+}
+
+#[test]
+fn far_out_of_bounds() {
+    check_fixture("far_out_of_bounds");
+}

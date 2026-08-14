@@ -23,6 +23,10 @@ pip install -e /path_to_repo/.
   (`save_calibration` / `load_calibration`).
 - **`src/tandemmp/pipeline/simple_analysis.py`** — pair matching analysis for
   CSV-exported point-events, without re-running PSF fitting.
+- **`src/tandemmp/pipeline/drift_correction.py`** — estimates a movie's drift
+  vector without running a full analysis (`run_drift_correction`), saved as
+  JSON or as a pickled `DriftCorrectionFunction` (`save_drift_vector` /
+  `save_correction_function`) that can correct coordinates or a whole movie.
 
 ## Tests
 
