@@ -136,7 +136,9 @@ def stabilise(
                 "Rust drift-correction module unavailable, falling back to Python"
             )
         except Exception:  # noqa: BLE001
-            logger.warning("Rust stabilise failed, falling back to Python", exc_info=True)
+            logger.warning(
+                "Rust stabilise failed, falling back to Python", exc_info=True
+            )
     return shift(frame, (-y, -x))  # type: ignore[no-any-return]
 
 
@@ -198,7 +200,9 @@ def _solve(
                 "Rust drift-correction module unavailable, falling back to Python"
             )
         except Exception:  # noqa: BLE001
-            logger.warning("Rust _solve failed, falling back to Python", exc_info=True)
+            logger.warning(
+                "Rust _solve failed, falling back to Python", exc_info=True
+            )
 
     res = differential_evolution(
         _shift_compare,
