@@ -11,7 +11,7 @@ on:
 
 jobs:
   rust:
-    name: Rust (drift_correction crate)
+    name: Rust CI
     runs-on: ubuntu-latest
 
     steps:
@@ -76,7 +76,12 @@ jobs:
         working-directory: src/tandemmp/_rust/drift_correction
         run: |
           pip install maturin
-          maturin develop --release
+          # `maturin develop` requires VIRTUAL_ENV/CONDA_PREFIX to locate the
+          # target environment, which actions/setup-python doesn't set (it
+          # just puts a system Python on PATH, no venv). `maturin build` +
+          # `pip install` of the resulting wheel needs neither.
+          maturin build --release --out dist
+          pip install dist/*.whl
 
       - name: Run tests
         run: pytest
