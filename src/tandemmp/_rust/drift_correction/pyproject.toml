@@ -45,3 +45,13 @@ module-name = "tandemmp._rust.drift_correction"
 # "src"}` / editable install already uses.
 python-source = "../../.."
 features = ["pyo3/extension-module"]
+# Without this, maturin bundles the *entire* python-source tree into the
+# wheel verbatim — including this crate's own directory (Cargo.toml, *.rs,
+# tests/, even a self-referential `dist/`), which lands in the installed
+# package as `tandemmp/_rust/drift_correction/` sitting right next to the
+# compiled `tandemmp/_rust/drift_correction.<ext>` module. Harmless on
+# Windows (regular extension-module files take priority over same-named
+# implicit namespace-package directories there), but broke `import
+# tandemmp._rust.drift_correction` on Linux CI, resolving to the empty
+# namespace-package directory instead of the compiled module.
+exclude = ["tandemmp/_rust/drift_correction/**"]
