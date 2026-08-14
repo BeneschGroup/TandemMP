@@ -10,6 +10,35 @@ on:
       - 'pyproject.toml'
 
 jobs:
+  rust:
+    name: Rust CI (drift_correction)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src/tandemmp/_rust/drift_correction
+
+      - name: cargo fmt --check
+        working-directory: src/tandemmp/_rust/drift_correction
+        run: cargo fmt --check
+
+      - name: cargo clippy
+        working-directory: src/tandemmp/_rust/drift_correction
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo test
+        working-directory: src/tandemmp/_rust/drift_correction
+        run: cargo test --release
+
   test:
     name: pytest (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
@@ -29,6 +58,53 @@ jobs:
 
       - name: Install project + test dependencies
         run: pip install ".[dev]"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src/tandemmp/_rust/drift_correction
+          # abi3 wheels aren't Python-version-specific, but each matrix job
+          # builds independently (maturin develop installs into that job's
+          # venv) — separate cache keys avoid cross-job artifact reuse
+          # across different CPython headers.
+          key: ${{ matrix.python-version }}
+
+      - name: Build & install tandemmp._rust.drift_correction (maturin)
+        working-directory: src/tandemmp/_rust/drift_correction
+        run: |
+          pip install maturin
+          # `maturin develop` requires VIRTUAL_ENV/CONDA_PREFIX to locate the
+          # target environment, which actions/setup-python doesn't set (it
+          # just puts a system Python on PATH, no venv). `maturin build` +
+          # `pip install` of the resulting wheel needs neither.
+          maturin build --release --out dist
+          pip install dist/*.whl
+          # The wheel install above lands in site-packages, but this
+          # project's pyproject.toml sets `pythonpath = ["src"]` for pytest,
+          # which puts the repo checkout's src/ ahead of site-packages on
+          # sys.path. Once `tandemmp` resolves from src/ (a regular
+          # package), Python never falls through to site-packages for its
+          # `_rust` submodule — it only looks inside src/tandemmp/_rust/,
+          # where the crate's own *source* directory (this directory, with
+          # no __init__.py) still sits from the git checkout and gets
+          # treated as an empty implicit namespace package, shadowing the
+          # wheel entirely. So also copy the compiled extension directly
+          # into src/tandemmp/_rust/ — what `maturin develop` would do,
+          # without needing its VIRTUAL_ENV/CONDA_PREFIX detection.
+          python -c "
+          import glob, zipfile, shutil
+          wheel = glob.glob('dist/*.whl')[0]
+          with zipfile.ZipFile(wheel) as zf:
+              for name in zf.namelist():
+                  if name.startswith('tandemmp/_rust/drift_correction.') and not name.endswith('/'):
+                      dest = '../' + name.rsplit('/', 1)[-1]
+                      with zf.open(name) as src, open(dest, 'wb') as out:
+                          shutil.copyfileobj(src, out)
+                      print(f'Copied {name} -> src/tandemmp/_rust/{name.rsplit(\"/\", 1)[-1]}')
+          "
 
       - name: Run tests
         run: pytest

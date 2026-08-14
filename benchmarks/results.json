@@ -1,0 +1,40 @@
+{
+  "mp_file": "012_20250717_beta_gal_6nM.mp",
+  "movie_shape": [3000, 59, 150],
+  "frame_gap": 25,
+  "sampled_frames": 120,
+  "seed": 42,
+  "cpu_logical_cores": 20,
+  "python_baseline": {
+    "serial": {
+      "parallel": false,
+      "n_jobs": null,
+      "use_rust": false,
+      "elapsed_seconds": 72.63973279995844,
+      "vector_len": 3000
+    },
+    "parallel": {
+      "parallel": true,
+      "n_jobs": null,
+      "use_rust": false,
+      "elapsed_seconds": 24.334294100059196,
+      "vector_len": 3000
+    }
+  },
+  "rust_port": {
+    "serial": {
+      "parallel": false,
+      "n_jobs": null,
+      "use_rust": true,
+      "elapsed_seconds": 11.005690799909644,
+      "vector_len": 3000
+    },
+    "parallel": {
+      "parallel": true,
+      "n_jobs": null,
+      "use_rust": true,
+      "elapsed_seconds": 2.696904700016603,
+      "vector_len": 3000
+    }
+  }
+}
