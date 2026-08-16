@@ -297,35 +297,25 @@ def get_vector(
 ) -> DriftVector:
     """Estimate a drift vector for an entire movie.
 
-    Parameters
-    ----------
-    movie:
-        A 3-D array of shape ``(frames, y, x)``.
-    frame_gap:
-        Sample every *frame_gap*-th frame when building the initial vector.
-    rolling_baseline:
-        If *True*, use the previous sampled frame as the baseline (use this
-        when z-drift is suspected).
-    threshold:
-        Per-frame intensity sum below which a frame is considered "lid open"
-        and skipped from the initial sample.  Set to ``0`` to disable.
-    threshold_margin:
-        Number of extra frames around each lid-open region to re-check at
-        full sampling density.
-    parallel:
-        Run the per-frame minimisation across processes.
-    n_jobs:
-        Worker count for parallel mode.  ``None`` lets ``multiprocessing``
-        pick a default (typically ``os.cpu_count()``).
-    seed:
-        Forwarded to the underlying :func:`scipy.optimize.differential_evolution`
-        call for each frame. Left as ``None`` (the default), the search is
-        genuinely stochastic — appropriate for real usage. Pass an explicit
-        seed for reproducible results, e.g. in tests.
-    use_rust:
-        Forwarded to :func:`_solve` for each frame — prefer the compiled
-        Rust extension when available, falling back to Python transparently
-        otherwise. Defaults to ``True``.
+    Args:
+        movie: A 3-D array of shape ``(frames, y, x)``.
+        frame_gap: Sample every *frame_gap*-th frame when building the initial vector.
+        rolling_baseline: If *True*, use the previous sampled frame as the baseline
+            (use this when z-drift is suspected).
+        threshold: Per-frame intensity sum below which a frame is considered "lid
+            open" and skipped from the initial sample. Set to ``0`` to disable.
+        threshold_margin: Number of extra frames around each lid-open region to
+            re-check at full sampling density.
+        parallel: Run the per-frame minimisation across processes.
+        n_jobs: Worker count for parallel mode. ``None`` lets ``multiprocessing``
+            pick a default (typically ``os.cpu_count()``).
+        seed: Forwarded to the underlying :func:`scipy.optimize.differential_evolution`
+            call for each frame. Left as ``None`` (the default), the search is
+            genuinely stochastic — appropriate for real usage. Pass an explicit
+            seed for reproducible results, e.g. in tests.
+        use_rust: Forwarded to :func:`_solve` for each frame — prefer the compiled
+            Rust extension when available, falling back to Python transparently
+            otherwise. Defaults to ``True``.
     """
     all_frames_to_check: IntArray = np.arange(0, len(movie), frame_gap, dtype=int)
 

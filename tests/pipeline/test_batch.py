@@ -1,10 +1,7 @@
 """Tests for tandemmp.pipeline.batch — target API.
 
-``Experiment`` construction/analysis/saving is expensive and requires a real
-movie, so ``process_movie``/``batch_process`` are tested against a lightweight
-fake ``Experiment`` monkeypatched into the module, matching the precedent set
-by ``tests/pipeline/test_pca.py``'s ``TestInit`` (fakes for ``Loader``/
-``Investigator``).
+``process_movie``/``batch_process`` are tested against a lightweight fake
+``Experiment`` monkeypatched into the module, since real construction is expensive.
 """
 
 from __future__ import annotations

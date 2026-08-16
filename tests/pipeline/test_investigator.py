@@ -1,14 +1,8 @@
 """Tests for tandemmp.pipeline.investigator.
 
-The module wraps a large pipeline; tests are tiered by cost/value:
-
-1. Pure unit tests for the small containers, helpers, and the ``_distance_array``
-   bug fix (CLAUDE.md's specific note about ``Particle.distance_to`` returning
-   ``float | None``).
-2. Lightweight ``BaseInvestigator`` methods with small synthetic movies +
-   spline PSF fixture reused from ``tests/pipeline/test_parallel.py``.
-3. Higher-level ``GhostInvestigator`` / ``Investigator`` scenarios wired end
-   to end with real ``scipy.optimize`` calls.
+Tiered by cost/value: pure unit tests for small containers/helpers, lightweight
+``BaseInvestigator`` methods on synthetic movies, and higher-level
+``GhostInvestigator``/``Investigator`` scenarios wired end to end.
 """
 
 from __future__ import annotations

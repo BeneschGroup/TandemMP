@@ -1,15 +1,8 @@
 """Tests for tandemmp.pipeline.loader.
 
-Pure helper functions (``bin_movie``, ``get_peak``, ``mark_overlaps``,
-``correct_movements``, lid/mass filtering, ``determine_experimental_psf_model``)
-are exercised directly with synthetic data — no ``open_iscat`` required.
-``load_mp_file`` still needs ``open_iscat``, so cases that would otherwise
-call it use ``special_bypass`` + ``just_movie=True`` instead, matching the
-precedent set by ``tests/pipeline/test_open_iscat.py``. Event finding itself
-(``Loader._run_pipeline``) is backend-pluggable (see
-``tandemmp.pipeline.pipeline_interface.PipelineRunner``), so ``Loader``'s
-full first-pass event-detection path is also exercised end-to-end via a
-fake ``PipelineRunner``, without needing ``open_iscat`` for that either.
+Pure helper functions are exercised directly with synthetic data; ``load_mp_file``
+and pipeline-backed event finding are tested via bypasses/fakes to avoid a real
+``open_iscat`` dependency.
 """
 
 from __future__ import annotations

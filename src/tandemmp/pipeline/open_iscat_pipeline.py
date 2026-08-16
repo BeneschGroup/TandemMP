@@ -194,27 +194,20 @@ class OpenIscatPipeline:
     ) -> PipelineResults:
         """Run the open_iscat preprocessing and peak-finding pipeline.
 
-        Parameters
-        ----------
-        filepath:
-            Path to the movie file.
-        frame_bypass:
-            If provided, splice these (e.g. drift-corrected) frames into the
-            pipeline instead of reading from disk.
-        parallel:
-            Use parallel processing where available.
-        navg:
-            Number of averaged frames for ratiometric event detection.
-        **kwargs:
-            Ignored — absorbs keywords meant for a different
-            :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`
-            implementation when called generically through the interface.
-
-        Returns
-        -------
-        :class:`~tandemmp.pipeline.pipeline_interface.PipelineResults`
-
         Requires ``open_iscat``.
+
+        Args:
+            filepath: Path to the movie file.
+            frame_bypass: If provided, splice these (e.g. drift-corrected)
+                frames into the pipeline instead of reading from disk.
+            parallel: Use parallel processing where available.
+            navg: Number of averaged frames for ratiometric event detection.
+            **kwargs: Ignored — absorbs keywords meant for a different
+                :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`
+                implementation when called generically through the interface.
+
+        Returns:
+            :class:`~tandemmp.pipeline.pipeline_interface.PipelineResults`
         """
         from open_iscat.analyse_find.maskfilter import MaskFilterPeakFinder
         from open_iscat.analyser import Analyser

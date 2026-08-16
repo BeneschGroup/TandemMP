@@ -1,17 +1,7 @@
 """Tests for tandemmp.pipeline.pca — target API.
 
-``Experiment`` orchestrates ``Loader``, ``Investigator`` and
-``ParticleManager``. Tests are split by cost/value:
-
-1. ``TestInit`` — wiring, using lightweight fakes for ``Loader``/
-   ``Investigator`` (monkeypatched into the module) so no real movie or
-   ``open_iscat`` dependency is needed, matching the precedent set by
-   ``tests/pipeline/test_loader.py``/``tests/pipeline/test_investigator.py``.
-2. Property/method tests built on ``_bare_experiment`` — an
-   ``object.__new__``-constructed ``Experiment`` with just the attributes
-   each test needs, exercised against real ``RatiometricEvent``/``Particle``
-   objects (built with the same helpers as ``test_investigator.py``) and a
-   stub ``Investigator`` that returns pre-programmed ``Decision``s.
+Covers ``Experiment`` wiring (with lightweight ``Loader``/``Investigator`` fakes)
+and property/method behavior on a bare, minimally-constructed ``Experiment``.
 """
 
 from __future__ import annotations

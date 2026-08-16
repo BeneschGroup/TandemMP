@@ -50,11 +50,9 @@ def reconstruct_particle_movie(
     For each frame, renders the PSF for every particle that has fit data
     present, then sums the contributions into a single image per frame.
 
-    Parameters
-    ----------
-    experiment:
-        Experiment object exposing ``.movie`` (shape: frames × H × W) and
-        ``.particles`` (iterable, each indexable by frame).
+    Args:
+        experiment: Experiment object exposing ``.movie`` (shape: frames ×
+            H × W) and ``.particles`` (iterable, each indexable by frame).
     """
     model = get_psf_model()
     psf_fn = model.get_psf_function()
@@ -83,17 +81,13 @@ def create_raw_mosaic(
 ) -> npt.NDArray[np.floating[Any]]:
     """Build a mosaic movie by stamping event peak images onto frames.
 
-    Parameters
-    ----------
-    experiment:
-        Experiment object exposing ``.movie`` and ``.particles``.
-    new_movie:
-        Pre-allocated output array.  If ``None``, filled with NaN.
-    cumulative:
-        If ``True``, existing pixel values are zeroed before each new event
-        and subsequent contributions are summed rather than replaced.
-    silent:
-        If ``True``, suppress the ``tqdm`` progress bar.
+    Args:
+        experiment: Experiment object exposing ``.movie`` and ``.particles``.
+        new_movie: Pre-allocated output array. If ``None``, filled with NaN.
+        cumulative: If ``True``, existing pixel values are zeroed before
+            each new event and subsequent contributions are summed rather
+            than replaced.
+        silent: If ``True``, suppress the ``tqdm`` progress bar.
     """
     if new_movie is None:
         new_movie = np.full_like(experiment.movie, fill_value=np.nan)
@@ -125,18 +119,16 @@ def create_mosaic_movie(
 ) -> npt.NDArray[np.floating[Any]]:
     """Build a mosaic movie from particle trajectory history.
 
-    Parameters
-    ----------
-    experiment:
-        Experiment object with ``.movie``, ``.events``, and ``.particles``.
-    corrections:
-        If ``True``, use the corrected event map from each particle's history.
-        If ``False``, use ``_first_attempt`` sub-events.
-    new_movie:
-        Pre-allocated output array.  Defaults to a NaN-filled copy of
-        ``experiment.movie``.
-    add:
-        If ``True``, add images to existing values instead of overwriting.
+    Args:
+        experiment: Experiment object with ``.movie``, ``.events``, and
+            ``.particles``.
+        corrections: If ``True``, use the corrected event map from each
+            particle's history. If ``False``, use ``_first_attempt``
+            sub-events.
+        new_movie: Pre-allocated output array. Defaults to a NaN-filled
+            copy of ``experiment.movie``.
+        add: If ``True``, add images to existing values instead of
+            overwriting.
     """
     if new_movie is None:
         new_movie = np.full_like(experiment.movie, fill_value=np.nan)
@@ -186,22 +178,15 @@ def quick_output_movie(
 ) -> None:
     """Render a single-panel animation and save to *filename*.mp4.
 
-    Parameters
-    ----------
-    movie:
-        3-D array (frames × H × W) to animate.
-    filename:
-        Output path without the ``.mp4`` extension.
-    fps:
-        Frames per second.
-    title:
-        Axes title for the animation.
-    autoscale:
-        If ``True``, auto-scale the colour limits every frame.
-    vmin, vmax:
-        Colour-scale limits (ignored when *autoscale* is ``True``).
-    cmap:
-        Matplotlib colourmap name.
+    Args:
+        movie: 3-D array (frames × H × W) to animate.
+        filename: Output path without the ``.mp4`` extension.
+        fps: Frames per second.
+        title: Axes title for the animation.
+        autoscale: If ``True``, auto-scale the colour limits every frame.
+        vmin: Colour-scale lower limit (ignored when *autoscale* is ``True``).
+        vmax: Colour-scale upper limit (ignored when *autoscale* is ``True``).
+        cmap: Matplotlib colourmap name.
     """
     fig, ax = plt.subplots(dpi=300)
     im = ax.imshow(
@@ -246,22 +231,17 @@ def create_comparison_animation(
 ) -> None:
     """Four-panel animation: ratiometric, start-subtraction, median, and native.
 
-    Parameters
-    ----------
-    movie:
-        Raw 3-D movie (frames × H × W).
-    filename:
-        Output path without the ``.mp4`` extension.
-    frame_range:
-        Sequence of frame indices to animate.
-    ratiometric_navg, median_navg, start_navg:
-        Window sizes for each processing method.
-    fps:
-        Frames per second.
-    vmin, vmax:
-        Shared colour-scale limits for the processed panels.
-    dpi:
-        Figure resolution.
+    Args:
+        movie: Raw 3-D movie (frames × H × W).
+        filename: Output path without the ``.mp4`` extension.
+        frame_range: Sequence of frame indices to animate.
+        ratiometric_navg: Window size for the ratiometric method.
+        median_navg: Window size for the rolling-mean method.
+        start_navg: Window size for the start-subtraction method.
+        fps: Frames per second.
+        vmin: Shared colour-scale lower limit for the processed panels.
+        vmax: Shared colour-scale upper limit for the processed panels.
+        dpi: Figure resolution.
     """
     fig, ((ax_ratio, ax_start_sub), (ax_median, ax_native)) = plt.subplots(
         2, 2, dpi=dpi
@@ -330,27 +310,21 @@ def create_navg_scaling_animation(
 
     The animation is saved as ``navg comparison.mp4`` in the working directory.
 
-    Parameters
-    ----------
-    movie, dc_movie:
-        Raw and drift-corrected 3-D movies of the same shape.
-    movie_fps:
-        Acquisition frame rate (used to convert *navg* to seconds).
-    frame:
-        Central frame to use for the ratiometric computation.  Defaults to
-        ``len(movie) // 2``.
-    seconds:
-        Target duration of the saved animation.
-    num_points:
-        Number of *navg* values to sample (log-spaced).
-    max_window_seconds:
-        Cap on the largest averaging window (in seconds) to avoid running off
-        the end of the movie or producing an animation dominated by extreme
-        navg values.
-    vmin, vmax:
-        Shared colour-scale limits.
-    cmap:
-        Matplotlib colourmap name.
+    Args:
+        movie: Raw 3-D movie of shape (frames × H × W).
+        dc_movie: Drift-corrected 3-D movie of the same shape as *movie*.
+        movie_fps: Acquisition frame rate (used to convert *navg* to seconds).
+        filename: Output path without the ``.mp4`` extension.
+        frame: Central frame to use for the ratiometric computation.
+            Defaults to ``len(movie) // 2``.
+        seconds: Target duration of the saved animation.
+        num_points: Number of *navg* values to sample (log-spaced).
+        max_window_seconds: Cap on the largest averaging window (in
+            seconds) to avoid running off the end of the movie or producing
+            an animation dominated by extreme navg values.
+        vmin: Shared colour-scale lower limit.
+        vmax: Shared colour-scale upper limit.
+        cmap: Matplotlib colourmap name.
     """
     if frame is None:
         frame = len(movie) // 2
@@ -480,22 +454,16 @@ def create_method_comparison(
 
     Returns the :class:`matplotlib.figure.Figure`; does **not** save to disk.
 
-    Parameters
-    ----------
-    movie:
-        Raw 3-D movie (frames × H × W).
-    frame:
-        Frame index to display.
-    ratiometric_navg, median_navg, start_navg:
-        Window sizes for each method.
-    start_frame:
-        Reference frame index for start subtraction.
-    dpi:
-        Figure resolution.
-    cmap:
-        Matplotlib colourmap name.
-    limits:
-        ``(vmin, vmax)`` colour-scale limits for the processed panels.
+    Args:
+        movie: Raw 3-D movie (frames × H × W).
+        frame: Frame index to display.
+        ratiometric_navg: Window size for the ratiometric method.
+        median_navg: Window size for the rolling-mean method.
+        start_navg: Window size for the start-subtraction method.
+        start_frame: Reference frame index for start subtraction.
+        dpi: Figure resolution.
+        cmap: Matplotlib colourmap name.
+        limits: ``(vmin, vmax)`` colour-scale limits for the processed panels.
     """
     fig, (native_ax, ratio_ax, median_ax, start_ax) = plt.subplots(4, 1, dpi=dpi)
 
@@ -526,18 +494,15 @@ def create_drift_correction_animation(
 
     Shows ratiometric and start-subtraction views for both inputs side-by-side.
 
-    Parameters
-    ----------
-    uncorrected, corrected:
-        3-D movies of the same shape (frames × H × W).
-    filename:
-        Output path without the ``.mp4`` extension.
-    ratiometric_navg, start_navg:
-        Window sizes for the respective methods.
-    fps:
-        Frames per second.
-    vmin, vmax:
-        Shared colour-scale limits for all four panels.
+    Args:
+        uncorrected: Raw 3-D movie (frames × H × W).
+        corrected: Drift-corrected 3-D movie of the same shape.
+        filename: Output path without the ``.mp4`` extension.
+        ratiometric_navg: Window size for the ratiometric method.
+        start_navg: Window size for the start-subtraction method.
+        fps: Frames per second.
+        vmin: Shared colour-scale lower limit for all four panels.
+        vmax: Shared colour-scale upper limit for all four panels.
     """
     fig, ((ax_un_ratio, ax_c_ratio), (ax_un_start, ax_c_start)) = plt.subplots(
         2, 2, dpi=300
@@ -597,16 +562,12 @@ def mosaic_comparison(
 ) -> None:
     """Three-panel animation: original, uncorrected mosaic, corrected mosaic.
 
-    Parameters
-    ----------
-    experiment:
-        Experiment object with ``.movie`` and ``.particles``.
-    filename:
-        Output path without the ``.mp4`` extension.
-    fps:
-        Frames per second.
-    vmin, vmax:
-        Shared colour-scale limits.
+    Args:
+        experiment: Experiment object with ``.movie`` and ``.particles``.
+        filename: Output path without the ``.mp4`` extension.
+        fps: Frames per second.
+        vmin: Shared colour-scale lower limit.
+        vmax: Shared colour-scale upper limit.
     """
     initial = -_start_subtraction(experiment.movie)
     without_corrections = create_mosaic_movie(experiment, corrections=False)
@@ -666,30 +627,21 @@ def background_cleanup_video(
 
     Overlays particle trajectories that fade out after unbinding.
 
-    Parameters
-    ----------
-    experiment:
-        Experiment object with ``.movie``, ``.particles``, and
-        ``.loader.mp_filepath``.
-    filename:
-        Output path without ``.mp4``.  Defaults to the experiment file name
-        with " movie background cleanup" appended.
-    fps:
-        Frames per second.
-    vmin, vmax:
-        Colour-scale limits.
-    frame_limit:
-        Last frame to render.  Defaults to the full movie length.
-    frame_start:
-        First frame to render.  Defaults to ``0``.
-    dpi:
-        Figure resolution.
-    trajectory_color:
-        Fixed trajectory colour.  ``None`` uses matplotlib defaults.
-    cmap:
-        Matplotlib colourmap name.
-    cumulative:
-        Passed to :func:`create_raw_mosaic`.
+    Args:
+        experiment: Experiment object with ``.movie``, ``.particles``, and
+            ``.loader.mp_filepath``.
+        filename: Output path without ``.mp4``. Defaults to the experiment
+            file name with " movie background cleanup" appended.
+        fps: Frames per second.
+        vmin: Colour-scale lower limit.
+        vmax: Colour-scale upper limit.
+        frame_limit: Last frame to render. Defaults to the full movie length.
+        frame_start: First frame to render. Defaults to ``0``.
+        dpi: Figure resolution.
+        trajectory_color: Fixed trajectory colour. ``None`` uses matplotlib
+            defaults.
+        cmap: Matplotlib colourmap name.
+        cumulative: Passed to :func:`create_raw_mosaic`.
     """
     if filename is None:
         filename = experiment.loader.mp_filepath.stem + " movie background cleanup"
@@ -805,19 +757,15 @@ def mosaic_comparison_neat_opencv(
 
     Uses ``cv2.VideoWriter`` rather than matplotlib's ffmpeg writer.
 
-    Parameters
-    ----------
-    experiment:
-        Experiment object with ``.loader.ratiometric``, ``.movie``,
-        and ``.particles``.
-    filename:
-        Output path without the ``.mp4`` extension.
-    fps:
-        Frames per second.
-    vmin, vmax:
-        Shared colour-scale limits.
-    frame_limit, frame_start:
-        Frame range to render.
+    Args:
+        experiment: Experiment object with ``.loader.ratiometric``,
+            ``.movie``, and ``.particles``.
+        filename: Output path without the ``.mp4`` extension.
+        fps: Frames per second.
+        vmin: Shared colour-scale lower limit.
+        vmax: Shared colour-scale upper limit.
+        frame_limit: Last frame to render.
+        frame_start: First frame to render.
     """
     import cv2  # lazy import — optional dependency
 
@@ -928,19 +876,15 @@ def mosaic_comparison_neat(
 
     Overlays particle trajectories that fade out after unbinding.
 
-    Parameters
-    ----------
-    experiment:
-        Experiment object with ``.loader.ratiometric``, ``.movie``,
-        and ``.particles``.
-    filename:
-        Output path without the ``.mp4`` extension.
-    fps:
-        Frames per second.
-    vmin, vmax:
-        Shared colour-scale limits.
-    frame_limit, frame_start:
-        Frame range to render.
+    Args:
+        experiment: Experiment object with ``.loader.ratiometric``,
+            ``.movie``, and ``.particles``.
+        filename: Output path without the ``.mp4`` extension.
+        fps: Frames per second.
+        vmin: Shared colour-scale lower limit.
+        vmax: Shared colour-scale upper limit.
+        frame_limit: Last frame to render.
+        frame_start: First frame to render.
     """
     ratiometric = experiment.loader.ratiometric
     start = -_start_subtraction(experiment.movie, start_frame=5)

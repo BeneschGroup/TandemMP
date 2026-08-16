@@ -231,30 +231,22 @@ class PsfModel:
     ) -> PeakFitResult:
         """Fit a PSF model to a 2-D peak thumbnail.
 
-        Parameters
-        ----------
-        peak:
-            Square 2-D image (odd edge length expected).
-        c_guess:
-            Initial contrast guess.  Computed from central pixels if *None*.
-        dx_guess, dy_guess:
-            Initial position offsets.  Estimated automatically if *None*.
-        method:
-            Optimisation method for :func:`scipy.optimize.minimize`.
-        gtol:
-            Gradient tolerance (BFGS).
-        rust:
-            Prefer the Rust backend if available.
-        allow_offset:
-            Allow a constant-offset parameter in the fit.
-        **kwargs:
-            Ignored.  Accepted only so this method's signature satisfies
-            :class:`~tandemmp.fitting.psf_interface.PsfInterface`'s
-            ``fit_peak(self, peak, **kwargs: Any)`` structurally (mypy
-            requires a concrete method to accept arbitrary keyword
-            arguments to be considered a subtype of a ``**kwargs``-typed
-            Protocol method, even though every keyword this class actually
-            uses is already named explicitly above).
+        Args:
+            peak: Square 2-D image (odd edge length expected).
+            c_guess: Initial contrast guess. Computed from central pixels if *None*.
+            dx_guess: Initial x position offset. Estimated automatically if *None*.
+            dy_guess: Initial y position offset. Estimated automatically if *None*.
+            method: Optimisation method for :func:`scipy.optimize.minimize`.
+            gtol: Gradient tolerance (BFGS).
+            rust: Prefer the Rust backend if available.
+            allow_offset: Allow a constant-offset parameter in the fit.
+            **kwargs: Ignored. Accepted only so this method's signature satisfies
+                :class:`~tandemmp.fitting.psf_interface.PsfInterface`'s
+                ``fit_peak(self, peak, **kwargs: Any)`` structurally (mypy
+                requires a concrete method to accept arbitrary keyword
+                arguments to be considered a subtype of a ``**kwargs``-typed
+                Protocol method, even though every keyword this class actually
+                uses is already named explicitly above).
         """
         if peak.ndim != 2 or peak.shape[0] != peak.shape[1]:
             msg = "Peak image must be a square 2D array"

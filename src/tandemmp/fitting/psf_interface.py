@@ -250,29 +250,21 @@ def fit_peak_generic(  # noqa: PLR0913
     (e.g. :class:`~tandemmp.fitting.psf.PsfModel`'s spline backend) should
     override ``.backend`` on the returned :class:`PeakFitResult` themselves.
 
-    Parameters
-    ----------
-    psf_model:
-        Any object satisfying :class:`PsfInterface`.
-    peak:
-        Square 2-D image (odd edge length expected).
-    c_guess:
-        Initial contrast guess. Computed from central pixels if *None*.
-    dx_guess, dy_guess:
-        Initial position offsets. Estimated automatically if *None*.
-    method:
-        Optimisation method for :func:`scipy.optimize.minimize`.
-    gtol:
-        Gradient tolerance (BFGS).
-    allow_offset:
-        Allow a constant-offset parameter in the fit. Forced to *True*
-        regardless of this argument when the contrast guess is large.
-    **kwargs:
-        Ignored. Accepted so every :class:`PsfInterface` implementation
-        that forwards its own ``fit_peak(**kwargs)`` here (e.g.
-        :class:`~tandemmp.fitting.gaussian_psf.GaussianPsfModel`) tolerates
-        backend-specific keywords like :class:`~tandemmp.fitting.psf.PsfModel`
-        ``.fit_peak``'s ``rust=`` the same way that method does.
+    Args:
+        psf_model: Any object satisfying :class:`PsfInterface`.
+        peak: Square 2-D image (odd edge length expected).
+        c_guess: Initial contrast guess. Computed from central pixels if *None*.
+        dx_guess: Initial x position offset. Estimated automatically if *None*.
+        dy_guess: Initial y position offset. Estimated automatically if *None*.
+        method: Optimisation method for :func:`scipy.optimize.minimize`.
+        gtol: Gradient tolerance (BFGS).
+        allow_offset: Allow a constant-offset parameter in the fit. Forced to
+            *True* regardless of this argument when the contrast guess is large.
+        **kwargs: Ignored. Accepted so every :class:`PsfInterface` implementation
+            that forwards its own ``fit_peak(**kwargs)`` here (e.g.
+            :class:`~tandemmp.fitting.gaussian_psf.GaussianPsfModel`) tolerates
+            backend-specific keywords like :class:`~tandemmp.fitting.psf.PsfModel`
+            ``.fit_peak``'s ``rust=`` the same way that method does.
     """
     if peak.ndim != 2 or peak.shape[0] != peak.shape[1]:
         msg = "Peak image must be a square 2D array"

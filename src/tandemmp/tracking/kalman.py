@@ -15,20 +15,13 @@ import numpy.typing as npt
 class KalmanFilter:
     """General linear Kalman filter.
 
-    Parameters
-    ----------
-    X:
-        Initial state vector (n,).
-    P:
-        Initial covariance matrix (n, n).
-    F:
-        State-transition model (n, n).  Defaults to identity.
-    H:
-        Observation model (n, n).  Defaults to identity.
-    B:
-        Control-input model (n, n).  Defaults to identity.
-    Q:
-        Process noise covariance (n, n).  Defaults to identity.
+    Args:
+        X: Initial state vector (n,).
+        P: Initial covariance matrix (n, n).
+        F: State-transition model (n, n). Defaults to identity.
+        H: Observation model (n, n). Defaults to identity.
+        B: Control-input model (n, n). Defaults to identity.
+        Q: Process noise covariance (n, n). Defaults to identity.
     """
 
     def __init__(
@@ -81,10 +74,9 @@ class KalmanFilter:
     ) -> None:
         """Predict the next state.
 
-        Parameters
-        ----------
-        new_u:
-            Control input vector.  If *None*, the stored ``self.u`` is used.
+        Args:
+            new_u: Control input vector. If *None*, the stored ``self.u``
+                is used.
         """
         u = self.u if new_u is None else np.asarray(new_u, dtype=float)
         self.X = self.F @ self.X + self.B @ u
@@ -97,12 +89,9 @@ class KalmanFilter:
     ) -> None:
         """Incorporate a new measurement.
 
-        Parameters
-        ----------
-        Z:
-            Measurement vector (n,).
-        R:
-            Measurement noise covariance (n, n).
+        Args:
+            Z: Measurement vector (n,).
+            R: Measurement noise covariance (n, n).
         """
         z = np.asarray(Z, dtype=float)
         r = np.asarray(R, dtype=float)

@@ -1,8 +1,6 @@
 """Tests for tandemmp.core.parallel — shared picklable-kwargs dispatch.
 
-Pool cleanup between tests is handled by the autouse
-``_shutdown_persistent_pool`` fixture in ``tests/conftest.py`` (applies
-suite-wide, not just to this module).
+Pool cleanup is handled by the autouse fixture in ``tests/conftest.py``.
 """
 
 from __future__ import annotations
