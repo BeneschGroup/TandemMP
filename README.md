@@ -27,6 +27,10 @@ pip install -e /path_to_repo/.
   vector without running a full analysis (`run_drift_correction`), saved as
   JSON or as a pickled `DriftCorrectionFunction` (`save_drift_vector` /
   `save_correction_function`) that can correct coordinates or a whole movie.
+- **`src/tandemmp/pipeline/pair_matching.py`** — loads a movie, drift-corrects
+  it, and matches binding/unbinding event pairs (`run_pair_matching`) without
+  running the full PSF-fit-based tracking pipeline. Returns a
+  `PairMatchingResult`; plotting is left for the caller to wire up.
 
 ## Tests
 
