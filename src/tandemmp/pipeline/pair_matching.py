@@ -5,17 +5,24 @@ drift-corrects and finds/fits first-pass events in the usual way — see
 :class:`~tandemmp.core.parameters.FullAnalysisParams`'s ``drift_correction``
 field, on by default), converts the resulting first-pass
 :class:`~tandemmp.events.RatiometricEvent`\\ s into
-:class:`~tandemmp.pipeline.simple_analysis.SimpleEvent`\\ s exactly as
-:meth:`tandemmp.pipeline.pca.Experiment.simple_analysis` does, and matches
+:class:`~tandemmp.pipeline.simple_analysis.SimpleEvent`\\ s via
+:func:`~tandemmp.pipeline.simple_analysis.build_simple_events`, and matches
 binding/unbinding pairs via
 :func:`~tandemmp.pipeline.simple_analysis.match_pairs_sigma`.
 
-This is standalone from :mod:`tandemmp.pipeline.batch` in the same sense as
-:mod:`tandemmp.pipeline.drift_correction` — it does not run the heavier
-PSF-fit-based :class:`~tandemmp.pipeline.investigator.Investigator` /
-:class:`~tandemmp.tracking.manager.ParticleManager` tracking loop, since
-pair matching via :func:`match_pairs_sigma` only ever needs each event's
-basic-fit position/contrast/mass, not a full particle-tracking pass.
+:meth:`tandemmp.pipeline.pca.Experiment.simple_analysis` does the same
+conversion + matching (sharing :func:`build_simple_events` with this
+module), but only after :class:`~tandemmp.pipeline.pca.Experiment.__init__`
+has also constructed an unused
+:class:`~tandemmp.pipeline.investigator.Investigator` /
+:class:`~tandemmp.tracking.manager.ParticleManager` pair, and with no way to
+slice the movie (no ``frame_start``/``frame_end``). This module drives
+:class:`~tandemmp.pipeline.loader.Loader` directly instead — standalone from
+:mod:`tandemmp.pipeline.batch` in the same sense as
+:mod:`tandemmp.pipeline.drift_correction` — so it stays a plain
+load-then-match call with movie-slicing support, and never runs the heavier
+PSF-fit-based tracking loop that :meth:`Experiment.simple_analysis` pulls in
+as an (unused) side effect of construction.
 
 Plotting is deliberately left unimplemented here: :func:`run_pair_matching`
 returns a :class:`PairMatchingResult` (matched pairs plus the underlying
@@ -41,7 +48,11 @@ from tandemmp.core.types import FloatArray
 from tandemmp.events import RatiometricEvent
 from tandemmp.pipeline.loader import Loader
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
-from tandemmp.pipeline.simple_analysis import Pair, SimpleEvent, match_pairs_sigma
+from tandemmp.pipeline.simple_analysis import (
+    Pair,
+    build_simple_events,
+    match_pairs_sigma,
+)
 
 # ---------------------------------------------------------------------------
 # Result container
@@ -118,16 +129,7 @@ def run_pair_matching(
         pipeline_runner=pipeline_runner,
     )
 
-    simple_events = [
-        SimpleEvent(
-            c=e.particle_c,
-            m=e.particle_m,
-            x=e.particle_x,
-            y=e.particle_y,
-            i=float(e.i),
-        )
-        for e in loader.events
-    ]
+    simple_events = build_simple_events(loader.events)
 
     pairs = match_pairs_sigma(
         simple_events,

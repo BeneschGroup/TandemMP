@@ -31,7 +31,11 @@ from tandemmp.io.save import (
 from tandemmp.pipeline.investigator import Action, Decision, Investigator
 from tandemmp.pipeline.loader import Loader
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
-from tandemmp.pipeline.simple_analysis import Pair, SimpleEvent, match_pairs_sigma
+from tandemmp.pipeline.simple_analysis import (
+    Pair,
+    build_simple_events,
+    match_pairs_sigma,
+)
 from tandemmp.tracking.manager import ParticleManager
 from tandemmp.tracking.particle import GhostParticle, Particle
 
@@ -130,16 +134,7 @@ class Experiment:
         Returns the matched pairs; see :mod:`tandemmp.plotting.experiment`
         for visualising the result.
         """
-        simple_events = [
-            SimpleEvent(
-                c=e.particle_c,
-                m=e.particle_m,
-                x=e.particle_x,
-                y=e.particle_y,
-                i=float(e.i),
-            )
-            for e in self.events
-        ]
+        simple_events = build_simple_events(self.events)
         return match_pairs_sigma(
             simple_events,
             sigma_multiplier=sigma_multiplier,
