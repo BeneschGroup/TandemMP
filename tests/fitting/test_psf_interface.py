@@ -1,10 +1,7 @@
 """Contract tests for :mod:`tandemmp.fitting.psf_interface`.
 
-Runs the same battery of checks against every concrete
-:class:`~tandemmp.fitting.psf_interface.PsfInterface` implementation
-(:class:`~tandemmp.fitting.psf.PsfModel` backed by a spline, and
-:class:`~tandemmp.fitting.gaussian_psf.GaussianPsfModel`) to pin the shared
-structural contract, independent of PSF shape.
+Runs the same checks against every concrete ``PsfInterface`` implementation to
+pin the shared structural contract, independent of PSF shape.
 """
 
 from __future__ import annotations

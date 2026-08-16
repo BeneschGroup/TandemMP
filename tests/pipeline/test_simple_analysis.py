@@ -1,10 +1,8 @@
 """Tests for tandemmp.pipeline.simple_analysis — target API.
 
-Covers the CSV loading + drift correction, the two pair-matching
-algorithms, and the RDF/ring-area helpers. ``load_events`` is exercised
-with ``Loader``/``get_vector`` monkeypatched (no real ``.mp``/``open_iscat``
-dependency needed), matching the precedent set by
-``tests/pipeline/test_loader.py``.
+Covers CSV loading + drift correction, pair-matching algorithms, and RDF/ring-area
+helpers; ``load_events`` uses a monkeypatched ``Loader``/``get_vector`` to avoid a
+real ``open_iscat`` dependency.
 """
 
 from __future__ import annotations

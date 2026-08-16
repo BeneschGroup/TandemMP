@@ -103,16 +103,11 @@ def fit_gmm(
 ) -> GaussianMixture:
     """Fit a :class:`~sklearn.mixture.GaussianMixture` with BIC/AIC model selection.
 
-    Parameters
-    ----------
-    data:
-        1-D array of observations.
-    max_components:
-        Maximum number of Gaussian components to try.
-    criterion:
-        ``'bic'`` or ``'aic'``.
-    xlim:
-        If provided, only data within ``[xlim[0], xlim[1]]`` is used.
+    Args:
+        data: 1-D array of observations.
+        max_components: Maximum number of Gaussian components to try.
+        criterion: ``'bic'`` or ``'aic'``.
+        xlim: If provided, only data within ``[xlim[0], xlim[1]]`` is used.
     """
     if criterion not in ("bic", "aic"):
         raise ValueError(f"criterion must be 'bic' or 'aic', got {criterion!r}")
@@ -145,18 +140,12 @@ def duplicate_inliers(
 ) -> npt.NDArray[np.floating[Any]]:
     """Use DBSCAN to identify inliers, then duplicate them.
 
-    Parameters
-    ----------
-    data:
-        1-D array of observations.
-    eps:
-        DBSCAN neighbourhood radius.
-    min_samples:
-        DBSCAN minimum samples per cluster.
-    duplicates:
-        Number of times to repeat inlier points.
-    cut:
-        If ``True``, return only inlier points (no duplication).
+    Args:
+        data: 1-D array of observations.
+        eps: DBSCAN neighbourhood radius.
+        min_samples: DBSCAN minimum samples per cluster.
+        duplicates: Number of times to repeat inlier points.
+        cut: If ``True``, return only inlier points (no duplication).
     """
     data = np.asarray(data, dtype=float)
     labels = DBSCAN(eps=eps, min_samples=min_samples).fit_predict(data.reshape(-1, 1))
@@ -229,18 +218,16 @@ def fit_means(
 ) -> tuple[float | None, float | None]:
     """Fit a weighted line to the means of *gmm* components.
 
-    Returns ``(r_squared, slope)`` or ``(None, None)`` if fewer than two
-    components survive the sigma filter.
+    Args:
+        gmm: A fitted :class:`~sklearn.mixture.GaussianMixture`.
+        sigma_limits: ``(min, max)`` standard-deviation range; components
+            outside are excluded.
+        adjust_unit: If ``True``, infer step sizes from median spacing
+            between sorted means rather than assuming unit spacing.
 
-    Parameters
-    ----------
-    gmm:
-        A fitted :class:`~sklearn.mixture.GaussianMixture`.
-    sigma_limits:
-        ``(min, max)`` standard-deviation range; components outside are excluded.
-    adjust_unit:
-        If ``True``, infer step sizes from median spacing between sorted means
-        rather than assuming unit spacing.
+    Returns:
+        ``(r_squared, slope)``, or ``(None, None)`` if fewer than two
+        components survive the sigma filter.
     """
     prepared = _prepare_means_for_line_fit(gmm, sigma_limits, adjust_unit)
     if prepared is None:

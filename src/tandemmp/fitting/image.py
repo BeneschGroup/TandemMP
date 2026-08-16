@@ -201,20 +201,13 @@ def correct_subtraction_fit(  # noqa: PLR0913
     The ``focus`` particle's foreground contribution is skipped (it is the
     particle being measured).
 
-    Parameters
-    ----------
-    event:
-        Subtraction event (needs ``.peak``, ``.i``, ``.subtracted_i``, ``.navg``).
-    particles:
-        List of particle objects.  If *None*, returns the original peak.
-    focus:
-        The particle being measured — its foreground is not subtracted.
-    gdb:
-        Ghost Double Bypass — if *True*, skip the focus particle's background.
-    save:
-        Store correction metadata on the returned :class:`PeakImage`.
-    psf_model:
-        PSF model for generating synthetic impressions.
+    Args:
+        event: Subtraction event (needs ``.peak``, ``.i``, ``.subtracted_i``, ``.navg``)
+        particles: List of particle objects. If *None*, returns the original peak.
+        focus: The particle being measured — its foreground is not subtracted.
+        gdb: Ghost Double Bypass — if *True*, skip the focus particle's background.
+        save: Store correction metadata on the returned :class:`PeakImage`.
+        psf_model: PSF model for generating synthetic impressions.
     """
     if particles is None:
         return event.peak  # type: ignore[no-any-return]
@@ -325,17 +318,12 @@ def correct_subtraction_image(
     ``background``, ``corrections``) is always attached to the returned
     :class:`PeakImage`.
 
-    Parameters
-    ----------
-    event:
-        Subtraction event.
-    particles:
-        List of particle objects.
-    focus:
-        The particle being measured.
-    gdb:
-        Ghost Double Bypass.  Not yet implemented for the image-based
-        correction path — raises :class:`NotImplementedError` if *True*.
+    Args:
+        event: Subtraction event.
+        particles: List of particle objects.
+        focus: The particle being measured.
+        gdb: Ghost Double Bypass. Not yet implemented for the image-based
+            correction path — raises :class:`NotImplementedError` if *True*.
     """
     if gdb:
         msg = (

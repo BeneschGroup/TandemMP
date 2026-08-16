@@ -547,39 +547,33 @@ def determine_experimental_psf_model(
 class Loader:
     """Load a movie, optionally drift-correct it, and find/fit first-pass events.
 
-    Parameters
-    ----------
-    mp_filepath:
-        Path to the ``.mp``/``.tdms`` movie file. Still required (and used
-        for naming outputs) even when *special_bypass* supplies the frames
-        directly.
-    special_bypass:
-        Use these frames directly instead of reading *mp_filepath* — for
-        injecting simulated movies. Must be a ``uint16`` array, matching the
-        dtype of real camera-captured movies. Event finding is still driven
-        through ``mp_filepath``.
-    parameters:
-        Analysis configuration. Defaults to
-        :func:`~tandemmp.core.parameters.get_parameters`.
-    just_movie:
-        If ``True``, load (and optionally drift-correct) the movie and
-        return without running event detection.
-    skip_exp_model:
-        If ``True``, skip fitting/adopting an experimental PSF model even
-        when *special_bypass* is not set.
-    frame_start, frame_end:
-        Slice applied to the raw movie before any processing.
-    seed:
-        Forwarded to the drift-correction search for reproducibility (see
-        :func:`tandemmp.drift.corrector.get_vector`). Left ``None`` for
-        real usage.
-    pipeline_runner:
-        The event-finding backend, conforming to
-        :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`.
-        Defaults to
-        :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`.
-        A different backend can be dropped in here without any other
-        changes to :class:`Loader`.
+    Args:
+        mp_filepath: Path to the ``.mp``/``.tdms`` movie file. Still required
+            (and used for naming outputs) even when *special_bypass* supplies
+            the frames directly.
+        special_bypass: Use these frames directly instead of reading
+            *mp_filepath* — for injecting simulated movies. Must be a
+            ``uint16`` array, matching the dtype of real camera-captured
+            movies. Event finding is still driven through ``mp_filepath``.
+        parameters: Analysis configuration. Defaults to
+            :func:`~tandemmp.core.parameters.get_parameters`.
+        just_movie: If ``True``, load (and optionally drift-correct) the
+            movie and return without running event detection.
+        skip_exp_model: If ``True``, skip fitting/adopting an experimental
+            PSF model even when *special_bypass* is not set.
+        frame_start: Start of the slice applied to the raw movie before any
+            processing.
+        frame_end: End of the slice applied to the raw movie before any
+            processing.
+        seed: Forwarded to the drift-correction search for reproducibility
+            (see :func:`tandemmp.drift.corrector.get_vector`). Left ``None``
+            for real usage.
+        pipeline_runner: The event-finding backend, conforming to
+            :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`.
+            Defaults to
+            :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`.
+            A different backend can be dropped in here without any other
+            changes to :class:`Loader`.
     """
 
     def __init__(  # noqa: PLR0913

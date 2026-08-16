@@ -22,16 +22,11 @@ def nice_repr(
 ) -> str:
     """Return a human-readable multi-line summary of *obj*'s attributes.
 
-    Parameters
-    ----------
-    obj:
-        Any object whose ``__dict__`` should be formatted.
-    remove_underscores:
-        Replace underscores with spaces in the output.
-    exclude:
-        Attribute names to omit.  Defaults to an empty list.
-    decimals:
-        Number of decimal places for float values.
+    Args:
+        obj: Any object whose ``__dict__`` should be formatted.
+        remove_underscores: Replace underscores with spaces in the output.
+        exclude: Attribute names to omit. Defaults to an empty list.
+        decimals: Number of decimal places for float values.
     """
     if exclude is None:
         exclude = []

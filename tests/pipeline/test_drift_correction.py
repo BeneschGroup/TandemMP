@@ -1,8 +1,7 @@
 """Tests for tandemmp.pipeline.drift_correction — target API.
 
-``run_drift_correction`` is exercised with ``Loader``/``get_vector``
-monkeypatched (no real ``.mp``/``open_iscat`` dependency needed), matching
-the precedent set by ``tests/pipeline/test_simple_analysis.py``.
+``run_drift_correction`` is exercised with ``Loader``/``get_vector`` monkeypatched,
+avoiding a real ``.mp``/``open_iscat`` dependency.
 """
 
 from __future__ import annotations

@@ -41,14 +41,10 @@ def ratiometric(
 
     Edge frames (first and last *navg*) are set to NaN.
 
-    Parameters
-    ----------
-    movie:
-        Raw 3-D movie array (frames × height × width).
-    navg:
-        Number of frames to average in each direction.
-    silent:
-        If ``True``, suppress the ``tqdm`` progress bar.
+    Args:
+        movie: Raw 3-D movie array (frames x height x width).
+        navg: Number of frames to average in each direction.
+        silent: If ``True``, suppress the ``tqdm`` progress bar.
     """
     new_movie = np.full_like(movie, np.nan, dtype=float)
     for index in _maybe_tqdm(
@@ -74,14 +70,10 @@ def rolling_mean(
     Uses a symmetric window of size ``2*navg + 1`` centred on each frame.
     Edge frames (indices ``0..navg-1`` and ``len-navg..end``) are NaN.
 
-    Parameters
-    ----------
-    movie:
-        Raw 3-D movie array (frames × height × width).
-    navg:
-        Half-window size; full window is ``2*navg + 1`` frames.
-    silent:
-        If ``True``, suppress the ``tqdm`` progress bar.
+    Args:
+        movie: Raw 3-D movie array (frames x height x width).
+        navg: Half-window size; full window is ``2*navg + 1`` frames.
+        silent: If ``True``, suppress the ``tqdm`` progress bar.
     """
     new_movie = np.full_like(movie, np.nan, dtype=float)
     for i, frame in _maybe_tqdm(
@@ -107,12 +99,9 @@ def fast_rolling_mean(
 
     Edge frames in the first and last *navg* positions are NaN.
 
-    Parameters
-    ----------
-    movie:
-        Raw 3-D movie array (frames × height × width).
-    navg:
-        Half-window size; full window is ``2*navg + 1`` frames.
+    Args:
+        movie: Raw 3-D movie array (frames x height x width).
+        navg: Half-window size; full window is ``2*navg + 1`` frames.
     """
     window = navg * 2
     denom = window + 1
@@ -142,12 +131,9 @@ def fast_ratiometric(
     second pass.  More cache-efficient than :func:`ratiometric` on large
     movies.
 
-    Parameters
-    ----------
-    movie:
-        Raw 3-D movie array (frames × height × width).
-    navg:
-        Number of frames to sum in each direction.
+    Args:
+        movie: Raw 3-D movie array (frames x height x width).
+        navg: Number of frames to sum in each direction.
     """
     n_sum = np.full(
         (movie.shape[0] + 1 - navg, movie.shape[1], movie.shape[2]),
@@ -176,16 +162,11 @@ def start_subtraction(
     ``movie[start_frame : start_frame + navg + 1]`` and shifted by −1.
     Frames before index *navg* are NaN.
 
-    Parameters
-    ----------
-    movie:
-        Raw 3-D movie array (frames × height × width).
-    navg:
-        Number of frames (from *start_frame*) to average as the reference.
-    start_frame:
-        First frame index of the reference window.
-    silent:
-        If ``True``, suppress the ``tqdm`` progress bar.
+    Args:
+        movie: Raw 3-D movie array (frames x height x width).
+        navg: Number of frames (from *start_frame*) to average as the reference.
+        start_frame: First frame index of the reference window.
+        silent: If ``True``, suppress the ``tqdm`` progress bar.
     """
     new_movie = np.full_like(movie, np.nan, dtype=float)
     ref = movie[start_frame : start_frame + navg + 1].mean(axis=0)
@@ -202,15 +183,13 @@ def start_subtraction_fast(
 ) -> npt.NDArray[np.floating[Any]]:
     """Vectorised start subtraction using a pre-computed reference frame.
 
-    Parameters
-    ----------
-    movie:
-        Raw 3-D movie array (frames × height × width).
-    reference:
-        Reference array (the image to divide by).  If 3-D (a stack of
-        reference frames), the mean along ``axis=0`` is used.  Note this
-        differs from :func:`start_subtraction`, where ``start_frame`` is an
-        integer index into *movie*; here the reference is the actual array.
+    Args:
+        movie: Raw 3-D movie array (frames x height x width).
+        reference: Reference array (the image to divide by). If 3-D (a stack
+            of reference frames), the mean along ``axis=0`` is used. Note
+            this differs from :func:`start_subtraction`, where
+            ``start_frame`` is an integer index into *movie*; here the
+            reference is the actual array.
     """
     if reference.ndim == 3:
         reference = np.mean(reference, axis=0)
@@ -226,12 +205,9 @@ def pre_bin(
     Partial bins at the end are dropped.  The output has
     ``len(np.arange(0, len(movie), n)) - 1`` frames.
 
-    Parameters
-    ----------
-    movie:
-        Raw 3-D movie array (frames × height × width).
-    n:
-        Number of frames per bin.
+    Args:
+        movie: Raw 3-D movie array (frames x height x width).
+        n: Number of frames per bin.
     """
     indexes = np.arange(0, len(movie), n)
     return np.array(
@@ -254,17 +230,13 @@ def final_polish_fix(
     noise) and prepends them so the ratiometric filter has a valid backward
     window from the very start of the original movie.
 
-    Parameters
-    ----------
-    movie:
-        Raw 3-D movie array (frames × height × width).
-    navg:
-        Half-window size used by the subsequent ratiometric call; ``navg * 2``
-        frames are prepended.
-    rng:
-        Optional NumPy random generator.  Pass a seeded generator
-        (``np.random.default_rng(seed)``) for reproducible output; defaults to
-        an unseeded generator.
+    Args:
+        movie: Raw 3-D movie array (frames x height x width).
+        navg: Half-window size used by the subsequent ratiometric call;
+            ``navg * 2`` frames are prepended.
+        rng: Optional NumPy random generator. Pass a seeded generator
+            (``np.random.default_rng(seed)``) for reproducible output;
+            defaults to an unseeded generator.
     """
     first_frame_stack = np.array([movie[0]] * (navg * 2))
     if rng is None:
@@ -280,18 +252,13 @@ def duplicate_and_change_frames(
 ) -> Path:
     """Copy an .mp HDF5 file and overwrite its frame dataset.
 
-    Parameters
-    ----------
-    frames:
-        New frame data to write into the copied file.
-    filepath:
-        Path to the source .mp file.
-    distinguisher:
-        Suffix appended (before the file extension) in the output filename.
+    Args:
+        frames: New frame data to write into the copied file.
+        filepath: Path to the source .mp file.
+        distinguisher: Suffix appended (before the file extension) in the
+            output filename.
 
-    Returns
-    -------
-    Path
+    Returns:
         Path to the newly created file.
     """
     import h5py

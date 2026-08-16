@@ -1,17 +1,7 @@
-"""Tests for the Rust-backed (``use_rust=True``) path of
-``tandemmp.drift.corrector``.
+"""Tests for the Rust-backed (``use_rust=True``) path of ``tandemmp.drift.corrector``.
 
-Mirrors the relevant cases from ``TestSolve``/``TestStabilise`` in
-``tests/drift/test_corrector.py`` (which must keep passing unmodified — see
-that file), plus direct tests of the PyO3 binding layer
-(``tandemmp._rust.drift_correction``) and of the ``use_rust=True`` ->
-Python-fallback degradation path.
-
-The whole module is skipped (not failed) when the compiled extension
-hasn't been built (``maturin develop`` from
-``src/tandemmp/_rust/drift_correction/``) — this keeps CI green for anyone
-running a plain ``pip install ".[dev]"`` with no Rust toolchain/build step,
-per WORKLIST.md's Rust-acceleration convention.
+Mirrors cases from ``tests/drift/test_corrector.py`` and tests the PyO3
+binding layer directly; skipped (not failed) if the extension isn't built.
 """
 
 from __future__ import annotations

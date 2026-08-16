@@ -16,15 +16,13 @@ def _validate_positive(value: float, name: str) -> None:
 class MovementVector:
     """Random displacement generator for simulated particle motion.
 
-    Parameters
-    ----------
-    chance_per_frame:
-        Probability of this movement occurring on a given frame.
-    max_distance:
-        Maximum displacement magnitude (pixels).
-    bias:
-        If ``True``, :meth:`generate` uses a normally distributed angle
-        centred on *centre_angle_bias* instead of a uniform random angle.
+    Attributes:
+        chance_per_frame: Probability of this movement occurring on a
+            given frame.
+        max_distance: Maximum displacement magnitude (pixels).
+        bias: If ``True``, :meth:`generate` uses a normally distributed
+            angle centred on *centre_angle_bias* instead of a uniform
+            random angle.
     """
 
     chance_per_frame: float
@@ -44,17 +42,13 @@ class MovementVector:
     ) -> tuple[float, float]:
         """Return a random ``(dx, dy)`` displacement.
 
-        Parameters
-        ----------
-        centre_angle_bias:
-            Centre angle (radians) for biased movement.  Required when
-            *bias* is ``True``.
-        standard_deviation:
-            Standard deviation of the angle distribution (radians).
-            Required when *bias* is ``True``.
-        rng:
-            NumPy random generator.  Uses a module-level default when
-            ``None``.
+        Args:
+            centre_angle_bias: Centre angle (radians) for biased movement.
+                Required when *bias* is ``True``.
+            standard_deviation: Standard deviation of the angle
+                distribution (radians). Required when *bias* is ``True``.
+            rng: NumPy random generator. Uses a module-level default when
+                ``None``.
         """
         if rng is None:
             rng = np.random.default_rng()

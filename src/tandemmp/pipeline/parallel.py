@@ -124,30 +124,23 @@ def parallel_find_classification(  # noqa: PLR0912, PLR0913
     Applies 3-D fitting across candidate classifications (binding, movement,
     unbinding) and selects the one with the lowest combined error and penalty.
 
-    Parameters
-    ----------
-    peak:
-        Ratiometric peak image.
-    series:
-        A :class:`SubtractionSeries` providing positional information.
-    minimum_mass:
-        Mass threshold below which a signal is treated as zero.
-    peak_model:
-        PSF model for generating synthetic impressions.
-    ghost_unbind_series:
-        If *True*, only consider unbinding classification.
-    particle_c:
-        Known contrast of the tracked particle.  ``None`` for new particles.
-    lock:
-        Lock the before-contrast to ``particle_c`` during fitting.
-    method:
-        Optimisation method for :func:`scipy.optimize.minimize`.
-    allow_native:
-        Also evaluate native (non-minimised) fits.
-    partial_fit:
-        Use bad-frame mask from the series.
-    particle_desc:
-        Identifier for logging/output.
+    Args:
+        peak: Ratiometric peak image.
+        series: A :class:`SubtractionSeries` providing positional information.
+        minimum_mass: Mass threshold below which a signal is treated as zero.
+        peak_model: PSF model for generating synthetic impressions.
+        ghost_unbind_series: If *True*, only consider unbinding classification.
+        particle_c: Known contrast of the tracked particle. ``None`` for new
+            particles.
+        lock: Lock the before-contrast to ``particle_c`` during fitting.
+        method: Optimisation method for :func:`scipy.optimize.minimize`.
+        allow_native: Also evaluate native (non-minimised) fits.
+        partial_fit: Use bad-frame mask from the series.
+        particle_desc: Identifier for logging/output.
+
+    Returns:
+        Dict with keys ``series``, ``classification``, ``fit``, ``fit_type``,
+        ``c``, ``particle``, ``penalty``, and ``fit_image``.
     """
     # Determine candidate classifications
     if particle_c is None:

@@ -42,20 +42,13 @@ def mass_histogram(
 ) -> Axes:
     """Plot a 1-D mass histogram.
 
-    Parameters
-    ----------
-    masses
-        Array of per-event masses in kDa.
-    xlim
-        ``(low, high)`` bounds on mass axis. Defaults to ``(min, max)``.
-    bins
-        Number of bins or explicit bin edges.
-    ax
-        Optional existing axes to draw on.
-    title
-        Plot title.
-    saveas
-        Optional filepath to save the figure to.
+    Args:
+        masses: Array of per-event masses in kDa.
+        xlim: ``(low, high)`` bounds on mass axis. Defaults to ``(min, max)``.
+        bins: Number of bins or explicit bin edges.
+        ax: Optional existing axes to draw on.
+        title: Plot title.
+        saveas: Optional filepath to save the figure to.
     """
     masses_arr = np.asarray(masses, dtype=float)
     if masses_arr.size == 0:
@@ -261,19 +254,15 @@ def events_cube(
 ) -> Axes:
     """Render a 3-D cube plot of event positions (x, y, frame).
 
-    Parameters
-    ----------
-    positions
-        Array of shape ``(n_events, 3)`` with columns ``(x, y, frame)``.
-    widths
-        Array of shape ``(n_events, 3)`` giving each cube's ``(dx, dy, dt)``.
-    is_bad
-        Boolean array of length ``n_events``; ``True`` marks a bad event
-        (drawn red). Defaults to all-good (green).
-    movie_shape
-        Underlying movie shape ``(i_dim, y_dim, x_dim)``.
-    frame_limit
-        Optional upper frame bound to filter events.
+    Args:
+        positions: Array of shape ``(n_events, 3)`` with columns
+            ``(x, y, frame)``.
+        widths: Array of shape ``(n_events, 3)`` giving each cube's
+            ``(dx, dy, dt)``.
+        is_bad: Boolean array of length ``n_events``; ``True`` marks a bad
+            event (drawn red). Defaults to all-good (green).
+        movie_shape: Underlying movie shape ``(i_dim, y_dim, x_dim)``.
+        frame_limit: Optional upper frame bound to filter events.
     """
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 

@@ -1,12 +1,8 @@
 """Contract tests for :mod:`tandemmp.pipeline.pipeline_interface`.
 
-:class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline` requires
-``open_iscat`` to actually run, so only its structural conformance
-(``isinstance``) is checked here. A minimal fake stands in as a second,
-runnable implementation — proving the
-:class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner` protocol is
-satisfiable by more than one class, without needing ``open_iscat`` or the
-proprietary Refeyn ``iscat`` package.
+Checks structural conformance of ``OpenIscatPipeline`` and verifies the
+``PipelineRunner`` protocol is satisfiable via a minimal fake, without needing
+``open_iscat``.
 """
 
 from __future__ import annotations
