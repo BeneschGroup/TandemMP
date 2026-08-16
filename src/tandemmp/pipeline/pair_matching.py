@@ -75,12 +75,12 @@ class PairMatchingResult:
     @property
     def initial_masses(self) -> FloatArray:
         """Binding-event mass for each matched pair (kDa)."""
-        return np.array([p.binding.m for p in self.pairs])
+        return np.array([p.binding.m for p in self.pairs], dtype=float)
 
     @property
     def secondary_masses(self) -> FloatArray:
         """Unbinding-event mass for each matched pair (kDa)."""
-        return np.array([p.unbinding.m for p in self.pairs])
+        return np.array([p.unbinding.m for p in self.pairs], dtype=float)
 
 
 # ---------------------------------------------------------------------------

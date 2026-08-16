@@ -202,6 +202,22 @@ class TestRunPairMatchingEndToEnd:
 
         assert result.pairs == []
 
+    def test_zero_events_yields_zero_pairs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        class _EmptyFakeLoader(_FakeLoader):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                self.events: list[_FakeEvent] = []
+
+        monkeypatch.setattr(pm, "Loader", _EmptyFakeLoader)
+
+        result = run_pair_matching("movie.mp")
+
+        assert result.pairs == []
+        assert result.events == []
+        assert result.initial_masses.shape == (0,)
+        assert result.secondary_masses.shape == (0,)
+
 
 # ---------------------------------------------------------------------------
 # PairMatchingResult
