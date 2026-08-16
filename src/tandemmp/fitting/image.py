@@ -202,7 +202,7 @@ def correct_subtraction_fit(  # noqa: PLR0913
     particle being measured).
 
     Args:
-        event: Subtraction event (needs ``.peak``, ``.i``, ``.subtracted_i``, ``.navg``).
+        event: Subtraction event (needs ``.peak``, ``.i``, ``.subtracted_i``, ``.navg``)
         particles: List of particle objects. If *None*, returns the original peak.
         focus: The particle being measured — its foreground is not subtracted.
         gdb: Ghost Double Bypass — if *True*, skip the focus particle's background.
