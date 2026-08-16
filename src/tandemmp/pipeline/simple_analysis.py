@@ -16,6 +16,7 @@ from tandemmp.core.functions import get_overlap_probability
 from tandemmp.core.parameters import FullAnalysisParams
 from tandemmp.core.types import BoolArray, FloatArray
 from tandemmp.drift.corrector import get_vector
+from tandemmp.events import RatiometricEvent
 from tandemmp.pipeline.loader import Loader
 
 # ---------------------------------------------------------------------------
@@ -54,6 +55,28 @@ class SimpleEvent:
     y: float
     i: float
     id: int = field(default_factory=_allocate_simple_event_id)
+
+
+def build_simple_events(events: Sequence[RatiometricEvent]) -> list[SimpleEvent]:
+    """Convert first-pass :class:`~tandemmp.events.RatiometricEvent`\\ s into :class:`SimpleEvent`\\ s.
+
+    Uses each event's ``particle_c``/``particle_m``/``particle_x``/``particle_y``
+    (basic-fit values, available immediately after
+    :class:`~tandemmp.pipeline.loader.Loader` finds/fits first-pass events,
+    with no PSF-fit-based tracking pass required). Shared by
+    :meth:`tandemmp.pipeline.pca.Experiment.simple_analysis` and
+    :func:`tandemmp.pipeline.pair_matching.run_pair_matching`.
+    """  # noqa: E501
+    return [
+        SimpleEvent(
+            c=e.particle_c,
+            m=e.particle_m,
+            x=e.particle_x,
+            y=e.particle_y,
+            i=float(e.i),
+        )
+        for e in events
+    ]
 
 
 # ---------------------------------------------------------------------------

@@ -23,6 +23,7 @@ from tandemmp.pipeline.simple_analysis import (
     Pair,
     SimpleEvent,
     area_of_ring_in_box,
+    build_simple_events,
     calculate_rdf,
     convert_to_product_precursor,
     load_events,
@@ -69,6 +70,49 @@ class TestSimpleEvent:
         b = SimpleEvent(c=-0.05, m=100.0, x=1.0, y=2.0, i=0, id=7)
         assert a == b
         assert hash(a) == hash(b)
+
+
+# ---------------------------------------------------------------------------
+# build_simple_events
+# ---------------------------------------------------------------------------
+
+
+@dataclasses.dataclass
+class _FakeRatiometricEvent:
+    """Stands in for a RatiometricEvent's particle_c/m/x/y/i interface."""
+
+    particle_c: float
+    particle_m: float
+    particle_x: float
+    particle_y: float
+    i: int
+
+
+class TestBuildSimpleEvents:
+    def test_converts_particle_fields(self) -> None:
+        events = [
+            _FakeRatiometricEvent(
+                particle_c=-0.05, particle_m=100.0, particle_x=1.0, particle_y=2.0, i=10
+            ),
+            _FakeRatiometricEvent(
+                particle_c=0.03, particle_m=60.0, particle_x=3.0, particle_y=4.0, i=20
+            ),
+        ]
+
+        simple_events = build_simple_events(events)  # type: ignore[arg-type]
+
+        assert len(simple_events) == 2
+        assert all(isinstance(e, SimpleEvent) for e in simple_events)
+        assert simple_events[0].c == pytest.approx(-0.05)
+        assert simple_events[0].m == pytest.approx(100.0)
+        assert simple_events[0].x == pytest.approx(1.0)
+        assert simple_events[0].y == pytest.approx(2.0)
+        assert simple_events[0].i == pytest.approx(10.0)
+        assert simple_events[1].c == pytest.approx(0.03)
+        assert simple_events[1].i == pytest.approx(20.0)
+
+    def test_empty_input(self) -> None:
+        assert build_simple_events([]) == []
 
 
 # ---------------------------------------------------------------------------
