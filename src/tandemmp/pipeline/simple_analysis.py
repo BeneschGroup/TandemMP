@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 import tqdm
 
-from tandemmp.core.conversions import c_to_mass, mass_to_sigma
+from tandemmp.core.conversions import c_to_mass, mass_to_sigma, nm2pixels
 from tandemmp.core.functions import get_overlap_probability
 from tandemmp.core.parameters import FullAnalysisParams
 from tandemmp.core.types import BoolArray, FloatArray
@@ -222,10 +222,10 @@ def match_pairs_sigma(
                 get_overlap_probability(
                     x1=unbinding_event.x,
                     y1=unbinding_event.y,
-                    s1=mass_to_sigma(unbinding_event.m) * sigma_multiplier,
+                    s1=nm2pixels(mass_to_sigma(unbinding_event.m)) * sigma_multiplier,
                     x2=be.x,
                     y2=be.y,
-                    s2=mass_to_sigma(be.m) * sigma_multiplier,
+                    s2=nm2pixels(mass_to_sigma(be.m)) * sigma_multiplier,
                 )
                 for be in events_arr[binding][suitable]
             ]
@@ -299,10 +299,10 @@ def match_pairs_tally(
                 get_overlap_probability(
                     x1=binding_event.x,
                     y1=binding_event.y,
-                    s1=mass_to_sigma(binding_event.m) * sigma_multiplier,
+                    s1=nm2pixels(mass_to_sigma(binding_event.m)) * sigma_multiplier,
                     x2=e.x,
                     y2=e.y,
-                    s2=mass_to_sigma(e.m) * sigma_multiplier,
+                    s2=nm2pixels(mass_to_sigma(e.m)) * sigma_multiplier,
                 )
                 for e in events_arr[suitable]
             ]
