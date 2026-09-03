@@ -108,13 +108,16 @@ def mass_to_sigma(mass: float) -> float:
     a, b = 5.6254382094058055, 0.00572794123917841
     sigma = a / (abs(mass) * b)  # in nm
 
-    size = 0.6658267737663075 * abs(mass) ** (1 / 3)  # in nm
+    # size = 0.6658267737663075 * abs(mass) ** (1 / 3)  # in nm
 
     max_sigma = pixels2nm(4.0)
     if sigma > max_sigma:
         sigma = float(max_sigma)
+    if sigma < 1.0:
+        sigma = 1.0
 
-    return float(size) if size > sigma else sigma
+    # return float(size) if size > sigma else sigma
+    return sigma
 
 
 def mass_to_nm_radius(m: float) -> float:
