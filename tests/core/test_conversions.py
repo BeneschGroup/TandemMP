@@ -129,18 +129,20 @@ class TestMassToSigma:
     def test_positive_mass(self):
         assert mass_to_sigma(500.0) > 0
 
-    def test_heavy_mass_returns_physical_radius(self):
-        """Very heavy particle: physical radius dominates, not a fixed floor.
+    def test_midrange_precision_decreases_with_mass(self):
+        """Between the two clamps ``sigma = a / (mass * b)``: heavier is tighter."""
+        assert mass_to_sigma(500.0) < mass_to_sigma(100.0)
+        assert mass_to_sigma(100.0) == pytest.approx(9.821047344076268)
 
-        With the current coefficients the precision estimate (``sigma``)
-        collapses toward zero well before the radius term does, so there is
-        no reachable lower clamp — the radius grows with the cube root of
-        mass instead of saturating at a constant.
+    def test_heavy_mass_hits_lower_floor(self):
+        """Very heavy particle: the precision estimate is floored at 1.0 nm.
+
+        ``sigma = a / (mass * b)`` drops below 1 nm above ~982 kDa, so every
+        heavier particle returns the 1.0 nm floor rather than continuing to
+        shrink (the physical-radius branch is currently disabled).
         """
-        lighter = mass_to_sigma(50_000.0)
-        heavier = mass_to_sigma(100_000.0)
-        assert heavier > lighter
-        assert heavier == pytest.approx(30.90494118234114)
+        assert mass_to_sigma(50_000.0) == 1.0
+        assert mass_to_sigma(100_000.0) == 1.0
 
     def test_clamp_upper_bound(self):
         """Very light particle: precision capped at 4 px (expressed in nm)."""

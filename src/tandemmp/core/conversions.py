@@ -100,10 +100,10 @@ def mass_to_c(m: Numeric) -> Numeric:
 def mass_to_sigma(mass: float) -> float:
     """Estimate positional precision (in nanometres) for a given mass (kDa).
 
-    Precision is capped at 4 px for very light particles. If the physical
-    radius exceeds the precision estimate, the radius is returned instead —
-    with these coefficients this is always the case for heavy particles, so
-    there is no separate lower clamp.
+    ``sigma = a / (mass * b)``, clamped to ``[1.0 nm, pixels2nm(4.0)]``:
+    very light particles saturate at the 4 px upper bound, and particles
+    heavier than ~982 kDa bottom out at the 1.0 nm floor. The
+    physical-radius branch is currently disabled.
     """
     a, b = 5.6254382094058055, 0.00572794123917841
     sigma = a / (abs(mass) * b)  # in nm
