@@ -56,5 +56,6 @@ target/
 *.pyc.*
 *egg*
 *.local.json
-import_analysis.txt
 *.csv
+REFACTOR.md
+WORKLIST.md
