@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
+from statistics import StatisticsError
 from typing import NamedTuple
 
 import numpy as np
 import numpy.typing as npt
 import tqdm
+from scipy.spatial import cKDTree
 
 from tandemmp.core.conversions import NM_PER_PIXEL, c_to_mass, mass_to_sigma
 from tandemmp.core.functions import get_overlap_probability
@@ -180,7 +183,7 @@ def _mass_to_sigma_px(mass: float) -> float:
     return mass_to_sigma(mass) / NM_PER_PIXEL
 
 
-def match_pairs_sigma(
+def _match_pairs_sigma_loop(
     events: Sequence[SimpleEvent],
     *,
     sigma_multiplier: float = 3,
@@ -189,16 +192,12 @@ def match_pairs_sigma(
     minimum_overlap: float = 0.01,
     match_binding: bool = False,
 ) -> list[Pair]:
-    """Match each "unbinding" event to its most-overlapping "binding" event.
+    """Reference implementation of :func:`match_pairs_sigma`.
 
-    Events with negative contrast are "binding", positive contrast are
-    "unbinding" (or vice versa if *match_binding* is set, pairing binding
-    events to other binding events instead). A candidate binding event must
-    be within *analyse_distance* pixels, precede the unbinding event in
-    time, and have a Gaussian overlap coefficient (using
-    ``mass_to_sigma(mass) * sigma_multiplier`` as each event's width) above
-    *minimum_overlap*; the highest-overlap candidate is chosen. Each binding
-    event may be reused up to *max_pairs* times.
+    Scans every binding event for each unbinding event, so cost grows
+    quadratically with the number of events. :func:`match_pairs_sigma` is
+    the batched equivalent and delegates here for ``match_binding=True``;
+    tests assert the two give bit-identical output.
     """
     events_arr: npt.NDArray[np.object_] = np.array(events, dtype=object)
     contrast: FloatArray = np.array([e.c for e in events])
@@ -262,6 +261,186 @@ def match_pairs_sigma(
                     time=time_between[suitable][over_minimum][candidate],
                     distance=spatial_distance[suitable][over_minimum][candidate],
                     overlap=probabilities[over_minimum][candidate],
+                    order=max_pairs - available_pairs,
+                )
+            )
+            pairs_left[index] -= 1
+
+    return pairs
+
+
+_SQRT2 = math.sqrt(2.0)
+
+
+def _normal_cdf(mu: float, sigma: float, x: float) -> float:
+    return 0.5 * (1.0 + math.erf((x - mu) / (sigma * _SQRT2)))
+
+
+def _overlap_from_distance(s1: float, distance: float, s2: float) -> float:
+    """``NormalDist(0, s1).overlap(NormalDist(distance, s2))`` without the objects.
+
+    Mirrors ``statistics.NormalDist.overlap`` / ``cdf`` operation for
+    operation using the same ``math`` functions, so results are
+    bit-identical to :func:`~tandemmp.core.functions.get_overlap_probability`
+    while skipping the per-call object construction. (A numpy/scipy
+    vectorised form is *not* bit-identical: ``log``/``erf`` differ in the
+    last bit, enough to flip near-ties in the argmax.)
+    """
+    if s1 < 0.0 or s2 < 0.0:
+        msg = "sigma must be non-negative"
+        raise StatisticsError(msg)
+
+    x_sigma, x_mu, y_sigma, y_mu = s1, 0.0, s2, distance
+    if (y_sigma, y_mu) < (x_sigma, x_mu):  # sort to assure commutativity
+        x_sigma, x_mu, y_sigma, y_mu = y_sigma, y_mu, x_sigma, x_mu
+
+    x_var, y_var = x_sigma * x_sigma, y_sigma * y_sigma
+    if not x_var or not y_var:
+        msg = "overlap() not defined when sigma is zero"
+        raise StatisticsError(msg)
+
+    dv = y_var - x_var
+    dm = math.fabs(y_mu - x_mu)
+    if not dv:
+        return 1.0 - math.erf(dm / (2.0 * x_sigma * _SQRT2))
+
+    a = x_mu * y_var - y_mu * x_var
+    b = x_sigma * y_sigma * math.sqrt(dm * dm + dv * math.log(y_var / x_var))
+    x1 = (a + b) / dv
+    x2 = (a - b) / dv
+    return 1.0 - (
+        math.fabs(_normal_cdf(y_mu, y_sigma, x1) - _normal_cdf(x_mu, x_sigma, x1))
+        + math.fabs(_normal_cdf(y_mu, y_sigma, x2) - _normal_cdf(x_mu, x_sigma, x2))
+    )
+
+
+def match_pairs_sigma(
+    events: Sequence[SimpleEvent],
+    *,
+    sigma_multiplier: float = 3,
+    max_pairs: int = 5,
+    analyse_distance: float = 4,
+    minimum_overlap: float = 0.01,
+    match_binding: bool = False,
+) -> list[Pair]:
+    """Match each "unbinding" event to its most-overlapping "binding" event.
+
+    Events with negative contrast are "binding", positive contrast are
+    "unbinding" (or vice versa if *match_binding* is set, pairing binding
+    events to other binding events instead). A candidate binding event must
+    be within *analyse_distance* pixels, precede the unbinding event in
+    time, and have a Gaussian overlap coefficient (using
+    ``mass_to_sigma(mass) * sigma_multiplier`` as each event's width) above
+    *minimum_overlap*; the highest-overlap candidate is chosen. Each binding
+    event may be reused up to *max_pairs* times.
+
+    Candidate (unbinding, binding) pairs are found with a KD-tree radius
+    query and scored in one batch, rather than scanning every binding event
+    for each unbinding event; only the final selection, which depends on how
+    many pairs each binding event has left, runs sequentially. Output is
+    bit-identical to the straightforward per-event scan
+    (:func:`_match_pairs_sigma_loop`), which is still used for
+    ``match_binding=True``.
+    """
+    if match_binding:
+        return _match_pairs_sigma_loop(
+            events,
+            sigma_multiplier=sigma_multiplier,
+            max_pairs=max_pairs,
+            analyse_distance=analyse_distance,
+            minimum_overlap=minimum_overlap,
+            match_binding=match_binding,
+        )
+
+    events_arr: npt.NDArray[np.object_] = np.array(events, dtype=object)
+    contrast: FloatArray = np.array([e.c for e in events])
+    x: FloatArray = np.array([e.x for e in events])
+    y: FloatArray = np.array([e.y for e in events])
+    i: FloatArray = np.array([e.i for e in events])
+
+    # Non-finite coordinates can never satisfy `distance < analyse_distance`
+    # (and would make the KD-tree raise), so they are left out of the query.
+    finite = np.isfinite(x) & np.isfinite(y)
+    unbinding_all = np.flatnonzero(contrast > 0)
+    unbinding_idx = unbinding_all[finite[unbinding_all]]
+    binding_idx = np.flatnonzero((contrast < 0) & finite)
+
+    pairs_left = np.full(len(events), max_pairs)
+    pairs: list[Pair] = []
+
+    if unbinding_idx.size == 0 or binding_idx.size == 0:
+        return pairs
+
+    # Candidate pairs. The radius is padded so the KD-tree's own distance
+    # arithmetic can't drop a boundary pair; the exact `< analyse_distance`
+    # test below uses np.hypot, as the reference loop does.
+    tree = cKDTree(np.column_stack([x[binding_idx], y[binding_idx]]))
+    radius = analyse_distance + 1e-6 * (1.0 + abs(analyse_distance))
+    neighbours = tree.query_ball_point(
+        np.column_stack([x[unbinding_idx], y[unbinding_idx]]),
+        r=radius,
+        return_sorted=True,
+    )
+    counts = np.fromiter((len(n) for n in neighbours), dtype=np.intp)
+    if counts.sum() == 0:
+        return pairs
+
+    unbinding_of = np.repeat(unbinding_idx, counts)
+    binding_of = binding_idx[
+        np.concatenate([np.asarray(n, dtype=np.intp) for n in neighbours if len(n)])
+    ]
+
+    spatial_distance = np.hypot(
+        x[binding_of] - x[unbinding_of], y[binding_of] - y[unbinding_of]
+    )
+    time_between = i[unbinding_of] - i[binding_of]
+    suitable = (spatial_distance < analyse_distance) & (time_between > 0)
+    unbinding_of, binding_of = unbinding_of[suitable], binding_of[suitable]
+    spatial_distance, time_between = spatial_distance[suitable], time_between[suitable]
+    if unbinding_of.size == 0:
+        return pairs
+
+    # Overlap of every candidate pair, with each event's width computed once.
+    sigma_px = {
+        int(k): _mass_to_sigma_px(events[k].m) * sigma_multiplier
+        for k in np.unique(np.concatenate([unbinding_of, binding_of]))
+    }
+    # get_overlap_probability measures unbinding -> binding; np.hypot ignores sign.
+    overlap_distance = np.hypot(
+        x[unbinding_of] - x[binding_of], y[unbinding_of] - y[binding_of]
+    )
+    probabilities = np.array(
+        [
+            _overlap_from_distance(sigma_px[int(u)], float(d), sigma_px[int(b)])
+            for u, b, d in zip(unbinding_of, binding_of, overlap_distance, strict=True)
+        ]
+    )
+    over_minimum = probabilities > minimum_overlap
+
+    # Sequential selection, in the same order as the reference loop:
+    # `unbinding_of` is grouped by ascending unbinding index, and binding
+    # indices ascend within each group, so ties resolve to the first maximum.
+    group_start = np.searchsorted(unbinding_of, unbinding_all, side="left")
+    group_end = np.searchsorted(unbinding_of, unbinding_all, side="right")
+
+    for start, end in zip(group_start, group_end, strict=True):
+        over = over_minimum[start:end]
+        if not over.any():
+            continue
+
+        candidate = np.argmax(probabilities[start:end][over])
+        k = start + np.flatnonzero(over)[candidate]
+        index = binding_of[k]
+        available_pairs = pairs_left[index]
+
+        if available_pairs > 0:
+            pairs.append(
+                Pair(
+                    binding=events_arr[index],
+                    unbinding=events_arr[unbinding_of[k]],
+                    time=time_between[k],
+                    distance=spatial_distance[k],
+                    overlap=probabilities[k],
                     order=max_pairs - available_pairs,
                 )
             )

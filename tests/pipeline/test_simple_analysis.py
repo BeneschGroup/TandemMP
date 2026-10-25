@@ -260,6 +260,120 @@ class TestMatchPairsSigma:
         assert pairs == []
 
 
+def _random_events(
+    seed: int, n_pairs: int = 150, box: float = 40.0, n_frames: int = 60
+) -> list[SimpleEvent]:
+    """Binding/unbinding events, some paired, scattered over a small box."""
+    rng = np.random.default_rng(seed)
+    events: list[SimpleEvent] = []
+    for _ in range(n_pairs):
+        m = float(rng.uniform(40, 500))
+        x, y = rng.uniform(0, box, 2)
+        t_bind = int(rng.integers(0, n_frames))
+        t_unbind = t_bind + int(rng.integers(1, 20))
+        events.append(
+            SimpleEvent(c=-m * 1e-4, m=m, x=x + rng.normal(0, 0.3), y=y, i=t_bind)
+        )
+        events.append(
+            SimpleEvent(c=m * 1e-4, m=-m, x=x, y=y + rng.normal(0, 0.3), i=t_unbind)
+        )
+    return events
+
+
+def _assert_pairs_identical(got: list[Pair], expected: list[Pair]) -> None:
+    assert len(got) == len(expected)
+    for g, e in zip(got, expected, strict=True):
+        assert g.binding is e.binding
+        assert g.unbinding is e.unbinding
+        for name in ("time", "distance", "overlap", "order"):
+            gv, ev = getattr(g, name), getattr(e, name)
+            assert type(gv) is type(ev), name
+            assert gv == ev, name  # exact, not approx
+
+
+class TestMatchPairsSigmaMatchesReference:
+    """The batched ``match_pairs_sigma`` must equal the per-event reference loop."""
+
+    @pytest.mark.parametrize("seed", [0, 1, 2])
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {},
+            {"max_pairs": 5, "minimum_overlap": 0.05},
+            {"max_pairs": 1},
+            {"analyse_distance": 8, "sigma_multiplier": 1},
+            {"minimum_overlap": 0.0},
+            {"minimum_overlap": 0.9},
+        ],
+    )
+    def test_identical_to_reference(self, seed: int, kwargs: dict[str, Any]) -> None:
+        events = _random_events(seed)
+        expected = sa._match_pairs_sigma_loop(events, **kwargs)
+        assert expected  # the scenario must actually produce pairs
+        _assert_pairs_identical(match_pairs_sigma(events, **kwargs), expected)
+
+    def test_identical_for_unsorted_input(self) -> None:
+        events = _random_events(3)
+        np.random.default_rng(3).shuffle(events)
+        _assert_pairs_identical(
+            match_pairs_sigma(events), sa._match_pairs_sigma_loop(events)
+        )
+
+    def test_identical_with_non_finite_coordinates(self) -> None:
+        events = _random_events(4, n_pairs=40)
+        events += [
+            SimpleEvent(c=-0.01, m=100.0, x=float("nan"), y=1.0, i=0),
+            SimpleEvent(c=0.01, m=-100.0, x=1.0, y=float("inf"), i=5),
+        ]
+        _assert_pairs_identical(
+            match_pairs_sigma(events), sa._match_pairs_sigma_loop(events)
+        )
+
+    def test_pair_at_exactly_analyse_distance_is_excluded(self) -> None:
+        binding = _event(c=-0.05, m=100.0, x=0.0, y=0.0, i=0)
+        unbinding = _event(c=0.05, m=-100.0, x=4.0, y=0.0, i=5)
+        assert match_pairs_sigma([binding, unbinding], analyse_distance=4) == []
+
+    def test_empty_and_one_sided_inputs(self) -> None:
+        binding = _event(c=-0.05, m=100.0, x=0.0, y=0.0, i=0)
+        unbinding = _event(c=0.05, m=-100.0, x=0.0, y=0.0, i=5)
+        assert match_pairs_sigma([]) == []
+        assert match_pairs_sigma([binding]) == []
+        assert match_pairs_sigma([unbinding]) == []
+
+    def test_match_binding_delegates_to_reference(self) -> None:
+        events = [_event(c=-0.05, m=100.0, x=0.0, y=0.0, i=i) for i in range(4)]
+        _assert_pairs_identical(
+            match_pairs_sigma(events, analyse_distance=4, match_binding=True),
+            sa._match_pairs_sigma_loop(events, analyse_distance=4, match_binding=True),
+        )
+
+
+class TestOverlapFromDistance:
+    def test_bit_identical_to_normaldist_overlap(self) -> None:
+        # Guards against CPython changing NormalDist.overlap's arithmetic.
+        from statistics import NormalDist
+
+        rng = np.random.default_rng(0)
+        s1, s2 = rng.uniform(0.5, 12, (2, 5000))
+        d = rng.uniform(0, 8, 5000)
+        for a, b, c in zip(s1, d, s2, strict=True):
+            expected = NormalDist(0, a).overlap(NormalDist(b, c))
+            assert sa._overlap_from_distance(a, b, c) == expected
+
+    def test_equal_sigmas_branch(self) -> None:
+        from statistics import NormalDist
+
+        expected = NormalDist(0, 2.0).overlap(NormalDist(3.0, 2.0))
+        assert sa._overlap_from_distance(2.0, 3.0, 2.0) == expected
+
+    def test_zero_sigma_raises(self) -> None:
+        from statistics import StatisticsError
+
+        with pytest.raises(StatisticsError):
+            sa._overlap_from_distance(0.0, 1.0, 1.0)
+
+
 class TestMatchPairsTally:
     def test_builds_running_precursor_product_tally(self) -> None:
         binding = _event(c=-0.05, m=100.0, x=10.0, y=10.0, i=0)
