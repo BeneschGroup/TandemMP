@@ -1,10 +1,8 @@
-"""Type stub for the compiled ``tandemmp._rust.drift_correction`` extension.
+"""Type stub for the ``tandemmp._rust.drift_correction`` submodule.
 
-Source: ``src/tandemmp/_rust/drift_correction/src/python.rs``. Kept next to
-the (gitignored, `*.py[cod]`-matched) compiled ``drift_correction.pyd``/
-``.so`` so mypy and IDEs see real signatures instead of "module has no
-attribute" errors — the compiled extension itself carries no introspectable
-type information.
+Source: ``src/tandemmp/_rust/drift_correction/src/python.rs``, registered
+as a submodule by ``tandemmp._rust._native`` (the compiled extension
+itself carries no introspectable type information).
 """
 
 from __future__ import annotations

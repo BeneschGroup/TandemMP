@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2021"
 description = "Drift correction for TandemMP with PyO3 bindings."
 
-# Build a Python extension and a library for Rust tests and documentation.
+# rlib only: linked into the tandemmp._rust._native cdylib (see ../_native)
+# and compiled directly for `cargo test`.
 [lib]
 name = "drift_correction"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [dependencies]
 rand = "0.8"
@@ -17,9 +18,3 @@ pyo3 = { version = "0.29", features = ["abi3-py310"] }
 numpy = "0.29"
 
 [dev-dependencies]
-
-# Optimise the numerical loop with cross-crate inlining. Keep panic unwinding
-# enabled so PyO3 can convert panics to Python exceptions.
-[profile.release]
-lto = "fat"
-codegen-units = 1

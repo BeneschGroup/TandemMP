@@ -1,0 +1,9 @@
+[workspace]
+members = ["drift_correction", "_native"]
+resolver = "2"
+
+# Keep panic unwinding enabled so PyO3 can convert panics to Python
+# exceptions. Workspace-wide: member crates may not set their own profiles.
+[profile.release]
+lto = "fat"
+codegen-units = 1
