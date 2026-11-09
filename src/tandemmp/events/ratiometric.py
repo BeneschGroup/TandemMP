@@ -190,7 +190,8 @@ class RatiometricEvent(AbstractEvent):
             sel = np.array([i in frames for i in ev_frames])
             # Mixed ndarray/slice fancy indexing is valid at runtime but not
             # expressible in numpy's stubs as a single tuple type.
-            exclude[(sel, *overlap.area)] = True  # type: ignore[index]
+            indices = (sel, *overlap.area)
+            exclude[indices] = True  # type: ignore[index]
 
         exclude[:, mid - 2 : mid + 3, mid - 3 : mid + 4] = False
         exclude[:, mid - 3 : mid + 4, mid - 2 : mid + 3] = False
@@ -207,7 +208,8 @@ class RatiometricEvent(AbstractEvent):
         for overlap in overlaps:
             frames = _as_frame_list(overlap.frames)
             sel = np.array([i in frames for i in ev_frames])
-            exclude[(sel, *overlap.area)] = True  # type: ignore[index]
+            indices = (sel, *overlap.area)
+            exclude[indices] = True  # type: ignore[index]
 
         bad = np.sum(exclude, axis=(1, 2)) / np.prod(exclude.shape[1:])
         too_much = bad > 0.5

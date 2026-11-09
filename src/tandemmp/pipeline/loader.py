@@ -31,7 +31,7 @@ from tandemmp.core.conversions import c_to_mass
 from tandemmp.core.parallel import dispatch_kwargs
 from tandemmp.core.parameters import DriftCorrectionParams, FullAnalysisParams
 from tandemmp.core.types import FloatArray, UInt16Array
-from tandemmp.drift.corrector import get_corrected_movie
+from tandemmp.drift.corrector import DriftVector, get_corrected_movie
 from tandemmp.events import PeakImage, RatiometricEvent
 from tandemmp.fitting.psf import PsfModel, get_psf_model
 from tandemmp.fitting.psf_interface import PsfInterface
@@ -575,7 +575,7 @@ class Loader:
         )
         self.mp_filepath = Path(mp_filepath)
         self.folder = self.mp_filepath.parent
-        self.vector = None
+        self.vector: DriftVector | None = None
         self.exp_model: PsfModel | None = None
         self.movie: npt.NDArray[Any]
 
