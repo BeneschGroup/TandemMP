@@ -584,6 +584,17 @@ class TestSubtractionSeries:
         assert isinstance(sig, float)
         assert 0.0 <= sig <= 1.0
 
+    @pytest.mark.skipif(
+        importlib.util.find_spec("tensorflow") is None,
+        reason="TensorFlow not installed",
+    )
+    def test_ghost_signal_ml_varying_lengths(self, spline_model):
+        """CNN ghost score is a float for series of different lengths."""
+        for n in (5, 8, 3, 12):
+            sig = self._make_series(spline_model, n=n).ghost_signal_ML
+            assert isinstance(sig, float), n
+            assert 0.0 <= sig <= 1.0
+
     def test_avg_residual_noise(self, spline_model):
         series = self._make_series(spline_model, n=5)
         noise = series.avg_residual_noise

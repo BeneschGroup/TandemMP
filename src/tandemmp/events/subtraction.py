@@ -37,15 +37,30 @@ def get_ghost_model() -> Any:  # noqa: ANN401
 
     TensorFlow is imported *inside* this function so the package can be
     imported without TensorFlow installed.  The model is loaded once and
-    cached for the lifetime of the process.
+    cached for the lifetime of the process. TensorFlow start-up noise is
+    silenced unless ``TF_CPP_MIN_LOG_LEVEL`` / ``TF_ENABLE_ONEDNN_OPTS`` are set.
     """
     import importlib.resources
+    import os
+    import warnings
 
-    import tensorflow as tf
+    os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+    os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
+    tf_logger = logging.getLogger("tensorflow")
+    level = tf_logger.level
+    tf_logger.setLevel(logging.ERROR)
+    try:
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning, module="keras")
+            import tensorflow as tf
 
-    ref = importlib.resources.files("tandemmp.resources").joinpath("GP_model.h5")
-    with importlib.resources.as_file(ref) as model_path:
-        return tf.keras.models.load_model(str(model_path))
+            ref = importlib.resources.files("tandemmp.resources").joinpath(
+                "GP_model.h5"
+            )
+            with importlib.resources.as_file(ref) as model_path:
+                return tf.keras.models.load_model(str(model_path), compile=False)
+    finally:
+        tf_logger.setLevel(level)
 
 
 # SubtractionEvent
@@ -397,13 +412,12 @@ class SubtractionSeries(Connectable):
             images = images / np.abs(images).max()
             model = get_ghost_model()
 
-            images_input = images.reshape((*images.shape, 1)).tolist()
-
-            if hasattr(model, "predict"):
-                return float(
-                    np.round(model.predict([images_input], verbose=0)[0][0], 2)
-                )
-            return float(np.round(model([images_input]).numpy()[0][0], 2))
+            images_input = np.asarray(
+                images[np.newaxis, ..., np.newaxis], dtype=np.float32
+            )
+            # direct call, not predict(): Keras 3 predict() reuses its first
+            # traced shape and fails on series of a different length
+            return float(np.round(model(images_input, training=False).numpy()[0][0], 2))
         except Exception:
             logger.debug("Ghost ML scoring failed", exc_info=True)
             return None
