@@ -10,8 +10,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from tandemmp.core.conversions import Calibration, set_calibration
+from tandemmp.core.conversions import set_calibration
 from tandemmp.core.parallel import dispatch_kwargs
+from tandemmp.pipeline.calibration import CalibrationLike, resolve_calibration
 from tandemmp.pipeline.pca import Experiment
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
 
@@ -36,7 +37,7 @@ def process_movie(
     save_filepath: str | Path | None = None,
     max_events: int = 3500,
     pipeline_runner: PipelineRunner | None = None,
-    calibration: Calibration | None = None,
+    calibration: CalibrationLike | None = None,
     save_movie: bool = False,
 ) -> BatchResult:
     """Run a full :class:`~tandemmp.pipeline.pca.Experiment` analysis on one movie.
@@ -53,12 +54,14 @@ def process_movie(
     to open_iscat.
 
     *calibration* overrides the process-wide contrast/mass conversion (see
-    :mod:`tandemmp.core.conversions`) for the duration of this call — set
-    explicitly (including resetting to the default when ``None``) so this is
-    safe to call repeatedly against a persistent, possibly-reused worker
-    process (see :func:`batch_process`).
+    :mod:`tandemmp.core.conversions`) for the duration of this call — a
+    :class:`~tandemmp.core.conversions.Calibration`, a path to a calibration
+    file (see :func:`~tandemmp.pipeline.calibration.load_calibration`), or
+    ``None``. Set explicitly (including resetting to the default when
+    ``None``) so this is safe to call repeatedly against a persistent,
+    possibly-reused worker process (see :func:`batch_process`).
     """
-    set_calibration(calibration)
+    set_calibration(resolve_calibration(calibration))
 
     filepath = Path(filepath)
     start = time.monotonic()
@@ -109,7 +112,7 @@ def batch_process(
     parallel: bool = True,
     n_jobs: int | None = None,
     pipeline_runner: PipelineRunner | None = None,
-    calibration: Calibration | None = None,
+    calibration: CalibrationLike | None = None,
 ) -> list[BatchResult]:
     """Run :func:`process_movie` over *filepaths*, in parallel by default.
 
@@ -147,9 +150,11 @@ def batch_process(
     stateless and satisfies this, as does the default ``None``.
 
     *calibration* overrides the process-wide contrast/mass conversion (see
-    :mod:`tandemmp.core.conversions`) for every movie in this batch; it is
-    forwarded to each :func:`process_movie` call the same way as
-    *pipeline_runner*, so it is applied per-call and survives worker reuse.
+    :mod:`tandemmp.core.conversions`) for every movie in this batch — a
+    :class:`~tandemmp.core.conversions.Calibration` or a calibration
+    filepath; it is forwarded to each :func:`process_movie` call the same
+    way as *pipeline_runner*, so it is applied per-call and survives worker
+    reuse.
     """
     args_list: list[dict[str, Any]] = [
         {
@@ -178,24 +183,10 @@ def batch_process(
 
 if __name__ == "__main__":
     from tandemmp.core.functions import choose_file
-    from tandemmp.pipeline.calibration import (
-        load_calibration,
-        run_calibration,
-        save_calibration,
-    )
 
     calibration_file = choose_file(mp_file=False)
     if not isinstance(calibration_file, str):
-        raise TypeError("Select a single calibration movie or calibration file.")
-
-    if calibration_file.endswith((".json", ".pkl", ".pickle")):
-        calibration_result = load_calibration(calibration_file)
-    else:
-        calibration_result = run_calibration(calibration_file)
-        calibration_path = Path(calibration_file).with_name(
-            f"{Path(calibration_file).stem}_calibration.json"
-        )
-        save_calibration(calibration_path, calibration_result)
+        raise TypeError("Select a single calibration file (.mc or .json).")
 
     chosen_movies = choose_file()
     movie_filepaths = (
@@ -203,5 +194,5 @@ if __name__ == "__main__":
     )
 
     results = batch_process(
-        movie_filepaths, calibration=calibration_result.calibration, parallel=False
+        movie_filepaths, calibration=calibration_file, parallel=False
     )

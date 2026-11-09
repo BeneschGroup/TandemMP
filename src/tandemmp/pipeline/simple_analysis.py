@@ -11,12 +11,13 @@ import numpy as np
 import numpy.typing as npt
 import tqdm
 
-from tandemmp.core.conversions import NM_PER_PIXEL, c_to_mass, mass_to_sigma
+from tandemmp.core.conversions import NM_PER_PIXEL, get_calibration, mass_to_sigma
 from tandemmp.core.functions import get_overlap_probability
 from tandemmp.core.parameters import FullAnalysisParams
 from tandemmp.core.types import BoolArray, FloatArray
 from tandemmp.drift.corrector import get_vector
 from tandemmp.events import RatiometricEvent
+from tandemmp.pipeline.calibration import CalibrationLike, resolve_calibration
 from tandemmp.pipeline.loader import Loader
 
 # SimpleEvent
@@ -84,6 +85,7 @@ def load_events(
     events_filepath: str | Path,
     movie_filepath: str | Path | None = None,
     *,
+    calibration: CalibrationLike | None = None,
     parallel: bool = True,
 ) -> list[SimpleEvent]:
     """Load point-events from a CSV export.
@@ -91,7 +93,11 @@ def load_events(
     *events_filepath* must have a header row followed by
     ``frame, x, y, contrast, mass`` columns (extra trailing columns are
     ignored). If the mass column is entirely ``NaN``, mass is derived from
-    contrast via :func:`~tandemmp.core.conversions.c_to_mass`.
+    contrast using *calibration* (a
+    :class:`~tandemmp.core.conversions.Calibration` or a calibration
+    filepath; defaults to whatever is process-wide active, see
+    :func:`~tandemmp.core.conversions.get_calibration`) — this does not
+    change the process-wide active calibration.
 
     If *movie_filepath* is given, the companion movie is loaded (without
     running the full pipeline) purely to estimate a drift vector via
@@ -117,7 +123,8 @@ def load_events(
     data = np.loadtxt(events_filepath, delimiter=",", skiprows=1)
     frames, xs, ys, cs, masses = data.T[:5].astype(float)
     if np.isnan(masses).all():
-        masses = c_to_mass(cs)
+        cal = resolve_calibration(calibration) or get_calibration()
+        masses = (cs - cal.offset) / cal.slope
 
     if vector is None:
         return [
