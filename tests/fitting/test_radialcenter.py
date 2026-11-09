@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+
 from tandemmp.fitting.radialcenter import radialcenter
 
 
-def _gaussian_peak(
-    size: int, cx: float, cy: float, sigma: float = 3.0
-) -> np.ndarray:
+def _gaussian_peak(size: int, cx: float, cy: float, sigma: float = 3.0) -> np.ndarray:
     """A symmetric 2-D Gaussian on a *size*-by-*size* grid, peak at (cx, cy)."""
     y, x = np.mgrid[0:size, 0:size]
     return np.exp(-(((x - cx) ** 2 + (y - cy) ** 2) / (2 * sigma**2)))

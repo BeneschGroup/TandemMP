@@ -203,6 +203,7 @@ class PsfModel:
         dy_guess: float | None = None,
         method: str = "BFGS",
         gtol: float = 1e-6,
+        rust: bool = False,
         allow_offset: bool = False,
         **kwargs: Any,  # noqa: ANN401
     ) -> PeakFitResult:
@@ -215,6 +216,7 @@ class PsfModel:
             dy_guess: Initial y position offset. Estimated automatically if *None*.
             method: Optimisation method for :func:`scipy.optimize.minimize`.
             gtol: Gradient tolerance (BFGS).
+            rust: Prefer the Rust backend if available.
             allow_offset: Allow a constant-offset parameter in the fit.
             **kwargs: Ignored. Accepted only so this method's signature satisfies
                 :class:`~tandemmp.fitting.psf_interface.PsfInterface`'s
@@ -241,6 +243,33 @@ class PsfModel:
                 converged=False,
                 backend="none",
             )
+
+        # Resolve guesses here (rather than leaving them to
+        # `fit_peak_generic`) because the Rust fast-path below needs
+        # concrete values *before* deciding whether to attempt it.
+        if dx_guess is None or dy_guess is None:
+            dx_est, dy_est = _initial_position_guess(peak)
+            if dx_guess is None:
+                dx_guess = dx_est
+            if dy_guess is None:
+                dy_guess = dy_est
+
+        if c_guess is None:
+            width = peak.shape[0]
+            x_coords, y_coords = square_mesh(width)
+            r = np.hypot(x_coords, y_coords)
+            c_guess = float(np.mean(peak[r <= 1]))
+
+        c_under = abs(c_guess) < 0.5
+
+        # Try Rust path
+        if not allow_offset and (rust or self.use_rust) and c_under:
+            try:
+                return self._fit_peak_rust(peak, dx_guess, dy_guess, c_guess, gtol)
+            except ImportError:
+                logger.debug("Rust PSF module unavailable, falling back to Python")
+            except Exception:  # noqa: BLE001
+                logger.debug("Rust fit failed, falling back to Python", exc_info=True)
 
         result = fit_peak_generic(
             self,

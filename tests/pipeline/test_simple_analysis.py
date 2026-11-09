@@ -160,9 +160,7 @@ class TestLoadEvents:
         with pytest.raises(ValueError, match="does not match"):
             load_events(csv_path, movie_filepath=tmp_path / "unrelated.mp")
 
-    def test_missing_mass_column_uses_given_calibration(
-        self, tmp_path: Path
-    ) -> None:
+    def test_missing_mass_column_uses_given_calibration(self, tmp_path: Path) -> None:
         contrasts = [-0.01, -0.02]
         csv_path = self._write_csv(
             tmp_path,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+
 from tandemmp.io.movie import (
     MpMetadata,
     duplicate_and_change_frames,

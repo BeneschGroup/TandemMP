@@ -104,7 +104,9 @@ class ParticleRecord:
     snrs: list[float]
     images: list[npt.NDArray[np.floating]]
 
-    def interpolate(self, values: npt.ArrayLike) -> tuple[
+    def interpolate(
+        self, values: npt.ArrayLike
+    ) -> tuple[
         npt.NDArray[np.int_],
         npt.NDArray[np.floating],
     ]:

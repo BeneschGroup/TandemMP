@@ -12,6 +12,7 @@ from typing import Any
 
 import numpy as np
 import pytest
+
 from tandemmp.pipeline.pipeline_interface import (
     Info,
     Movie,

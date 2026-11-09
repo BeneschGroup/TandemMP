@@ -15,9 +15,8 @@ from typing import Any
 import numpy as np
 import pytest
 
-from tandemmp.core.conversions import Calibration, get_calibration
+from tandemmp.core.conversions import Calibration
 from tandemmp.pipeline import pair_matching as pm
-from tandemmp.pipeline.calibration import load_mc
 from tandemmp.pipeline.pair_matching import PairMatchingResult, run_pair_matching
 from tandemmp.pipeline.simple_analysis import (
     Pair,
@@ -219,46 +218,55 @@ class TestRunPairMatchingWiring:
         assert result.source_filepath == "some/movie.mp"
         assert len(result.events) == 2
 
-    def test_no_calibration_leaves_active_calibration_unchanged(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(pm, "Loader", _FakeLoader)
-        monkeypatch.setattr(pm, "match_pairs_sigma", lambda *a, **k: [])
-        custom = Calibration(slope=-0.00005, offset=-0.0001)
-        pm.set_calibration(custom)
+    def test_no_calibration_omits_kwarg(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        seen: dict[str, Any] = {}
+
+        class _CapturingExperiment(_FakeExperiment):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                seen["kwargs"] = kwargs
+                super().__init__(*args, **kwargs)
+
+        monkeypatch.setattr(pm, "Experiment", _CapturingExperiment)
 
         run_pair_matching("movie.mp")
 
-        assert get_calibration() == custom
+        assert seen["kwargs"]["calibration"] is None
 
-    def test_calibration_sets_active_calibration_before_loader(
+    def test_calibration_forwarded_to_experiment(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        # Experiment itself (see test_pca.py) is responsible for applying
+        # calibration to the process-wide active calibration; this only
+        # checks run_pair_matching forwards it through unchanged.
         seen: dict[str, Any] = {}
 
-        class _CapturingLoader(_FakeLoader):
+        class _CapturingExperiment(_FakeExperiment):
             def __init__(self, *args: Any, **kwargs: Any) -> None:
-                seen["calibration"] = get_calibration()
+                seen["kwargs"] = kwargs
                 super().__init__(*args, **kwargs)
 
-        monkeypatch.setattr(pm, "Loader", _CapturingLoader)
-        monkeypatch.setattr(pm, "match_pairs_sigma", lambda *a, **k: [])
+        monkeypatch.setattr(pm, "Experiment", _CapturingExperiment)
         custom = Calibration(slope=-0.00005, offset=-0.0001)
 
         run_pair_matching("movie.mp", calibration=custom)
 
-        assert seen["calibration"] == custom
-        assert get_calibration() == custom
+        assert seen["kwargs"]["calibration"] == custom
 
-    def test_calibration_accepts_mc_filepath(
+    def test_calibration_accepts_mc_filepath_forwarded_to_experiment(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(pm, "Loader", _FakeLoader)
-        monkeypatch.setattr(pm, "match_pairs_sigma", lambda *a, **k: [])
+        seen: dict[str, Any] = {}
+
+        class _CapturingExperiment(_FakeExperiment):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                seen["kwargs"] = kwargs
+                super().__init__(*args, **kwargs)
+
+        monkeypatch.setattr(pm, "Experiment", _CapturingExperiment)
 
         run_pair_matching("movie.mp", calibration=MC_FIXTURE)
 
-        assert get_calibration() == load_mc(MC_FIXTURE).calibration
+        assert seen["kwargs"]["calibration"] == MC_FIXTURE
 
 
 # run_pair_matching — end to end (real Experiment.simple_analysis via a bare fake)

@@ -14,6 +14,7 @@ import numpy as np
 import pytest
 from scipy.interpolate import RectBivariateSpline
 from scipy.optimize import OptimizeResult
+
 from tandemmp.core.classifications import (
     Classification,
     EvClassification,
@@ -418,9 +419,9 @@ class TestDistanceArray:
         """Unbound candidates must rank behind candidates with known distances."""
         for known in (0.1, 1.0, 10.0):
             arr = _distance_array([self._r(known), self._r(None)])
-            assert (
-                arr[1] > arr[0]
-            ), f"None-distance candidate scored better than known={known}: {arr}"
+            assert arr[1] > arr[0], (
+                f"None-distance candidate scored better than known={known}: {arr}"
+            )
 
     def test_empty_input(self):
         arr = _distance_array([])

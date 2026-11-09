@@ -14,6 +14,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 from scipy.interpolate import RectBivariateSpline
+
 from tandemmp.core.classifications import ProcessingMethod
 from tandemmp.core.conversions import (
     DEFAULT_CALIBRATION,
@@ -269,9 +270,7 @@ class TestInit:
 
         mc_fixture = Path(__file__).parent / "fixtures" / "20260329_mfp1.mc"
         monkeypatch.setattr(pca, "Loader", _FakeLoader)
-        pca.Experiment(
-            tmp_path / "movie.mp", just_movie=True, calibration=mc_fixture
-        )
+        pca.Experiment(tmp_path / "movie.mp", just_movie=True, calibration=mc_fixture)
         assert get_calibration() == load_mc(mc_fixture).calibration
 
     def test_raises_without_movie_params(

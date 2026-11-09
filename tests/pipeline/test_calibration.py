@@ -81,9 +81,7 @@ class TestLoadCalibrationDispatch:
 
     def test_json_suffix_goes_through_legacy_loader(self, tmp_path: Path) -> None:
         path = tmp_path / "legacy.json"
-        path.write_text(
-            '{"c2kDa": -0.00005, "intercept": 0.0001}', encoding="utf-8"
-        )
+        path.write_text('{"c2kDa": -0.00005, "intercept": 0.0001}', encoding="utf-8")
         result = load_calibration(path)
         assert result.calibration == Calibration(slope=-0.00005, offset=0.0001)
         assert result.name is None
