@@ -10,7 +10,7 @@ higher-level pipeline objects, so they are safe to unpickle in a
 minimal environment.
 
 The builder helpers (:func:`build_event_records`,
-:func:`build_particle_records`) accept refactored event and particle
+:func:`build_particle_records`) accept event and particle
 objects and extract the subset of fields that should persist on disk.
 """
 
@@ -37,9 +37,7 @@ if TYPE_CHECKING:
     from tandemmp.tracking.particle import Particle
 
 
-# ---------------------------------------------------------------------------
 # Data containers
-# ---------------------------------------------------------------------------
 
 
 _FloatOrArray = float | npt.NDArray[np.floating]
@@ -106,9 +104,7 @@ class ParticleRecord:
     snrs: list[float]
     images: list[npt.NDArray[np.floating]]
 
-    def interpolate(
-        self, values: npt.ArrayLike
-    ) -> tuple[
+    def interpolate(self, values: npt.ArrayLike) -> tuple[
         npt.NDArray[np.int_],
         npt.NDArray[np.floating],
     ]:
@@ -160,9 +156,7 @@ class ResultsFile:
         )
 
 
-# ---------------------------------------------------------------------------
 # Builders
-# ---------------------------------------------------------------------------
 
 
 def _decision_name(decision: object) -> str | None:
@@ -187,7 +181,7 @@ def build_event_records(
     *,
     old_masses: list[_FloatOrArray] | None = None,
 ) -> list[EventRecord]:
-    """Build :class:`EventRecord` list from refactored RatiometricEvents.
+    """Build :class:`EventRecord` list from RatiometricEvents.
 
     Mirrors the pre-refactor ``save_experiment`` extraction: fields are
     pulled directly off the event without scalarisation, so 3D-fit events
@@ -226,7 +220,7 @@ def build_event_records(
 def build_particle_records(
     particles: list[Particle],
 ) -> list[ParticleRecord]:
-    """Build :class:`ParticleRecord` list from refactored Particles.
+    """Build :class:`ParticleRecord` list from Particles.
 
     Per-event fields (``contrasts``, ``masses``, ``x_pos`` …) are stored as
     Python lists exactly as the pre-refactor ``PartData`` did before
@@ -259,9 +253,7 @@ def build_particle_records(
     return records
 
 
-# ---------------------------------------------------------------------------
 # Pickle helpers
-# ---------------------------------------------------------------------------
 
 
 def save_results(filepath: str | Path, results: ResultsFile) -> Path:
@@ -325,8 +317,8 @@ class _LegacyUnpickler(pickle.Unpickler):
     """Unpickler that rewrites pre-refactor class paths onto stub classes.
 
     Old result files reference ``tandemmp.io.save.SaveFile`` and friends, as
-    well as the pre-refactor ``tandemmp.parameters`` (Layer 0g) and
-    ``tandemmp.DriftCorrector`` (Layer 1f) modules embedded in a
+    well as the legacy ``tandemmp.parameters`` and
+    ``tandemmp.DriftCorrector`` modules embedded in a
     ``SaveFile``'s ``parameters``/``vector`` fields. Those modules/classes
     were moved or deleted during the refactor with no forwarding shim left
     behind; ``find_class`` reroutes them to the stubs in

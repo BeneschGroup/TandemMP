@@ -8,9 +8,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-# ---------------------------------------------------------------------------
 # Object repr helper
-# ---------------------------------------------------------------------------
 
 
 def nice_repr(
@@ -46,9 +44,7 @@ def nice_repr(
     return text
 
 
-# ---------------------------------------------------------------------------
 # Random background crop generator
-# ---------------------------------------------------------------------------
 
 
 def movie_random_generator(

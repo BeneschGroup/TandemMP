@@ -21,9 +21,7 @@ from tandemmp.pipeline.parallel import (
     parallel_find_classification,
 )
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_gaussian_spline(
@@ -69,9 +67,7 @@ def _make_peak_image(
     )
 
 
-# ---------------------------------------------------------------------------
 # fit_peak
-# ---------------------------------------------------------------------------
 
 
 class TestFitPeak:
@@ -81,9 +77,7 @@ class TestFitPeak:
         assert result.contrast == pytest.approx(-0.05, abs=0.01)
 
 
-# ---------------------------------------------------------------------------
 # median_frame
-# ---------------------------------------------------------------------------
 
 
 class TestMedianFrame:
@@ -105,9 +99,7 @@ class TestMedianFrame:
         np.testing.assert_allclose(result, 5.0)
 
 
-# ---------------------------------------------------------------------------
 # make_subtraction_event_from_peak
-# ---------------------------------------------------------------------------
 
 
 class TestMakeSubtractionEventFromPeak:
@@ -128,9 +120,7 @@ class TestMakeSubtractionEventFromPeak:
         assert event.subtracted_i == 3
 
 
-# ---------------------------------------------------------------------------
 # make_ratiometric_event_from_peak
-# ---------------------------------------------------------------------------
 
 
 class TestMakeRatiometricEventFromPeak:
@@ -142,9 +132,7 @@ class TestMakeRatiometricEventFromPeak:
         assert event.i == peak.i
 
 
-# ---------------------------------------------------------------------------
 # make_subtraction_event
-# ---------------------------------------------------------------------------
 
 
 class TestMakeSubtractionEvent:
@@ -177,9 +165,7 @@ class TestMakeSubtractionEvent:
         assert event.i == 7
 
 
-# ---------------------------------------------------------------------------
 # parallel_find_classification
-# ---------------------------------------------------------------------------
 
 
 def _make_mock_series(navg: int = 3) -> MagicMock:

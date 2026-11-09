@@ -31,9 +31,7 @@ from tandemmp.drift.corrector import (
 # test suite deterministic.
 _DE_SEED = 42
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_drifting_movie(
@@ -65,9 +63,7 @@ def _make_drifting_movie(
     return frames, dxs, dys
 
 
-# ---------------------------------------------------------------------------
 # DriftVector
-# ---------------------------------------------------------------------------
 
 
 class TestDriftVector:
@@ -120,9 +116,7 @@ class TestDriftVector:
             v.x = np.zeros(3)  # type: ignore[misc]
 
 
-# ---------------------------------------------------------------------------
 # Internal scalar helpers
-# ---------------------------------------------------------------------------
 
 
 class TestScalarHelpers:
@@ -174,9 +168,7 @@ class TestScalarHelpers:
         assert isinstance(xs, slice)
 
 
-# ---------------------------------------------------------------------------
 # stabilise / shift_compare
-# ---------------------------------------------------------------------------
 
 
 class TestStabilise:
@@ -212,9 +204,7 @@ class TestShiftCompare:
         assert rmse_at_truth < rmse_at_zero
 
 
-# ---------------------------------------------------------------------------
 # _solve — single-frame minimisation
-# ---------------------------------------------------------------------------
 
 
 class TestSolve:
@@ -255,9 +245,7 @@ class TestSolve:
         np.testing.assert_array_equal(first, second)
 
 
-# ---------------------------------------------------------------------------
 # _get_initial_vector
-# ---------------------------------------------------------------------------
 
 
 class TestInitialVector:
@@ -307,9 +295,7 @@ class TestInitialVector:
         assert v.y[0] == pytest.approx(0.0, abs=0.3)
 
 
-# ---------------------------------------------------------------------------
 # get_vector
-# ---------------------------------------------------------------------------
 
 
 class TestGetVector:
@@ -400,9 +386,7 @@ class TestGetVector:
         assert len(v) == len(movie)
 
 
-# ---------------------------------------------------------------------------
 # get_corrected_movie
-# ---------------------------------------------------------------------------
 
 
 class TestGetCorrectedMovie:
@@ -457,9 +441,7 @@ class TestGetCorrectedMovie:
         assert out.shape[1] < movie.shape[1] or out.shape[2] < movie.shape[2]
 
 
-# ---------------------------------------------------------------------------
 # get_vector_segmented
-# ---------------------------------------------------------------------------
 
 
 class TestGetVectorSegmented:
@@ -500,9 +482,7 @@ class TestGetVectorSegmented:
             get_vector_segmented(movie, x_grid=2, frame_gap=1, parallel=False)
 
 
-# ---------------------------------------------------------------------------
 # illumination_correction
-# ---------------------------------------------------------------------------
 
 
 class TestIlluminationCorrection:

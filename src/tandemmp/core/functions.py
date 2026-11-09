@@ -10,9 +10,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-# ---------------------------------------------------------------------------
 # Array normalisation
-# ---------------------------------------------------------------------------
 
 
 def normalise(arr: npt.NDArray[np.floating]) -> npt.NDArray[np.floating]:
@@ -25,9 +23,7 @@ def nan_normalise(arr: npt.NDArray[np.floating]) -> npt.NDArray[np.floating]:
     return np.asarray((arr - np.nanmin(arr)) / (np.nanmax(arr) - np.nanmin(arr)))
 
 
-# ---------------------------------------------------------------------------
 # Dictionary lookup
-# ---------------------------------------------------------------------------
 
 
 def closest_index(dictionary: dict[int, Any], frame: int) -> Any | None:  # noqa: ANN401
@@ -41,9 +37,7 @@ def closest_index(dictionary: dict[int, Any], frame: int) -> Any | None:  # noqa
     return None
 
 
-# ---------------------------------------------------------------------------
 # Spatial probability
-# ---------------------------------------------------------------------------
 
 
 def get_overlap_probability(
@@ -63,9 +57,7 @@ def get_overlap_probability(
     return NormalDist(0, s1).overlap(NormalDist(distance, s2))
 
 
-# ---------------------------------------------------------------------------
 # 2-D Gaussian
-# ---------------------------------------------------------------------------
 
 
 def gaussian_2d(
@@ -82,9 +74,7 @@ def gaussian_2d(
     )
 
 
-# ---------------------------------------------------------------------------
 # File browser
-# ---------------------------------------------------------------------------
 
 
 def choose_file(

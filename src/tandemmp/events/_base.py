@@ -18,9 +18,7 @@ from tandemmp.core.conversions import c_to_mass
 from tandemmp.fitting.psf import PeakFitResult, get_psf_model
 from tandemmp.fitting.psf_interface import PsfInterface
 
-# ---------------------------------------------------------------------------
 # Shared event-ID counter
-# ---------------------------------------------------------------------------
 
 _next_event_id: int = 0
 
@@ -39,9 +37,7 @@ def _reset_event_ids() -> None:
     _next_event_id = 0
 
 
-# ---------------------------------------------------------------------------
 # Data containers
-# ---------------------------------------------------------------------------
 
 
 @dataclasses.dataclass(frozen=True)
@@ -80,9 +76,7 @@ class PeakImage:
         )
 
 
-# ---------------------------------------------------------------------------
 # Connectable mixin
-# ---------------------------------------------------------------------------
 
 
 class Connectable:
@@ -116,9 +110,7 @@ class Connectable:
         self.connected_events = []
 
 
-# ---------------------------------------------------------------------------
 # Abstract event
-# ---------------------------------------------------------------------------
 
 
 class AbstractEvent(Connectable):
@@ -150,7 +142,7 @@ class AbstractEvent(Connectable):
         else:
             self.c: float = 0.0
 
-    # -- Properties ----------------------------------------------------------
+    # Properties
 
     @property
     def i(self) -> int:
@@ -163,7 +155,7 @@ class AbstractEvent(Connectable):
         except AttributeError:
             return "Not fitted yet"
 
-    # -- Fitting -------------------------------------------------------------
+    # Fitting
 
     def _underlying_basic_fit(
         self,
@@ -204,7 +196,7 @@ class AbstractEvent(Connectable):
         """Perform (or redo) the basic 2-D PSF fit."""
         self._underlying_basic_fit(method, allow_offset=allow_offset, gtol=gtol)
 
-    # -- SNR / noise ---------------------------------------------------------
+    # SNR / noise
 
     @property
     def snr(self) -> float:

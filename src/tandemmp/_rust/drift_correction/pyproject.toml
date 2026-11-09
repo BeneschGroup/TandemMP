@@ -1,28 +1,6 @@
-# Independent maturin project for this one Rust crate. Deliberately NOT
-# folded into the repo-root `pyproject.toml` (that project stays on
-# setuptools, per WORKLIST.md's Rust-acceleration convention: "each should
-# be implemented as a PyO3 crate under src/tandemmp/_rust/", built and
-# versioned separately from the pure-Python package).
-#
-# `module-name` + `python-source` together tell maturin to build this
-# crate's cdylib as `tandemmp/_rust/drift_correction.<ext>` directly inside
-# the *existing* `src/` tree (three levels up from this file), so it lands
-# exactly where the repo-root project's editable install
-# (`pip install -e ".[dev]"`, `package-dir = {"" = "src"}`) already expects
-# to find `tandemmp._rust.drift_correction` — no separate site-packages
-# copy, no conflict with the `tandemmp` distribution's own metadata (this
-# project's `[project.name]` below is a distinct distribution,
-# `tandemmp-drift-correction`).
-#
-# Build/dev workflow (see this crate's `lib.rs` module docs for the Rust
-# side):
-#   maturin develop          # editable build into src/tandemmp/_rust/
-#   maturin develop --release  # same, optimised (recommended for real use —
-#                                 differential evolution is CPU-bound)
-#   maturin build --release  # produce a standalone wheel (e.g. for CI)
-#
-# `cargo build` / `cargo test` run directly (bypassing maturin) also work
-# unmodified — see Cargo.toml's `[lib] crate-type` comment.
+# Build this extension separately from the main setuptools package:
+#   maturin develop --release  # install into src/tandemmp/_rust/
+#   maturin build --release    # build a wheel
 
 [build-system]
 requires = ["maturin>=1.10,<2.0"]
@@ -40,18 +18,8 @@ classifiers = [
 
 [tool.maturin]
 module-name = "tandemmp._rust.drift_correction"
-# Three levels up from this crate directory (drift_correction -> _rust ->
-# tandemmp -> src) is the root the main project's `package-dir = {"" =
-# "src"}` / editable install already uses.
+# Use the main package's src/ directory.
 python-source = "../../.."
 features = ["pyo3/extension-module"]
-# Without this, maturin bundles the *entire* python-source tree into the
-# wheel verbatim — including this crate's own directory (Cargo.toml, *.rs,
-# tests/, even a self-referential `dist/`), which lands in the installed
-# package as `tandemmp/_rust/drift_correction/` sitting right next to the
-# compiled `tandemmp/_rust/drift_correction.<ext>` module. Harmless on
-# Windows (regular extension-module files take priority over same-named
-# implicit namespace-package directories there), but broke `import
-# tandemmp._rust.drift_correction` on Linux CI, resolving to the empty
-# namespace-package directory instead of the compiled module.
+# Keep Rust sources, tests, and build output out of the Python wheel.
 exclude = ["tandemmp/_rust/drift_correction/**"]

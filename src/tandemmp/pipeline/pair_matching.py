@@ -10,29 +10,11 @@ field, on by default), converts the resulting first-pass
 binding/unbinding pairs via
 :func:`~tandemmp.pipeline.simple_analysis.match_pairs_sigma`.
 
-:meth:`tandemmp.pipeline.pca.Experiment.simple_analysis` does the same
-conversion + matching (sharing :func:`build_simple_events` with this
-module), but only after :class:`~tandemmp.pipeline.pca.Experiment.__init__`
-has also constructed an unused
-:class:`~tandemmp.pipeline.investigator.Investigator` /
-:class:`~tandemmp.tracking.manager.ParticleManager` pair, and with no way to
-slice the movie (no ``frame_start``/``frame_end``). This module drives
-:class:`~tandemmp.pipeline.loader.Loader` directly instead — standalone from
-:mod:`tandemmp.pipeline.batch` in the same sense as
-:mod:`tandemmp.pipeline.drift_correction` — so it stays a plain
-load-then-match call with movie-slicing support, and never runs the heavier
-PSF-fit-based tracking loop that :meth:`Experiment.simple_analysis` pulls in
-as an (unused) side effect of construction.
-
-Plotting is deliberately left unimplemented here: :func:`run_pair_matching`
-returns a :class:`PairMatchingResult` (matched pairs plus the underlying
-events) for a caller to visualise however is decided next — e.g. via
-:func:`tandemmp.plotting.experiment.mass_tablecloth`, pending review against
-the "tablecloth" plots in the ``alex_area`` reference notebooks/scripts.
+Supports movie slicing via ``frame_start`` and ``frame_end`` without running
+the PSF-fit-based tracking loop. :func:`run_pair_matching` returns matched
+pairs and events in a :class:`PairMatchingResult`; callers handle plotting.
 :attr:`PairMatchingResult.initial_masses`/:attr:`~PairMatchingResult.secondary_masses`
-already shape the result the way :func:`~tandemmp.plotting.experiment.mass_tablecloth`
-expects, so wiring up plotting later should not require touching this
-module.
+can be passed to :func:`~tandemmp.plotting.experiment.mass_tablecloth`.
 """
 
 from __future__ import annotations
@@ -54,9 +36,7 @@ from tandemmp.pipeline.simple_analysis import (
     match_pairs_sigma,
 )
 
-# ---------------------------------------------------------------------------
 # Result container
-# ---------------------------------------------------------------------------
 
 
 @dataclasses.dataclass(frozen=True)
@@ -83,9 +63,7 @@ class PairMatchingResult:
         return np.array([p.unbinding.m for p in self.pairs], dtype=float)
 
 
-# ---------------------------------------------------------------------------
 # Orchestration
-# ---------------------------------------------------------------------------
 
 
 def run_pair_matching(
@@ -159,12 +137,3 @@ if __name__ == "__main__":
         f"{len(result.pairs)} pair(s) matched from {len(result.events)} "
         f"event(s) in {movie_filepath}"
     )
-
-    # Plotting intentionally left for a follow-up once the ``alex_area``
-    # tablecloth plots (plotting.py / fig3.ipynb) have been reviewed —
-    # tandemmp.plotting.experiment.mass_tablecloth is a ready-made 2-D mass
-    # scatter that can already consume `result.initial_masses` /
-    # `result.secondary_masses` directly, e.g.:
-    #
-    #   from tandemmp.plotting.experiment import mass_tablecloth
-    #   mass_tablecloth(result.initial_masses, result.secondary_masses)

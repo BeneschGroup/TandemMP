@@ -10,9 +10,7 @@ hierarchy is:
 - :class:`Investigator` — top-level ``find_and_fit`` / ``multi_continuation``
   driver that combines the above.
 
-The ``open_iscat.utils.parallel`` dependency is replaced with
-:func:`tandemmp.core.parallel.dispatch_kwargs`, a shared local
-:mod:`multiprocessing` dispatcher also used by :mod:`tandemmp.drift.corrector`.
+Parallel work uses :func:`tandemmp.core.parallel.dispatch_kwargs`.
 """
 
 from __future__ import annotations
@@ -70,18 +68,14 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
 # Exceptions
-# ---------------------------------------------------------------------------
 
 
 class TrailingOffException(Exception):  # noqa: N818 — name preserved for API stability
     """Raised when a fit trails off to physically implausible mass."""
 
 
-# ---------------------------------------------------------------------------
 # MultiFitResult
-# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -145,9 +139,7 @@ class MultiFitResult:
         )
 
 
-# ---------------------------------------------------------------------------
 # Ghost event helper
-# ---------------------------------------------------------------------------
 
 
 def create_ghost_event(
@@ -181,9 +173,7 @@ def create_ghost_event(
     return GhostEvent(im, (dx, dy, c))
 
 
-# ---------------------------------------------------------------------------
 # Action / Decision
-# ---------------------------------------------------------------------------
 
 
 class Action(enum.IntFlag):
@@ -203,9 +193,7 @@ class Decision(NamedTuple):
     interesting: bool = False
 
 
-# ---------------------------------------------------------------------------
 # Scoring helper
-# ---------------------------------------------------------------------------
 
 
 def _distance_array(
@@ -214,12 +202,9 @@ def _distance_array(
     """Extract distances from *results*, replacing ``None`` with a value
     strictly larger than the maximum known distance.
 
-    :class:`Particle.distance_to` now returns ``float | None`` (``None``
-    when the candidate is unbound at the query frame).  The pre-refactor
-    code coerced this to ``False``/``0``, which biased unbound candidates
-    toward being chosen as best.  Filling with ``max_known * 2`` (or ``1.0``
-    when every candidate is unbound) ensures unbound candidates score as
-    *worse*, never better, in :meth:`Investigator.find_and_fit`.
+    :meth:`Particle.distance_to` returns ``None`` for unbound candidates.
+    These receive ``max_known * 2`` (or ``1.0`` when all are unbound), so
+    they rank behind candidates with a known positive distance.
     """
     raw = [r.distance for r in results]
     known = [d for d in raw if d is not None]
@@ -232,9 +217,7 @@ def _distance_array(
     return np.asarray([fill if d is None else float(d) for d in raw], dtype=float)
 
 
-# ---------------------------------------------------------------------------
 # BaseInvestigator
-# ---------------------------------------------------------------------------
 
 
 class BaseInvestigator:
@@ -286,7 +269,7 @@ class BaseInvestigator:
         else:
             self._im_correct = lambda im: im
 
-    # -- Subtraction series generation --------------------------------------
+    # Subtraction series generation
 
     def generate_subtraction_series(
         self,
@@ -359,7 +342,7 @@ class BaseInvestigator:
         )
         return SubtractionSeries(events)
 
-    # -- Classification ------------------------------------------------------
+    # Classification
 
     def find_classification(  # noqa: PLR0912, PLR0913, PLR0915
         self,
@@ -556,7 +539,7 @@ class BaseInvestigator:
         # explicitly instead so the failure is self-describing.
         raise RuntimeError("find_classification produced no viable candidate")
 
-    # -- Series correction ---------------------------------------------------
+    # Series correction
 
     def correct_series(  # noqa: PLR0913
         self,
@@ -614,9 +597,7 @@ class BaseInvestigator:
         return SubtractionSeries(new_events)
 
 
-# ---------------------------------------------------------------------------
 # GhostInvestigator
-# ---------------------------------------------------------------------------
 
 
 class GhostInvestigator(BaseInvestigator):
@@ -641,7 +622,7 @@ class GhostInvestigator(BaseInvestigator):
         )
         self.doubles_checked: set[Particle] = set()
 
-    # -- Top-level ghost processing -----------------------------------------
+    # Top-level ghost processing
 
     def process_ghost(
         self,
@@ -705,7 +686,7 @@ class GhostInvestigator(BaseInvestigator):
         logger.info("Failed all double fits, assuming new ghost")
         return Decision(action=Action.create_new, particle=initial_attempt)  # type: ignore[arg-type]
 
-    # -- Initial ghost fit --------------------------------------------------
+    # Initial ghost fit
 
     def attempt_initial_ghost(  # noqa: PLR0912, PLR0915
         self,
@@ -832,7 +813,7 @@ class GhostInvestigator(BaseInvestigator):
         attempt.set_particle(f"Initial ghost attempt particle {ghost_particle.ID}")
         return ghost_particle
 
-    # -- Ghost fit inner loop -----------------------------------------------
+    # Ghost fit inner loop
 
     def fit_initial_ghost(  # noqa: PLR0915
         self,
@@ -942,7 +923,7 @@ class GhostInvestigator(BaseInvestigator):
             logger.info("Ghost fitting aborted: %s", exc)
             return False
 
-    # -- Ghost correction helpers -------------------------------------------
+    # Ghost correction helpers
 
     def _correct_ghost(  # noqa: PLR0913
         self,
@@ -1067,7 +1048,7 @@ class GhostInvestigator(BaseInvestigator):
         new_event.apply_3D_fit(attempt)
         return new_event, beats_basic
 
-    # -- Double ghost fit ---------------------------------------------------
+    # Double ghost fit
 
     def fit_double_ghost(  # noqa: PLR0912, PLR0913, PLR0915
         self,
@@ -1248,7 +1229,7 @@ class GhostInvestigator(BaseInvestigator):
             return False
         return res, fit_results  # type: ignore[return-value]
 
-    # -- Ghost matching -----------------------------------------------------
+    # Ghost matching
 
     def match_ghost(
         self, event: RatiometricEvent, ghost_particle: GhostParticle
@@ -1314,7 +1295,7 @@ class GhostInvestigator(BaseInvestigator):
             return candidates  # type: ignore[return-value]
         return False
 
-    # -- Double check -------------------------------------------------------
+    # Double check
 
     def double_check_ghost(  # noqa: PLR0912, PLR0913, PLR0915
         self,
@@ -1327,13 +1308,9 @@ class GhostInvestigator(BaseInvestigator):
     ) -> bool | GhostParticle:
         """Confirm or reject a match to *original_ghost_particle*.
 
-        TODO(PR #40 review issue 4): only the guard/exception path is covered
-        (``TestDoubleCheckGhostGuards``). The success path chains several real
-        orchestration calls (``_correct_ghost``/``_recorrect_ghost``,
-        ``_make_pseudo_event``, ``find_classification``,
-        ``particle_manager.remove``) and was judged too expensive to cover in
-        the same pass as the rest of the ghost-matching subsystem — scope it
-        with the deferred items #3/#4.
+        TODO: add success-path coverage for correction, pseudo-event creation,
+        classification, and particle removal. ``TestDoubleCheckGhostGuards``
+        covers only guard and exception paths.
         """
         pc = self.parameters.tandemmp_analysis.particle_continuation
         init_event: RatiometricEvent
@@ -1569,9 +1546,7 @@ class GhostInvestigator(BaseInvestigator):
         return new_ghost_particle
 
 
-# ---------------------------------------------------------------------------
 # Investigator
-# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -1608,7 +1583,7 @@ class Investigator(GhostInvestigator):
             [] if not event_veto_frames else list(event_veto_frames)
         )
 
-    # -- find_and_fit -------------------------------------------------------
+    # find_and_fit
 
     def find_and_fit(  # noqa: PLR0912, PLR0915
         self,
@@ -1616,10 +1591,8 @@ class Investigator(GhostInvestigator):
     ) -> Decision:
         """Decide what to do with *event* — the main pipeline entry point.
 
-        TODO(PR #40 review issue 4): only the no-particles-found branch has
-        direct coverage (``TestFindAndFitNoParticles``). The matching branches
-        that fit `event` against `close_particles`/`all_particles` still need
-        tests — see the deferred item #3 from the ghost-subsystem test review.
+        TODO: test matching against ``close_particles`` and ``all_particles``.
+        ``TestFindAndFitNoParticles`` covers the no-particles-found branch.
         """
         self.doubles_checked = set()
 
@@ -2065,7 +2038,7 @@ class Investigator(GhostInvestigator):
         action = Action.ignore if no_correction.ghost_signal_ML else Action.failed
         return Decision(action=action, particle=None)
 
-    # -- multi_continuation -------------------------------------------------
+    # multi_continuation
 
     def multi_continuation(  # noqa: PLR0912, PLR0915
         self,
@@ -2073,8 +2046,7 @@ class Investigator(GhostInvestigator):
     ) -> None:
         """Continue subtraction-event tracking for particles already on slide.
 
-        TODO(PR #40 review issue 4): no direct test coverage yet — see the
-        deferred item #4 from the ghost-subsystem test review.
+        TODO: add direct test coverage for subtraction-event continuation.
         """
         logger.info("Beginning multi continuation")
 

@@ -14,9 +14,7 @@ from tandemmp.core.histogram import (
     scott_bin_count,
 )
 
-# ---------------------------------------------------------------------------
 # scott_bin_count
-# ---------------------------------------------------------------------------
 
 
 class TestScottBinCount:
@@ -39,9 +37,7 @@ class TestScottBinCount:
         assert scott_bin_count(large) > scott_bin_count(small)
 
 
-# ---------------------------------------------------------------------------
 # fit_gaussian_to_histogram
-# ---------------------------------------------------------------------------
 
 
 class TestFitGaussianToHistogram:
@@ -77,9 +73,7 @@ class TestFitGaussianToHistogram:
         assert amplitude > 0
 
 
-# ---------------------------------------------------------------------------
 # fit_gmm
-# ---------------------------------------------------------------------------
 
 
 class TestFitGMM:
@@ -125,9 +119,7 @@ class TestFitGMM:
         assert gmm.n_components == 1
 
 
-# ---------------------------------------------------------------------------
 # duplicate_inliers
-# ---------------------------------------------------------------------------
 
 
 class TestDuplicateInliers:
@@ -151,9 +143,7 @@ class TestDuplicateInliers:
         assert isinstance(result, np.ndarray)
 
 
-# ---------------------------------------------------------------------------
 # fit_means
-# ---------------------------------------------------------------------------
 
 
 class TestFitMeans:

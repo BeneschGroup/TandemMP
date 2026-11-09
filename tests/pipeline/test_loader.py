@@ -39,9 +39,7 @@ from tandemmp.pipeline.loader import (
 from tandemmp.pipeline.open_iscat_pipeline import OpenIscatPipeline
 from tandemmp.pipeline.pipeline_interface import PipelineResults
 
-# ---------------------------------------------------------------------------
 # Fixtures / helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_gaussian_spline(
@@ -120,9 +118,7 @@ def _build_mismatched_event(
     return event, ratiometric
 
 
-# ---------------------------------------------------------------------------
 # bin_movie / compute_post_binning_factor
-# ---------------------------------------------------------------------------
 
 
 class TestBinMovie:
@@ -163,9 +159,7 @@ class TestComputePostBinningFactor:
         assert result == 1
 
 
-# ---------------------------------------------------------------------------
 # get_peak
-# ---------------------------------------------------------------------------
 
 
 class TestGetPeak:
@@ -194,9 +188,7 @@ class TestGetPeak:
         np.testing.assert_allclose(peak.image, -2.0)
 
 
-# ---------------------------------------------------------------------------
 # build_first_pass_events
-# ---------------------------------------------------------------------------
 
 
 class TestBuildFirstPassEvents:
@@ -220,9 +212,7 @@ class TestBuildFirstPassEvents:
         assert all(e.navg == 5 for e in events)
 
 
-# ---------------------------------------------------------------------------
 # find_lid_open_exclusion_range / filter_events_by_lid
-# ---------------------------------------------------------------------------
 
 
 class TestFindLidOpenExclusionRange:
@@ -255,9 +245,7 @@ class TestFilterEventsByLid:
         assert [e.i for e in excluded] == [5]
 
 
-# ---------------------------------------------------------------------------
 # correct_movements
-# ---------------------------------------------------------------------------
 
 
 class TestCorrectMovements:
@@ -312,9 +300,7 @@ class TestCorrectMovements:
         assert merged.i == 5
 
 
-# ---------------------------------------------------------------------------
 # mark_overlaps
-# ---------------------------------------------------------------------------
 
 
 class TestMarkOverlaps:
@@ -359,9 +345,7 @@ class TestMarkOverlaps:
         assert b.overlaps == []
 
 
-# ---------------------------------------------------------------------------
 # filter_events_by_mass
-# ---------------------------------------------------------------------------
 
 
 class TestFilterEventsByMass:
@@ -398,9 +382,7 @@ class TestFilterEventsByMass:
         assert discarded == []
 
 
-# ---------------------------------------------------------------------------
 # determine_experimental_psf_model
-# ---------------------------------------------------------------------------
 
 
 def _small_exp_psf_params(**overrides):
@@ -489,9 +471,7 @@ class TestDetermineExperimentalPsfModel:
         assert event.peak_model is result_model
 
 
-# ---------------------------------------------------------------------------
 # Loader
-# ---------------------------------------------------------------------------
 
 
 class _FakeEventsFound:

@@ -14,9 +14,7 @@ import pytest
 from tandemmp.core.conversions import Calibration, get_calibration
 from tandemmp.pipeline import batch
 
-# ---------------------------------------------------------------------------
 # Fakes / helpers
-# ---------------------------------------------------------------------------
 
 
 class _FakeExperiment:
@@ -60,9 +58,7 @@ def fake_experiment(monkeypatch: pytest.MonkeyPatch) -> type[_FakeExperiment]:
     return _FakeExperiment
 
 
-# ===========================================================================
 # process_movie
-# ===========================================================================
 
 
 class TestProcessMovie:
@@ -171,9 +167,7 @@ class TestProcessMovie:
         assert result.filepath == movie
 
 
-# ===========================================================================
 # batch_process
-# ===========================================================================
 
 
 class TestBatchProcess:

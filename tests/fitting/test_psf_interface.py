@@ -45,9 +45,7 @@ def psf_model(request: pytest.FixtureRequest) -> PsfInterface:
     return request.param()
 
 
-# ---------------------------------------------------------------------------
 # Structural conformance
-# ---------------------------------------------------------------------------
 
 
 class TestStructuralConformance:
@@ -55,9 +53,7 @@ class TestStructuralConformance:
         assert isinstance(psf_model, PsfInterface)
 
 
-# ---------------------------------------------------------------------------
 # psf_params
-# ---------------------------------------------------------------------------
 
 
 class TestPsfParams:
@@ -67,9 +63,7 @@ class TestPsfParams:
         assert all(isinstance(v, float) for v in params.values())
 
 
-# ---------------------------------------------------------------------------
 # get_psf_function
-# ---------------------------------------------------------------------------
 
 
 class TestGetPsfFunction:
@@ -91,9 +85,7 @@ class TestGetPsfFunction:
         np.testing.assert_allclose(b, 2 * a, atol=1e-10)
 
 
-# ---------------------------------------------------------------------------
 # render / psf_2d_offset
-# ---------------------------------------------------------------------------
 
 
 class TestRenderAndOffset:
@@ -112,9 +104,7 @@ class TestRenderAndOffset:
         np.testing.assert_allclose(b, 2 * a, atol=1e-10)
 
 
-# ---------------------------------------------------------------------------
 # fit_peak
-# ---------------------------------------------------------------------------
 
 
 class TestFitPeak:
@@ -141,9 +131,7 @@ class TestFitPeak:
         assert result.dy == pytest.approx(-0.3, abs=0.3)
 
 
-# ---------------------------------------------------------------------------
 # fit_peak_exclusion
-# ---------------------------------------------------------------------------
 
 
 class TestFitPeakExclusion:

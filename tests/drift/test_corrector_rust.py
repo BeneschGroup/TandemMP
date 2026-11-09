@@ -53,9 +53,7 @@ def _make_drifting_movie(
     return frames, dxs, dys
 
 
-# ---------------------------------------------------------------------------
 # Direct binding-level tests (tandemmp._rust.drift_correction)
-# ---------------------------------------------------------------------------
 
 
 class TestBindingRmse:
@@ -130,9 +128,7 @@ class TestBindingSolve:
         assert first == second
 
 
-# ---------------------------------------------------------------------------
 # corrector.py's use_rust=True path
-# ---------------------------------------------------------------------------
 
 
 class TestStabiliseUseRust:
@@ -268,9 +264,7 @@ class TestSolveRustHelperTypeError:
             _solve_rust(base, base, (-6.0, 6.0), np.random.default_rng(1))
 
 
-# ---------------------------------------------------------------------------
 # End-to-end smoke tests through get_vector / get_corrected_movie
-# ---------------------------------------------------------------------------
 
 
 class TestGetVectorUseRust:

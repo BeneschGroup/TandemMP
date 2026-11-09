@@ -32,9 +32,7 @@ from tandemmp.fitting.minimize import minimize_model
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
 # Data containers
-# ---------------------------------------------------------------------------
 
 
 @dataclasses.dataclass(frozen=True)
@@ -49,9 +47,7 @@ class PeakFitResult:
     backend: Literal["python", "spline", "rust", "none"]
 
 
-# ---------------------------------------------------------------------------
 # Grid utilities (cached)
-# ---------------------------------------------------------------------------
 
 
 @functools.lru_cache(maxsize=128)
@@ -79,9 +75,7 @@ def dynamic_mesh(
     return np.meshgrid(x, y)  # type: ignore[return-value]
 
 
-# ---------------------------------------------------------------------------
 # Error metric
-# ---------------------------------------------------------------------------
 
 
 def error_metric(
@@ -96,9 +90,7 @@ def error_metric(
     return float(np.sum((fit - peak) ** 2))
 
 
-# ---------------------------------------------------------------------------
 # Optional dependency loader
-# ---------------------------------------------------------------------------
 
 
 @functools.lru_cache(maxsize=1)
@@ -115,9 +107,7 @@ def _get_open_iscat_radialcenter() -> Any:  # noqa: ANN401
     return radialcenter
 
 
-# ---------------------------------------------------------------------------
 # PSF interface
-# ---------------------------------------------------------------------------
 
 
 @runtime_checkable
@@ -188,9 +178,7 @@ class PsfInterface(Protocol):
         ...
 
 
-# ---------------------------------------------------------------------------
 # Initial position guess
-# ---------------------------------------------------------------------------
 
 
 def _initial_position_guess(
@@ -222,9 +210,7 @@ def _initial_position_guess(
         )
 
 
-# ---------------------------------------------------------------------------
 # Generic peak fitting
-# ---------------------------------------------------------------------------
 
 
 def fit_peak_generic(  # noqa: PLR0913

@@ -30,9 +30,7 @@ from tandemmp.fitting.psf_interface import PsfInterface
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
 # Simple wrappers (picklable for multiprocessing)
-# ---------------------------------------------------------------------------
 
 
 def fit_peak(
@@ -100,9 +98,7 @@ def make_subtraction_event(
     )
 
 
-# ---------------------------------------------------------------------------
 # 3-D ratiometric classification
-# ---------------------------------------------------------------------------
 
 
 def parallel_find_classification(  # noqa: PLR0912, PLR0913
@@ -234,15 +230,9 @@ def parallel_find_classification(  # noqa: PLR0912, PLR0913
 
         penalties.append(penalty)
 
-    # TODO: verify intended selection behaviour with upstream TandemMP.
-    # `lowest_error_index` is computed from raw `r.fun` BEFORE the penalty
-    # loop below folds penalties into `r.fun`, so the best classification is
-    # chosen by raw fit error only — the computed penalties never influence
-    # the selection.  This mirrors the original tandemmp/utils/parallel.py
-    # behaviour but likely contradicts the docstring's "lowest combined error
-    # and penalty" phrasing.  Issue to be filed against upstream
-    # joshualiambishop/TandemMP; resolve once intent is confirmed (either
-    # swap the two blocks or drop the unused penalty computation).
+    # TODO: confirm whether penalties should affect classification selection.
+    # Selection uses raw fit error because penalties are added afterwards,
+    # contrary to the docstring's "lowest combined error and penalty".
     lowest_error_index = int(np.argmin([r.fun for r in results]))
 
     for r, p in zip(results, penalties, strict=True):

@@ -41,9 +41,7 @@ class _FakeLoader:
         self.events: list[_FakeEvent] = [_binding(0), _unbinding(10)]
 
 
-# ---------------------------------------------------------------------------
 # run_pair_matching — wiring
-# ---------------------------------------------------------------------------
 
 
 class TestRunPairMatchingWiring:
@@ -159,9 +157,7 @@ class TestRunPairMatchingWiring:
         assert len(result.events) == 2
 
 
-# ---------------------------------------------------------------------------
 # run_pair_matching — end to end (real match_pairs_sigma)
-# ---------------------------------------------------------------------------
 
 
 class TestRunPairMatchingEndToEnd:
@@ -217,9 +213,7 @@ class TestRunPairMatchingEndToEnd:
         assert result.secondary_masses.shape == (0,)
 
 
-# ---------------------------------------------------------------------------
 # PairMatchingResult
-# ---------------------------------------------------------------------------
 
 
 class TestPairMatchingResult:

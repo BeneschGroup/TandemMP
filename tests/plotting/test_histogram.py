@@ -10,9 +10,7 @@ matplotlib.use("Agg")  # non-interactive backend for CI
 
 from tandemmp.plotting.histogram import plot_gmm, plot_histogram
 
-# ---------------------------------------------------------------------------
 # plot_histogram
-# ---------------------------------------------------------------------------
 
 
 class TestPlotHistogram:
@@ -29,9 +27,7 @@ class TestPlotHistogram:
         assert ax is not None
 
 
-# ---------------------------------------------------------------------------
 # plot_gmm
-# ---------------------------------------------------------------------------
 
 
 class TestPlotGMM:

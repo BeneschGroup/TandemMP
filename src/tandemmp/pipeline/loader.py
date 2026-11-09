@@ -8,14 +8,9 @@ first-pass :class:`~tandemmp.events.RatiometricEvent` for every detected
 peak, and then merges/filters/marks-overlaps on those events ready for
 :class:`tandemmp.pipeline.investigator.Investigator`.
 
-The ``open_iscat.utils.parallel`` dependency is replaced with
-:func:`tandemmp.core.parallel.dispatch_kwargs`, the same shared local
-:mod:`multiprocessing` dispatcher used by :mod:`tandemmp.drift.corrector` and
-:mod:`tandemmp.pipeline.investigator`. ``determine_experimental_psf_model``
-only adopts the spline-based experimental PSF model; porting the parametric
-a12/w/s refit branch onto the
-:class:`~tandemmp.fitting.psf_interface.PsfInterface` abstraction (layer 6m,
-see CLAUDE.md) remains a separate, not-yet-done task.
+Parallel work uses :func:`tandemmp.core.parallel.dispatch_kwargs`.
+``determine_experimental_psf_model`` supports the spline-based experimental
+PSF model; parametric a12/w/s refitting is not implemented.
 """
 
 from __future__ import annotations
@@ -60,9 +55,7 @@ class OverlapArea(NamedTuple):
     temporal: bool
 
 
-# ---------------------------------------------------------------------------
 # Movie loading helpers
-# ---------------------------------------------------------------------------
 
 
 def bin_movie(
@@ -90,9 +83,7 @@ def compute_post_binning_factor(
     )
 
 
-# ---------------------------------------------------------------------------
 # Peak extraction
-# ---------------------------------------------------------------------------
 
 
 def get_peak(
@@ -164,9 +155,7 @@ def build_first_pass_events(
     )
 
 
-# ---------------------------------------------------------------------------
 # Lid-open exclusion
-# ---------------------------------------------------------------------------
 
 
 def find_lid_open_exclusion_range(
@@ -204,9 +193,7 @@ def filter_events_by_lid(
     return kept, excluded
 
 
-# ---------------------------------------------------------------------------
 # Movement correction (merges spatio-temporally coincident events)
-# ---------------------------------------------------------------------------
 
 
 def correct_movements(
@@ -272,9 +259,7 @@ def correct_movements(
     return new_events
 
 
-# ---------------------------------------------------------------------------
 # Overlap marking
-# ---------------------------------------------------------------------------
 
 
 def mark_overlaps(events: Events) -> None:
@@ -370,9 +355,7 @@ def mark_overlaps(events: Events) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
 # Mass / SNR filtering
-# ---------------------------------------------------------------------------
 
 
 def filter_events_by_mass(
@@ -397,9 +380,7 @@ def filter_events_by_mass(
     return kept, discarded
 
 
-# ---------------------------------------------------------------------------
 # Experimental PSF model
-# ---------------------------------------------------------------------------
 
 
 def determine_experimental_psf_model(
@@ -539,9 +520,7 @@ def determine_experimental_psf_model(
     return new_model, exp_model
 
 
-# ---------------------------------------------------------------------------
 # Loader
-# ---------------------------------------------------------------------------
 
 
 class Loader:

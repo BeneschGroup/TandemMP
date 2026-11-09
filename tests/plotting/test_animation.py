@@ -16,9 +16,7 @@ from tandemmp.plotting.animation import (
     reconstruct_particle_movie,
 )
 
-# ---------------------------------------------------------------------------
 # Helpers / fixtures
-# ---------------------------------------------------------------------------
 
 RNG = np.random.default_rng(0)
 
@@ -78,9 +76,7 @@ def _make_experiment(
     return exp
 
 
-# ---------------------------------------------------------------------------
 # create_raw_mosaic
-# ---------------------------------------------------------------------------
 
 
 class TestCreateRawMosaic:
@@ -150,9 +146,7 @@ class TestCreateRawMosaic:
         np.testing.assert_allclose(result[1, 20:24, 20:24], 0.2)
 
 
-# ---------------------------------------------------------------------------
 # create_mosaic_movie
-# ---------------------------------------------------------------------------
 
 
 class TestCreateMosaicMovie:
@@ -239,9 +233,7 @@ class TestCreateMosaicMovie:
         np.testing.assert_allclose(result[0, 0:2, 0:2], 0.1)
 
 
-# ---------------------------------------------------------------------------
 # reconstruct_particle_movie
-# ---------------------------------------------------------------------------
 
 
 class TestReconstructParticleMovie:

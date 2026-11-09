@@ -23,9 +23,7 @@ from tandemmp.tracking.particle import (
     _reset_particle_ids,
 )
 
-# ---------------------------------------------------------------------------
 # Fixtures / helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_gaussian_spline(
@@ -145,9 +143,7 @@ def _make_ghost_particle(
     return GhostParticle(_make_ghost_event(model, frame=frame, midpoint=midpoint))
 
 
-# ===========================================================================
 # Construction / container protocol
-# ===========================================================================
 
 
 class TestConstruction:
@@ -213,9 +209,7 @@ class TestContainerProtocol:
         assert len(m) == 1
 
 
-# ===========================================================================
 # append
-# ===========================================================================
 
 
 class TestAppend:
@@ -276,9 +270,7 @@ class TestAppend:
         assert p.split_mass is None
 
 
-# ===========================================================================
 # remove
-# ===========================================================================
 
 
 class TestRemove:
@@ -306,9 +298,7 @@ class TestRemove:
         assert m.remove(p) is False
 
 
-# ===========================================================================
 # get_present_particles
-# ===========================================================================
 
 
 class TestGetPresentParticles:
@@ -334,9 +324,7 @@ class TestGetPresentParticles:
         assert m.get_present_particles(20) == [p1]
 
 
-# ===========================================================================
 # get_close_particles
-# ===========================================================================
 
 
 class TestGetCloseParticles:
@@ -373,9 +361,7 @@ class TestGetCloseParticles:
         assert close == [near]
 
 
-# ===========================================================================
 # background_particle_check / particles_in_thumbnail
-# ===========================================================================
 
 
 class TestBackgroundParticleCheck:
@@ -432,9 +418,7 @@ class TestParticlesInThumbnail:
         assert all(lst == [] for lst in per_frame)
 
 
-# ===========================================================================
 # find_best_matches
-# ===========================================================================
 
 
 class TestFindBestMatches:

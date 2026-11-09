@@ -17,9 +17,7 @@ from tandemmp.io.movie import (
     start_subtraction_fast,
 )
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 RNG = np.random.default_rng(42)
 
@@ -29,9 +27,7 @@ def _movie(n_frames: int = 20, height: int = 8, width: int = 8) -> np.ndarray:
     return (RNG.random((n_frames, height, width)) + 1.0).astype(float)
 
 
-# ---------------------------------------------------------------------------
 # ratiometric
-# ---------------------------------------------------------------------------
 
 
 class TestRatiometric:
@@ -75,9 +71,7 @@ class TestRatiometric:
         assert result.dtype == float
 
 
-# ---------------------------------------------------------------------------
 # rolling_mean
-# ---------------------------------------------------------------------------
 
 
 class TestRollingMean:
@@ -108,9 +102,7 @@ class TestRollingMean:
         np.testing.assert_allclose(inner, 0.0, atol=1e-12)
 
 
-# ---------------------------------------------------------------------------
 # fast_rolling_mean
-# ---------------------------------------------------------------------------
 
 
 class TestFastRollingMean:
@@ -170,9 +162,7 @@ class TestFastRollingMean:
         )
 
 
-# ---------------------------------------------------------------------------
 # fast_ratiometric
-# ---------------------------------------------------------------------------
 
 
 class TestFastRatiometric:
@@ -233,9 +223,7 @@ class TestFastRatiometric:
         )
 
 
-# ---------------------------------------------------------------------------
 # start_subtraction
-# ---------------------------------------------------------------------------
 
 
 class TestStartSubtraction:
@@ -294,9 +282,7 @@ class TestStartSubtraction:
         assert result.dtype == float
 
 
-# ---------------------------------------------------------------------------
 # start_subtraction_fast
-# ---------------------------------------------------------------------------
 
 
 class TestStartSubtractionFast:
@@ -329,9 +315,7 @@ class TestStartSubtractionFast:
         np.testing.assert_array_equal(ref, ref_copy)
 
 
-# ---------------------------------------------------------------------------
 # pre_bin
-# ---------------------------------------------------------------------------
 
 
 class TestPreBin:
@@ -368,9 +352,7 @@ class TestPreBin:
         np.testing.assert_allclose(result[1], 6.0)
 
 
-# ---------------------------------------------------------------------------
 # final_polish_fix
-# ---------------------------------------------------------------------------
 
 
 class TestFinalPolishFix:
@@ -406,9 +388,7 @@ class TestFinalPolishFix:
         assert result.shape[0] == 8 + 10
 
 
-# ---------------------------------------------------------------------------
 # duplicate_and_change_frames
-# ---------------------------------------------------------------------------
 
 
 class TestDuplicateAndChangeFrames:

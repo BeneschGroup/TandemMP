@@ -9,9 +9,7 @@ import pytest
 
 from tandemmp.pipeline.open_iscat_pipeline import Info, Movie, PipelineResults
 
-# ---------------------------------------------------------------------------
 # Info
-# ---------------------------------------------------------------------------
 
 
 class TestInfo:
@@ -55,9 +53,7 @@ class TestInfo:
         assert info.scatter_interference_destructive is None
 
 
-# ---------------------------------------------------------------------------
 # PipelineResults
-# ---------------------------------------------------------------------------
 
 
 class TestPipelineResults:
@@ -80,9 +76,7 @@ class TestPipelineResults:
             pr.events = []  # type: ignore[misc]
 
 
-# ---------------------------------------------------------------------------
 # Movie
-# ---------------------------------------------------------------------------
 
 
 class TestMovie:

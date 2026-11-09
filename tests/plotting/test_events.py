@@ -39,9 +39,7 @@ from tandemmp.plotting.events import (
     show_subtraction_corrections,
 )
 
-# ---------------------------------------------------------------------------
 # Helpers / fixtures
-# ---------------------------------------------------------------------------
 
 
 def _make_gaussian_spline(
@@ -148,9 +146,7 @@ def _make_fit3d_event(spline_model: PsfModel, *, navg: int = 5) -> RatiometricEv
     return ev
 
 
-# ---------------------------------------------------------------------------
 # AbstractEvent-level: show / show_basic_fit / show_fits
-# ---------------------------------------------------------------------------
 
 
 class TestShow:
@@ -188,9 +184,7 @@ class TestShowFits:
         show_fits(ev)
 
 
-# ---------------------------------------------------------------------------
 # SubtractionEvent / SubtractionSeries
-# ---------------------------------------------------------------------------
 
 
 class TestShowSubtractionCorrections:
@@ -228,9 +222,7 @@ class TestShowSeriesCorrections:
         show_series_corrections(series)
 
 
-# ---------------------------------------------------------------------------
 # RatiometricEvent — 3-D fit and reports
-# ---------------------------------------------------------------------------
 
 
 class TestShow3DFit:

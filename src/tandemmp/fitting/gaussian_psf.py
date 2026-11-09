@@ -42,14 +42,14 @@ class GaussianPsfModel:
     def __init__(self, sigma: float = _DEFAULT_SIGMA) -> None:
         self.sigma = sigma
 
-    # -- Properties ------------------------------------------------------
+    # Properties
 
     @property
     def psf_params(self) -> dict[str, float]:
         """Return the Gaussian's shape parameter."""
         return {"sigma": self.sigma}
 
-    # -- PSF generation ----------------------------------------------------
+    # PSF generation
 
     def get_psf_function(self) -> Callable[..., npt.NDArray[np.floating]]:
         """Return a callable ``f(x, y, c=1.0) -> image``.
@@ -97,7 +97,7 @@ class GaussianPsfModel:
         """
         return self.psf_2d_offset(size, dx, dy, c)
 
-    # -- Peak fitting --------------------------------------------------------
+    # Peak fitting
 
     def fit_peak(
         self,

@@ -1,14 +1,8 @@
 //! Native shift + RMSE hot path for `tandemmp.drift.corrector`.
 //!
-//! This crate's core modules (everything except [`python`]) started out as
-//! pure Rust with no `pyo3` dependency and no Python bindings; the [`python`]
-//! module now wraps them for `tandemmp._rust.drift_correction`, but the core
-//! modules themselves remain plain `&[f64]`-based Rust, independently
-//! testable via `cargo test`. It is the WORKLIST.md priority-6 target
-//! ("Drift correction shift+RMSE" / `differential_evolution` inner loop):
-//! a from-scratch port of `_rmse`, `_most_positive`, `_most_negative`,
-//! `_float_to_slice`, `_shift_compare`, `_solve`, and `stabilise` from
-//! `src/tandemmp/drift/corrector.py`.
+//! The numerical modules operate on `&[f64]` slices and can be tested with
+//! `cargo test`. The [`python`] module exposes them as
+//! `tandemmp._rust.drift_correction`.
 //!
 //! # Why the whole `_solve`, not just a `scipy.ndimage.shift` wrapper
 //!
@@ -26,12 +20,9 @@
 //!
 //! # Binding split
 //!
-//! Per `WORKLIST.md`'s "each should be implemented as a PyO3 crate under
-//! `src/tandemmp/_rust/`" convention, the PyO3/numpy bindings live in their
-//! own module ([`python`]) rather than being mixed into the core modules
-//! below — those keep taking plain `&[f64]` slices plus explicit
-//! `rows`/`cols` dimensions (row-major layout) rather than anything
-//! Python- or NumPy-specific. [`python`] is thin: it validates shapes,
+//! The PyO3/numpy bindings live in [`python`]. The numerical modules take
+//! `&[f64]` slices with explicit `rows`/`cols` dimensions in row-major order.
+//! The binding module validates shapes,
 //! copies numpy arrays into row-major `Vec<f64>`s (via
 //! `ndarray::ArrayView::as_standard_layout`, so non-contiguous/Fortran-order
 //! input is handled correctly), and calls straight through to the functions

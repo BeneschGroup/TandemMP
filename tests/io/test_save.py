@@ -20,9 +20,7 @@ from tandemmp.io.save import (
     save_results,
 )
 
-# ---------------------------------------------------------------------------
 # Fixtures / fakes
-# ---------------------------------------------------------------------------
 
 
 def _make_event(
@@ -102,9 +100,7 @@ def _make_particle(
     return p
 
 
-# ---------------------------------------------------------------------------
 # EventRecord / ParticleRecord / ResultsFile basics
-# ---------------------------------------------------------------------------
 
 
 class TestRecordDataclasses:
@@ -186,9 +182,7 @@ class TestRecordDataclasses:
         assert rf.calibration is None
 
 
-# ---------------------------------------------------------------------------
 # ParticleRecord.interpolate
-# ---------------------------------------------------------------------------
 
 
 class TestParticleRecordInterpolate:
@@ -237,9 +231,7 @@ class TestParticleRecordInterpolate:
             rec.interpolate(np.array([0.0, 1.0]))
 
 
-# ---------------------------------------------------------------------------
 # build_event_records
-# ---------------------------------------------------------------------------
 
 
 class TestBuildEventRecords:
@@ -316,9 +308,7 @@ class TestBuildEventRecords:
         np.testing.assert_array_equal(rec.contrast, arr)
 
 
-# ---------------------------------------------------------------------------
 # build_particle_records
-# ---------------------------------------------------------------------------
 
 
 class TestBuildParticleRecords:
@@ -356,9 +346,7 @@ class TestBuildParticleRecords:
         assert rec.unbinding_frame is None
 
 
-# ---------------------------------------------------------------------------
 # Pickle round-trip
-# ---------------------------------------------------------------------------
 
 
 class TestSaveLoadRoundTrip:
@@ -430,18 +418,14 @@ class TestSaveLoadRoundTrip:
             load_results(path)
 
 
-# ---------------------------------------------------------------------------
 # Backward compatibility: loading pre-refactor SaveFile pickles
-# ---------------------------------------------------------------------------
 
 
 def _write_legacy_pickle(path, *, n_events: int, n_particles: int) -> None:
     """Write a pickle that mimics the pre-refactor ``tandemmp.io.save`` format.
 
-    The legacy classes (``SaveFile``, ``RatiometricData``, ``PartData``) were
-    deleted in the Layer 3 refactor. To exercise the backward-compat loader
-    we recreate them here, install them under their legacy module path, dump,
-    and uninstall — leaving a pickle that points at the old class names.
+    Recreate ``SaveFile``, ``RatiometricData``, and ``PartData`` under their
+    legacy module paths, write the pickle, then remove the temporary classes.
     """
     import pickle as _pickle
     import sys
@@ -547,8 +531,8 @@ def _write_legacy_pickle(path, *, n_events: int, n_particles: int) -> None:
 
 def _write_legacy_pickle_with_params(path) -> None:
     """Write a legacy ``SaveFile`` pickle whose ``parameters``/``vector``
-    fields reference the pre-refactor ``tandemmp.parameters`` (Layer 0g) and
-    ``tandemmp.DriftCorrector`` (Layer 1f) module paths.
+    fields reference the legacy ``tandemmp.parameters`` and
+    ``tandemmp.DriftCorrector`` module paths.
 
     Both modules were deleted/moved with no forwarding shim, so a real
     pre-refactor result file's ``SaveFile.parameters``/``.vector`` payload
@@ -712,19 +696,11 @@ class TestLegacyLoad:
         assert len(reloaded.particles) == 1
 
 
-# ---------------------------------------------------------------------------
 # Backward compatibility: legacy `tandemmp.parameters` / `DriftCorrector`
-# ---------------------------------------------------------------------------
 
 
 class TestLegacyParametersAndVectorLoad:
-    """Regression coverage for a real-world failure: pre-refactor SaveFile
-
-    pickles whose ``parameters``/``vector`` fields reference the deleted
-    ``tandemmp.parameters`` (Layer 0g) and ``tandemmp.DriftCorrector``
-    (Layer 1f) module paths raised ``ModuleNotFoundError`` on load, since
-    those modules moved with no forwarding shim.
-    """
+    """Load legacy SaveFile parameters and vectors through their old module paths."""
 
     def test_load_does_not_raise_module_not_found(self, tmp_path) -> None:
         path = tmp_path / "legacy_with_params.pkl"
@@ -779,9 +755,7 @@ class TestLegacyParametersAndVectorLoad:
         assert reloaded.parameters.minimum_mass == pytest.approx(75.0)
 
 
-# ---------------------------------------------------------------------------
 # Backward compatibility: loading a bare legacy particle list
-# ---------------------------------------------------------------------------
 
 
 def _write_bare_particle_pickle(path, *, n_particles: int) -> None:
@@ -882,9 +856,7 @@ class TestBareParticleListLoad:
             load_results(path)
 
 
-# ---------------------------------------------------------------------------
 # legacy_pickle_load: general-purpose legacy-aware pickle.load replacement
-# ---------------------------------------------------------------------------
 
 
 class TestLegacyPickleLoad:

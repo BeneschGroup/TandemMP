@@ -49,9 +49,7 @@ from tandemmp.fitting.minimize import curve_fit_model
 from tandemmp.pipeline.open_iscat_pipeline import OpenIscatPipeline
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
 
-# ---------------------------------------------------------------------------
 # Result container
-# ---------------------------------------------------------------------------
 
 
 @dataclasses.dataclass(frozen=True)
@@ -65,9 +63,7 @@ class CalibrationResult:
     residual_sum_of_squares: float
 
 
-# ---------------------------------------------------------------------------
 # Matplotlib drag-select-and-fit widget
-# ---------------------------------------------------------------------------
 
 
 class _ClickAndDrag:
@@ -105,9 +101,7 @@ class _ClickAndDrag:
 class _DragAndFitPeaks(_ClickAndDrag):
     """Drag-select a histogram region; fit a Gaussian to the data in range.
 
-    Unlike the pre-refactor version, this fits the underlying data directly
-    (filtered to the dragged range) rather than reverse-engineering bin
-    heights from the drawn histogram patches.
+    Fits the underlying data filtered to the selected range.
     """
 
     def __init__(
@@ -173,9 +167,7 @@ def _hist_bins(
     return np.arange(0, np.nanmax(data) + binwidth, step=binwidth)
 
 
-# ---------------------------------------------------------------------------
 # tkinter windows
-# ---------------------------------------------------------------------------
 
 
 class _BaseTkWindow:
@@ -273,19 +265,12 @@ class _MassEntryWindow(_BaseTkWindow):
         self.root.destroy()
 
 
-# ---------------------------------------------------------------------------
 # Orchestration
-# ---------------------------------------------------------------------------
 
 
 @dataclasses.dataclass
 class _LoopFlags:
-    """Mutable loop-continuation state, closed over by tkinter callbacks.
-
-    Replaces the pre-refactor version's ``global`` statements with a
-    plain object so the interactive reattempt/repeat loops below have no
-    module-level mutable state.
-    """
+    """Mutable loop-continuation state shared by tkinter callbacks."""
 
     reattempt_fit: bool = True
     repeat_calibration: bool = True
@@ -428,9 +413,7 @@ def run_calibration(
     )
 
 
-# ---------------------------------------------------------------------------
 # Persistence
-# ---------------------------------------------------------------------------
 #
 # On disk, a calibration is plain JSON so it can be opened and hand-edited in
 # a text editor. Field names mirror the pre-refactor

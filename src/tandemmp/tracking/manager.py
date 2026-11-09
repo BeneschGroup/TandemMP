@@ -38,7 +38,7 @@ class ParticleManager:
     def __init__(self, particles: Iterable[Particle] | None = None) -> None:
         self._particles: list[Particle] = list(particles) if particles else []
 
-    # -- Container protocol --------------------------------------------------
+    # Container protocol
 
     def __iter__(self) -> Iterator[Particle]:
         return iter(self._particles)
@@ -56,7 +56,7 @@ class ParticleManager:
         """Return a shallow copy of the managed particle list."""
         return list(self._particles)
 
-    # -- Mutation ------------------------------------------------------------
+    # Mutation
 
     def append(self, particle: Particle) -> None:
         """Add *particle* to the manager.
@@ -111,7 +111,7 @@ class ParticleManager:
             return False
         return True
 
-    # -- Frame queries -------------------------------------------------------
+    # Frame queries
 
     def get_present_particles(self, frame: int) -> list[Particle]:
         """Return all particles that were bound at *frame*."""
@@ -134,7 +134,7 @@ class ParticleManager:
                 close.append(particle)
         return close
 
-    # -- Thumbnail-based spatial filters -------------------------------------
+    # Thumbnail-based spatial filters
 
     def background_particle_check(
         self,
@@ -191,7 +191,7 @@ class ParticleManager:
                 suitable.append(particle)
         return suitable
 
-    # -- Match ranking -------------------------------------------------------
+    # Match ranking
 
     def find_best_matches(
         self,

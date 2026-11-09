@@ -1,7 +1,7 @@
 """Stub classes for unpickling pre-refactor TandemMP result files.
 
 These types mirror the field layout of the legacy containers that lived in
-``tandemmp.io.save`` before the Layer 3 refactor. They carry no behaviour —
+``tandemmp.io.save``. They carry no behaviour —
 :func:`tandemmp.io.save._LegacyUnpickler` remaps the legacy class paths onto
 these stubs so :mod:`pickle` can reconstruct old payloads, and
 :func:`tandemmp.io.save._migrate` converts the result into a current
@@ -92,7 +92,6 @@ class LegacySaveFile(NamedTuple):
     particles: list[Any]
 
 
-# ---------------------------------------------------------------------------
 # Legacy `tandemmp.parameters` NamedTuples
 #
 # Pre-refactor `SaveFile.parameters` payloads reference these classes by
@@ -103,7 +102,6 @@ class LegacySaveFile(NamedTuple):
 # the current `core.parameters` dataclasses; `ResultsFile.parameters` is
 # typed `Any`, so passing the legacy value through unmigrated is sufficient
 # to unblock loading.
-# ---------------------------------------------------------------------------
 
 
 class LegacyContinuationParams(NamedTuple):

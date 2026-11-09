@@ -47,9 +47,7 @@ from tandemmp.tracking.particle import (
     _reset_particle_ids,
 )
 
-# ---------------------------------------------------------------------------
 # Fixtures / helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_gaussian_spline(
@@ -239,9 +237,7 @@ def _make_fit_attempt(
     )
 
 
-# ===========================================================================
 # TIER 1 — pure unit tests
-# ===========================================================================
 
 
 class TestMultiFitResult:
@@ -327,9 +323,7 @@ class TestDecision:
         assert d.interesting is True
 
     def test_interesting_is_per_instance_field(self):
-        """Regression: pre-refactor, ``interesting`` was a class attribute so
-        overrides silently didn't stick. Fix makes it a real NamedTuple field.
-        """
+        """The ``interesting`` field can be set independently on each decision."""
         d1 = Decision(action=Action.updated, particle=None, interesting=True)
         d2 = Decision(action=Action.updated, particle=None)
         assert d1.interesting is True
@@ -383,7 +377,7 @@ class TestCreateGhostEvent:
 
 
 class TestDistanceArray:
-    """The core bug fix — CLAUDE.md's most important test."""
+    """Distance ranking for bound and unbound particle candidates."""
 
     @staticmethod
     def _r(distance: float | None) -> MultiFitResult:
@@ -404,7 +398,7 @@ class TestDistanceArray:
 
     def test_none_becomes_worst(self):
         """None → 2× max known, so unbound candidates score worse than any
-        real match (fix for the pre-refactor 'unbound = distance 0' bias).
+        real match.
         """
         arr = _distance_array([self._r(1.0), self._r(None), self._r(3.0)])
         assert arr[0] == 1.0
@@ -422,14 +416,12 @@ class TestDistanceArray:
         assert arr.dtype == float
 
     def test_none_never_scores_lower_than_known(self):
-        """Regression against the pre-refactor bias where `False`/`0` made
-        unbound candidates rank as best.
-        """
+        """Unbound candidates must rank behind candidates with known distances."""
         for known in (0.1, 1.0, 10.0):
             arr = _distance_array([self._r(known), self._r(None)])
-            assert arr[1] > arr[0], (
-                f"None-distance candidate scored better than known={known}: {arr}"
-            )
+            assert (
+                arr[1] > arr[0]
+            ), f"None-distance candidate scored better than known={known}: {arr}"
 
     def test_empty_input(self):
         arr = _distance_array([])
@@ -437,9 +429,7 @@ class TestDistanceArray:
         assert arr.dtype == float
 
 
-# ===========================================================================
 # TIER 2 — BaseInvestigator with synthetic movies
-# ===========================================================================
 
 
 def _make_base_investigator(
@@ -561,7 +551,7 @@ class TestGenerateSubtractionSeries:
 
 
 class TestFindClassification:
-    """Direct coverage of ``find_classification`` (PR #40 review issue 4).
+    """Direct coverage of ``find_classification``.
 
     The real ``fit_3d_ratiometric`` call is replaced with a deterministic
     stand-in keyed by classification, so the scoring/selection logic that
@@ -636,9 +626,7 @@ class TestFindClassification:
         assert result.classification == EvClassification.Unbinding
 
 
-# ===========================================================================
 # TIER 3 — GhostInvestigator / Investigator scenarios
-# ===========================================================================
 
 
 def _make_investigator(
@@ -726,7 +714,7 @@ class TestMatchGhost:
 
 
 class TestProcessGhost:
-    """Orchestration coverage for ``process_ghost`` (PR #40 review issue 4).
+    """Orchestration coverage for ``process_ghost``.
 
     ``attempt_initial_ghost``/``match_ghost``/``double_check_ghost`` are
     monkeypatched at the instance level: the decision-tree logic that stitches
@@ -844,7 +832,7 @@ class TestFindAndFitNoParticles:
 
 
 class TestAttemptInitialGhost:
-    """Real ``GhostParticle`` construction from a fit result (PR #40 issue 4).
+    """Real ``GhostParticle`` construction from a fit result.
 
     ``fit_initial_ghost`` (which drives a real ``scipy.optimize.minimize``
     call) is replaced with a deterministic result built from the *real*

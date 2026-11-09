@@ -19,9 +19,7 @@ if TYPE_CHECKING:
     import numpy.typing as npt
 
 
-# ---------------------------------------------------------------------------
 # Private curve-fit targets
-# ---------------------------------------------------------------------------
 
 
 def _line(
@@ -32,9 +30,7 @@ def _line(
     return m * x + c
 
 
-# ---------------------------------------------------------------------------
 # Bin selection
-# ---------------------------------------------------------------------------
 
 
 def scott_bin_count(data: npt.NDArray[np.floating[Any]]) -> int:
@@ -49,9 +45,7 @@ def scott_bin_count(data: npt.NDArray[np.floating[Any]]) -> int:
     return int(np.ceil((np.max(data) - np.min(data)) / bin_width))
 
 
-# ---------------------------------------------------------------------------
 # Single-Gaussian fitting
-# ---------------------------------------------------------------------------
 
 
 def fit_gaussian_to_histogram(
@@ -90,9 +84,7 @@ def fit_gaussian_to_histogram(
     return float(popt[0]), float(popt[1]), float(popt[2])
 
 
-# ---------------------------------------------------------------------------
 # Gaussian Mixture Model
-# ---------------------------------------------------------------------------
 
 
 def fit_gmm(
@@ -157,9 +149,7 @@ def duplicate_inliers(
     return np.asarray(np.concatenate([data, np.repeat(data[inliers], duplicates)]))
 
 
-# ---------------------------------------------------------------------------
 # Fit line to GMM component means
-# ---------------------------------------------------------------------------
 
 
 def _prepare_means_for_line_fit(

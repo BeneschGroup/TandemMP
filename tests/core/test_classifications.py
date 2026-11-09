@@ -9,9 +9,7 @@ from tandemmp.core.classifications import (
     classify_mass_change,
 )
 
-# ---------------------------------------------------------------------------
 # ProcessingMethod
-# ---------------------------------------------------------------------------
 
 
 class TestProcessingMethod:
@@ -30,9 +28,7 @@ class TestProcessingMethod:
         assert ProcessingMethod.inferred not in combo
 
 
-# ---------------------------------------------------------------------------
 # Classification
-# ---------------------------------------------------------------------------
 
 
 class TestClassification:
@@ -89,9 +85,7 @@ class TestClassification:
         assert c.get_slice(5) is None
 
 
-# ---------------------------------------------------------------------------
 # EventClassification
-# ---------------------------------------------------------------------------
 
 
 class TestEventClassification:
@@ -129,9 +123,7 @@ class TestEventClassification:
         assert c.number_change is None
 
 
-# ---------------------------------------------------------------------------
 # classify_mass_change
-# ---------------------------------------------------------------------------
 
 
 class TestClassifyMassChange:

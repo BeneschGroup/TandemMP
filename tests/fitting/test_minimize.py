@@ -11,9 +11,7 @@ from tandemmp.fitting.minimize import (
     minimize_model,
 )
 
-# ---------------------------------------------------------------------------
 # minimize_model
-# ---------------------------------------------------------------------------
 
 
 def _quadratic(v: np.ndarray) -> float:
@@ -71,9 +69,7 @@ class TestMinimizeModel:
         assert result.raw.success is False
 
 
-# ---------------------------------------------------------------------------
 # curve_fit_model
-# ---------------------------------------------------------------------------
 
 
 def _line(x: np.ndarray, m: float, c: float) -> np.ndarray:

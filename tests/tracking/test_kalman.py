@@ -7,9 +7,7 @@ import pytest
 
 from tandemmp.tracking.kalman import KalmanFilter
 
-# ---------------------------------------------------------------------------
 # Construction
-# ---------------------------------------------------------------------------
 
 
 class TestKalmanFilterInit:
@@ -57,9 +55,7 @@ class TestKalmanFilterInit:
         np.testing.assert_array_equal(kf.P, p)
 
 
-# ---------------------------------------------------------------------------
 # Predict
-# ---------------------------------------------------------------------------
 
 
 class TestKalmanFilterPredict:
@@ -101,9 +97,7 @@ class TestKalmanFilterPredict:
         np.testing.assert_allclose(kf.X, [1.0, 2.0])
 
 
-# ---------------------------------------------------------------------------
 # Update
-# ---------------------------------------------------------------------------
 
 
 class TestKalmanFilterUpdate:
@@ -151,9 +145,7 @@ class TestKalmanFilterUpdate:
         np.testing.assert_allclose(kf.X, x, atol=0.5)
 
 
-# ---------------------------------------------------------------------------
 # Predict-update cycle
-# ---------------------------------------------------------------------------
 
 
 class TestKalmanFilterCycle:

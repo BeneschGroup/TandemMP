@@ -41,9 +41,7 @@ def _event(c: float, m: float, x: float, y: float, i: int) -> SimpleEvent:
     return SimpleEvent(c=c, m=m, x=x, y=y, i=i)
 
 
-# ---------------------------------------------------------------------------
 # SimpleEvent
-# ---------------------------------------------------------------------------
 
 
 class TestSimpleEvent:
@@ -70,9 +68,7 @@ class TestSimpleEvent:
         assert hash(a) == hash(b)
 
 
-# ---------------------------------------------------------------------------
 # build_simple_events
-# ---------------------------------------------------------------------------
 
 
 @dataclasses.dataclass
@@ -113,9 +109,7 @@ class TestBuildSimpleEvents:
         assert build_simple_events([]) == []
 
 
-# ---------------------------------------------------------------------------
 # load_events
-# ---------------------------------------------------------------------------
 
 
 class TestLoadEvents:
@@ -190,9 +184,7 @@ class TestLoadEvents:
         assert events[1].y == pytest.approx(20.0 - -4.0)
 
 
-# ---------------------------------------------------------------------------
 # match_pairs_sigma / match_pairs_tally
-# ---------------------------------------------------------------------------
 
 
 class TestMatchPairsSigma:
@@ -286,9 +278,7 @@ class TestMatchPairsTally:
         assert [p.time for p in pairs] == [1, 2]
 
 
-# ---------------------------------------------------------------------------
 # convert_to_product_precursor
-# ---------------------------------------------------------------------------
 
 
 class TestConvertToProductPrecursor:
@@ -325,9 +315,7 @@ class TestConvertToProductPrecursor:
         assert second.unbinding.m == pytest.approx(100.0)
 
 
-# ---------------------------------------------------------------------------
 # area_of_ring_in_box / calculate_rdf
-# ---------------------------------------------------------------------------
 
 
 class TestAreaOfRingInBox:

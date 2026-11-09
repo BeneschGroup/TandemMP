@@ -11,14 +11,8 @@ import pytest
 def _shutdown_persistent_pool() -> Iterator[None]:
     """Terminate `core.parallel`'s persistent worker pool after every test.
 
-    `core.parallel.dispatch_kwargs` now reuses a module-level
-    `multiprocessing.Pool` singleton across calls (see 6l) instead of
-    tearing one down per call. Any test that exercises real parallel
-    dispatch (`parallel=True` without monkeypatching `dispatch_kwargs`,
-    e.g. `tests/drift/test_corrector.py::test_parallel_smoke`) would
-    otherwise leave live worker subprocesses running for the rest of the
-    pytest session, reaped only by the `atexit` hook when the whole test
-    process exits.
+    Parallel dispatch reuses a module-level pool. Shut it down so worker
+    processes do not outlive the test that created them.
     """
     yield
     from tandemmp.core.parallel import shutdown_pool
@@ -30,11 +24,7 @@ def _shutdown_persistent_pool() -> Iterator[None]:
 def _reset_active_calibration() -> Iterator[None]:
     """Reset `core.conversions`'s active calibration after every test.
 
-    `set_calibration`/`get_calibration` (see the calibration feature) are
-    process-wide mutable state read by `c_to_mass`/`mass_to_c` on every
-    call. Any test that overrides it (directly, or indirectly via
-    `pipeline.batch.process_movie`) would otherwise leak that override into
-    every subsequent test in the session.
+    Calibration is process-wide state; overrides must not leak between tests.
     """
     yield
     from tandemmp.core.conversions import set_calibration

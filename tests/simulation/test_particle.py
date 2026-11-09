@@ -60,9 +60,7 @@ def _multi_reaction_structure() -> Structure:
     return a
 
 
-# ---------------------------------------------------------------------------
 # Command
-# ---------------------------------------------------------------------------
 
 
 class TestCommand:
@@ -83,9 +81,7 @@ class TestCommand:
             cmd.frame = 99  # type: ignore[misc]
 
 
-# ---------------------------------------------------------------------------
 # ParticleData
-# ---------------------------------------------------------------------------
 
 
 class TestParticleData:
@@ -110,9 +106,7 @@ class TestParticleData:
             data.frames = (1,)  # type: ignore[misc]
 
 
-# ---------------------------------------------------------------------------
 # SimulatedParticle — construction & ID allocation
-# ---------------------------------------------------------------------------
 
 
 class TestSimulatedParticleInit:
@@ -144,9 +138,7 @@ class TestSimulatedParticleInit:
             SimulatedParticle(structure=_structure(), stage="glass")  # type: ignore[arg-type]
 
 
-# ---------------------------------------------------------------------------
 # SimulatedParticle — distance
-# ---------------------------------------------------------------------------
 
 
 class TestDistanceTo:
@@ -161,9 +153,7 @@ class TestDistanceTo:
             p.distance_to(0.0, 0.0)
 
 
-# ---------------------------------------------------------------------------
 # SimulatedParticle — commands
-# ---------------------------------------------------------------------------
 
 
 class TestSetCommand:
@@ -200,9 +190,7 @@ class TestSetCommand:
             p.set_command("not a command")  # type: ignore[arg-type]
 
 
-# ---------------------------------------------------------------------------
 # SimulatedParticle — record / data
-# ---------------------------------------------------------------------------
 
 
 class TestRecord:
@@ -238,9 +226,7 @@ class TestRecord:
         assert data.frames == ()
 
 
-# ---------------------------------------------------------------------------
 # SimulatedParticle — choose_reaction
-# ---------------------------------------------------------------------------
 
 
 class TestChooseReaction:
@@ -285,9 +271,7 @@ class TestChooseReaction:
         assert len(reactions) == 2
 
 
-# ---------------------------------------------------------------------------
 # SimulatedParticleList
-# ---------------------------------------------------------------------------
 
 
 class TestParticleList:

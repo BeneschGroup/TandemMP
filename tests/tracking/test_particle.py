@@ -25,9 +25,7 @@ from tandemmp.tracking.particle import (
     _reset_particle_ids,
 )
 
-# ---------------------------------------------------------------------------
 # Fixtures / helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_gaussian_spline(
@@ -130,9 +128,7 @@ def _make_ghost(
     return GhostEvent(peak, peak_fit=(0.0, 0.0, c))
 
 
-# ===========================================================================
 # HistoryEntry
-# ===========================================================================
 
 
 class TestHistoryEntry:
@@ -153,9 +149,7 @@ class TestHistoryEntry:
         assert h.sigma is None
 
 
-# ===========================================================================
 # EventMap
-# ===========================================================================
 
 
 class TestEventMap:
@@ -195,9 +189,7 @@ class TestEventMap:
         assert em.get_connected(10) == "c"
 
 
-# ===========================================================================
 # Particle construction
-# ===========================================================================
 
 
 class TestParticleConstruction:
@@ -253,9 +245,7 @@ class TestParticleConstruction:
         assert p.lost_tracking is False
 
 
-# ===========================================================================
 # Identity / equality / repr
-# ===========================================================================
 
 
 class TestParticleIdentity:
@@ -280,9 +270,7 @@ class TestParticleIdentity:
         assert str(p.ID) in repr(p)
 
 
-# ===========================================================================
 # was_bound / on_slide / residency_time
-# ===========================================================================
 
 
 class TestWasBound:
@@ -317,9 +305,7 @@ class TestWasBound:
         assert p.residency_time == 25
 
 
-# ===========================================================================
 # __getitem__
-# ===========================================================================
 
 
 class TestParticleGetItem:
@@ -347,9 +333,7 @@ class TestParticleGetItem:
         assert p[21] is None
 
 
-# ===========================================================================
 # get_best_event
-# ===========================================================================
 
 
 class TestGetBestEvent:
@@ -373,9 +357,7 @@ class TestGetBestEvent:
         assert p.get_best_event(20, disconnected_only=True) is None
 
 
-# ===========================================================================
 # choose_background
-# ===========================================================================
 
 
 class TestChooseBackground:
@@ -396,9 +378,7 @@ class TestChooseBackground:
         assert out == sub.i
 
 
-# ===========================================================================
 # Event addition / fixed_background_events / trajectory
-# ===========================================================================
 
 
 class TestFixedBackgroundEvents:
@@ -456,9 +436,7 @@ class TestEventsProperty:
         assert ev in p.events
 
 
-# ===========================================================================
 # propose_new_event
-# ===========================================================================
 
 
 class TestProposeNewEvent:
@@ -530,9 +508,7 @@ class TestProposeRatiometricMassError:
         assert any(issubclass(w.category, MassChangeWarning) for w in caught)
 
 
-# ===========================================================================
 # Spatial queries
-# ===========================================================================
 
 
 class TestSpatialQueries:
@@ -562,9 +538,7 @@ class TestSpatialQueries:
         assert d == pytest.approx(0.0, abs=1e-9)
 
 
-# ===========================================================================
 # GhostParticle
-# ===========================================================================
 
 
 class TestGhostParticleConstruction:
@@ -648,9 +622,7 @@ class TestGhostParticleProposeFixed:
         assert p.strikes >= 1
 
 
-# ===========================================================================
 # Additional propose_new_event / _propose_ratiometric coverage
-# ===========================================================================
 
 
 class TestProposeRatiometricWithThresholds:

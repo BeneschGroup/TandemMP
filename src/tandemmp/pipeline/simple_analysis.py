@@ -19,9 +19,7 @@ from tandemmp.drift.corrector import get_vector
 from tandemmp.events import RatiometricEvent
 from tandemmp.pipeline.loader import Loader
 
-# ---------------------------------------------------------------------------
 # SimpleEvent
-# ---------------------------------------------------------------------------
 
 _next_simple_event_id: int = 0
 
@@ -79,9 +77,7 @@ def build_simple_events(events: Sequence[RatiometricEvent]) -> list[SimpleEvent]
     ]
 
 
-# ---------------------------------------------------------------------------
 # Loading
-# ---------------------------------------------------------------------------
 
 
 def load_events(
@@ -135,9 +131,7 @@ def load_events(
     ]
 
 
-# ---------------------------------------------------------------------------
 # Pair matching
-# ---------------------------------------------------------------------------
 
 
 class Pair(NamedTuple):
@@ -168,15 +162,7 @@ class NewPair(NamedTuple):
 
 
 def _mass_to_sigma_px(mass: float) -> float:
-    """``mass_to_sigma`` (nm) converted to pixels for pixel-space overlap scoring.
-
-    ``match_pairs_sigma`` / ``match_pairs_tally`` score overlap against
-    pixel-space coordinates, so the nanometre width from ``mass_to_sigma``
-    must be divided by ``NM_PER_PIXEL`` first. Feeding the raw nanometre
-    value in (as this module previously did) makes the widths ~``NM_PER_PIXEL``
-    times too large, saturating every candidate's overlap to ~1 and
-    collapsing the match to "nearest in mass" rather than "nearest in space".
-    """
+    """Convert positional precision from nanometres to pixels for overlap scoring."""
     return mass_to_sigma(mass) / NM_PER_PIXEL
 
 
@@ -397,9 +383,7 @@ def convert_to_product_precursor(pairs: Sequence[Pair]) -> list[Pair]:
     return new_pairs
 
 
-# ---------------------------------------------------------------------------
 # Radial distribution function
-# ---------------------------------------------------------------------------
 
 
 def area_of_ring_in_box(

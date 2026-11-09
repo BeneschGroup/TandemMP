@@ -40,7 +40,9 @@ _pool_n_jobs: int | None = None
 _atexit_registered = False
 
 
-def _dispatch_kwargs_call(args: tuple[Callable[..., Any], dict[str, Any]]) -> Any:  # noqa: ANN401
+def _dispatch_kwargs_call(
+    args: tuple[Callable[..., Any], dict[str, Any]],
+) -> Any:  # noqa: ANN401
     """Picklable helper — apply *method* to a single kwargs dict."""
     method, kwargs = args
     return method(**kwargs)

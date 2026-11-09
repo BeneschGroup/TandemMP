@@ -3,12 +3,7 @@
 Event classes in :mod:`tandemmp.events` hold fit state (peak images,
 positions, corrections, ...) but perform no matplotlib calls themselves;
 this module renders that state. Functions here take the event/series object
-directly (duck-typed on their public and semi-private attributes) rather
-than pre-extracted plain arrays, matching the precedent set in
-:mod:`tandemmp.plotting.animation` — the state involved (connections,
-correction attempts, smoothed trajectories) is too interlinked across
-objects to flatten into array arguments without a larger redesign than the
-Layer 6k move warrants.
+directly, using their connections, correction attempts, and trajectories.
 """
 
 from __future__ import annotations
@@ -25,9 +20,7 @@ from tandemmp.events.ratiometric import RatiometricEvent
 from tandemmp.events.subtraction import SubtractionEvent, SubtractionSeries
 from tandemmp.plotting.tools import easy_plot
 
-# ---------------------------------------------------------------------------
 # AbstractEvent — peak image and basic fit
-# ---------------------------------------------------------------------------
 
 
 def show(
@@ -181,9 +174,7 @@ def show_fits(
         _show_fits_basic(event, axes=axes, vmin=vmin, vmax=vmax, saveas=saveas)
 
 
-# ---------------------------------------------------------------------------
 # SubtractionEvent / SubtractionSeries
-# ---------------------------------------------------------------------------
 
 
 def show_subtraction_corrections(
@@ -261,9 +252,11 @@ def show_series_big(
 
     ml_score = series.ghost_signal_ML
     axes[-1].set_title(
-        f"ML Ghost score = {ml_score:.3f}"
-        if ml_score is not None
-        else "ML Ghost score = unavailable",
+        (
+            f"ML Ghost score = {ml_score:.3f}"
+            if ml_score is not None
+            else "ML Ghost score = unavailable"
+        ),
         loc="right",
     )
     if saveas:
@@ -285,9 +278,7 @@ def show_series_corrections(
         show_subtraction_corrections(e, axes=axes[j, :], vmin=vmin, vmax=vmax)
 
 
-# ---------------------------------------------------------------------------
 # RatiometricEvent — 3-D fit and reports
-# ---------------------------------------------------------------------------
 
 
 def show_3d_fit(  # noqa: N802

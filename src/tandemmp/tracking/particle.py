@@ -48,9 +48,7 @@ class MassChangeWarning(Warning):
     """Raised via :func:`warnings.warn` on an unexplainable mass change."""
 
 
-# ---------------------------------------------------------------------------
 # HistoryEntry
-# ---------------------------------------------------------------------------
 
 
 @dataclasses.dataclass(frozen=True)
@@ -66,9 +64,7 @@ class HistoryEntry:
     data_from: int
 
 
-# ---------------------------------------------------------------------------
 # EventMap
-# ---------------------------------------------------------------------------
 
 
 class EventMap:
@@ -104,9 +100,7 @@ class EventMap:
         return closest_index(self.disconnected, frame)
 
 
-# ---------------------------------------------------------------------------
 # Particle
-# ---------------------------------------------------------------------------
 
 
 class Particle:
@@ -150,7 +144,7 @@ class Particle:
         self.unbinding_frame: int | None = None
         self._last_used_series = None
 
-    # -- Identity ------------------------------------------------------------
+    # Identity
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Particle):
@@ -163,7 +157,7 @@ class Particle:
     def __repr__(self) -> str:
         return f"Particle(ID={self.ID})\n{self._event_map!r}"
 
-    # -- Tracking state ------------------------------------------------------
+    # Tracking state
 
     @property
     def on_slide(self) -> bool:
@@ -184,7 +178,7 @@ class Particle:
             return float("nan")
         return float(self.unbinding_frame - self.binding_frame)
 
-    # -- Indexing ------------------------------------------------------------
+    # Indexing
 
     def __getitem__(self, frame: int) -> HistoryEntry | None:
         if not self.was_bound(frame):
@@ -234,7 +228,7 @@ class Particle:
             data_from=event.i,
         )
 
-    # -- Event bookkeeping ---------------------------------------------------
+    # Event bookkeeping
 
     def _add_event(self, event: AbstractEvent) -> None:
         method = event.peak.method
@@ -267,7 +261,7 @@ class Particle:
             msg = f"Unsupported ProcessingMethod: {method!r}"
             raise ValueError(msg)
 
-    # -- Background choice ---------------------------------------------------
+    # Background choice
 
     def choose_background(
         self,
@@ -291,7 +285,7 @@ class Particle:
         # test_returns_latest_suitable_not_latest_before once confirmed safe.
         return int(i[np.argwhere(before).max()])
 
-    # -- Event lookup --------------------------------------------------------
+    # Event lookup
 
     def get_best_event(
         self,
@@ -336,7 +330,7 @@ class Particle:
             return None
         return closest_ratio
 
-    # -- Event proposal ------------------------------------------------------
+    # Event proposal
 
     def _propose_ratiometric(
         self,
@@ -576,7 +570,7 @@ class Particle:
             return False
         return True
 
-    # -- Derived views -------------------------------------------------------
+    # Derived views
 
     @property
     def fixed_background_events(self) -> list[SubtractionEvent]:
@@ -633,7 +627,7 @@ class Particle:
     def events(self) -> list[AbstractEvent]:
         return list(self._event_map.ratiometric.values())
 
-    # -- Spatial queries -----------------------------------------------------
+    # Spatial queries
 
     def is_close(self, event: AbstractEvent, threshold: float) -> bool:
         """Return whether *event* is within *threshold* pixels of this particle."""
@@ -657,9 +651,7 @@ class Particle:
         return float(np.hypot(x - entry.x, y - entry.y))
 
 
-# ---------------------------------------------------------------------------
 # GhostParticle
-# ---------------------------------------------------------------------------
 
 
 class GhostParticle(Particle):

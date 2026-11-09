@@ -3,12 +3,7 @@
 Provides :func:`minimize_model` and :func:`curve_fit_model`, thin wrappers
 around :func:`scipy.optimize.minimize` and :func:`scipy.optimize.curve_fit`
 that return uniform, typed result dataclasses (:class:`FitResult` and
-:class:`CurveFitResult`).  Consolidating on these two entry points removes
-the repeated ``curve_fit``-plus-manual-R²-and-parameter-error boilerplate
-that was previously duplicated across :mod:`tandemmp.core.histogram`,
-:mod:`tandemmp.fitting.gaussian`, and :mod:`tandemmp.plotting.tools`, and the
-repeated ``minimize``-plus-``OptimizeResult``-unpacking boilerplate in
-:mod:`tandemmp.fitting.psf` and :mod:`tandemmp.pipeline.investigator`.
+:class:`CurveFitResult`).
 """
 
 from __future__ import annotations

@@ -28,9 +28,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
 # Ghost-prediction model (lazy TensorFlow import)
-# ---------------------------------------------------------------------------
 
 
 @functools.lru_cache(maxsize=1)
@@ -50,9 +48,7 @@ def get_ghost_model() -> Any:  # noqa: ANN401
         return tf.keras.models.load_model(str(model_path))
 
 
-# ---------------------------------------------------------------------------
 # SubtractionEvent
-# ---------------------------------------------------------------------------
 
 
 class SubtractionEvent(AbstractEvent):
@@ -154,9 +150,7 @@ class SubtractionEvent(AbstractEvent):
         self.test_bad()
 
 
-# ---------------------------------------------------------------------------
 # SubtractionSeries
-# ---------------------------------------------------------------------------
 
 
 class SubtractionSeries(Connectable):
@@ -244,7 +238,7 @@ class SubtractionSeries(Connectable):
                 ev.interp_dx = sx
                 ev.interp_dy = sy
 
-    # -- Sequence protocol ---------------------------------------------------
+    # Sequence protocol
 
     def __iter__(self) -> Any:  # noqa: ANN401
         return self.events.__iter__()
@@ -255,20 +249,20 @@ class SubtractionSeries(Connectable):
     def __getitem__(self, index: Any) -> Any:  # noqa: ANN401
         return self.events[index]
 
-    # -- Lookup --------------------------------------------------------------
+    # Lookup
 
     def get_by_frame(self, frame: int) -> SubtractionEvent | None:
         """Return the event at *frame*, or ``None``."""
         return self._frame_map.get(frame)
 
-    # -- Memory management ---------------------------------------------------
+    # Memory management
 
     def reduce_memory(self) -> None:
         """Down-cast all event images to float16."""
         for ev in self:
             ev.reduce_memory()
 
-    # -- Impression / fitting ------------------------------------------------
+    # Impression / fitting
 
     def impression(
         self,
@@ -301,14 +295,14 @@ class SubtractionSeries(Connectable):
             x=self.c,
         )
 
-    # -- Aggregated flags ----------------------------------------------------
+    # Aggregated flags
 
     @property
     def is_bad(self) -> npt.NDArray[np.bool_]:
         """Per-event mask marking events flagged as unreliable."""
         return self._is_bad
 
-    # -- Smoothed positions --------------------------------------------------
+    # Smoothed positions
 
     @property
     def smooth_dx(self) -> npt.NDArray[np.floating]:
@@ -353,7 +347,7 @@ class SubtractionSeries(Connectable):
             np.mean([np.std(i._basic_replicate_fit()[-1]) for i in self[-navg:]])
         )
 
-    # -- Ghost signals -------------------------------------------------------
+    # Ghost signals
 
     @property
     def ghost_signal_ML(self) -> float | None:  # noqa: N802
@@ -426,7 +420,7 @@ class SubtractionSeries(Connectable):
         signal = 1.0 / (np.exp(2 - (most_pos / min_mass)) + 1)
         return float(signal)
 
-    # -- Serialisation -------------------------------------------------------
+    # Serialisation
 
     def append_original(self, original_series: SubtractionSeries) -> None:
         """Attach the un-corrected original series."""

@@ -43,9 +43,7 @@ from tandemmp.core.types import FloatArray, IntArray
 from tandemmp.drift.corrector import DriftVector, get_corrected_movie, get_vector
 from tandemmp.pipeline.loader import Loader
 
-# ---------------------------------------------------------------------------
 # Correction function
-# ---------------------------------------------------------------------------
 
 
 @dataclasses.dataclass(frozen=True)
@@ -144,9 +142,7 @@ class DriftCorrectionFunction:
         return corrected_movie
 
 
-# ---------------------------------------------------------------------------
 # Result container
-# ---------------------------------------------------------------------------
 
 
 @dataclasses.dataclass(frozen=True)
@@ -173,9 +169,7 @@ class DriftCorrectionResult:
         return DriftCorrectionFunction(vector=self.vector)
 
 
-# ---------------------------------------------------------------------------
 # Orchestration
-# ---------------------------------------------------------------------------
 
 
 def run_drift_correction(
@@ -231,9 +225,7 @@ def run_drift_correction(
     )
 
 
-# ---------------------------------------------------------------------------
 # Persistence — plain JSON vector
-# ---------------------------------------------------------------------------
 #
 # On disk, a drift vector is plain JSON so it can be opened and hand-edited
 # in a text editor, mirroring tandemmp.pipeline.calibration's save format.
@@ -293,9 +285,7 @@ def load_drift_vector(filepath: str | Path) -> DriftCorrectionResult:
     return _drift_vector_from_mapping(payload, default_source_filepath=str(path))
 
 
-# ---------------------------------------------------------------------------
 # Persistence — correction function
-# ---------------------------------------------------------------------------
 
 
 def save_correction_function(

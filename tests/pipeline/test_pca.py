@@ -32,9 +32,7 @@ from tandemmp.pipeline.open_iscat_pipeline import Info
 from tandemmp.tracking.manager import ParticleManager
 from tandemmp.tracking.particle import GhostParticle, Particle, _reset_particle_ids
 
-# ---------------------------------------------------------------------------
 # Fixtures / helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_gaussian_spline(
@@ -225,9 +223,7 @@ class _FakeInvestigator:
         raise NotImplementedError
 
 
-# ===========================================================================
 # __init__
-# ===========================================================================
 
 
 class TestInit:
@@ -275,9 +271,7 @@ class TestInit:
         assert exp.interesting == []
 
 
-# ===========================================================================
 # events / clean_events
-# ===========================================================================
 
 
 class TestEventsProperty:
@@ -301,9 +295,7 @@ class TestCleanEvents:
         assert exp.clean_events == [e3]
 
 
-# ===========================================================================
 # simple_analysis
-# ===========================================================================
 
 
 class TestSimpleAnalysis:
@@ -347,9 +339,7 @@ class TestSimpleAnalysis:
         assert simple[0].i == pytest.approx(e1.i)
 
 
-# ===========================================================================
 # reset
-# ===========================================================================
 
 
 class TestReset:
@@ -376,9 +366,7 @@ class TestReset:
         assert exp.particles.get_all() == []
 
 
-# ===========================================================================
 # analyse
-# ===========================================================================
 
 
 class TestAnalyseCreateNew:
@@ -687,9 +675,7 @@ class TestAnalyseCoincidence:
         assert candidate in exp.particles.get_all()
 
 
-# ===========================================================================
 # save
-# ===========================================================================
 
 
 class TestSave:

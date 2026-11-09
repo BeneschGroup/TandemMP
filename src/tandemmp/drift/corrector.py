@@ -3,24 +3,9 @@
 Provides :class:`DriftVector` (a 2-D drift trajectory) and the functions used
 to estimate it from a movie and apply it as a per-frame stabilising shift.
 
-The original ``DriftCorrector.py`` mixed I/O, plotting, and a ``tkinter`` file
-dialog into one module.  This refactor strips all of that out:
-
-- File I/O (``MPFileReader``, ``h5py`` writes) and the ``run_drift_correction``
-  / ``duplicate_and_change_frames`` helpers are gone — drift correction is now
-  a pure transformation from movie to movie + vector.  Callers handle I/O.
-- Plotting (``rmse_surface_plot`` and the ``show_vector`` matplotlib block in
-  ``get_vector``) is dropped here and was not recovered by item 6k, which
-  only relocated plotting code already present in ``src/`` at the time it
-  ran (see CLAUDE.md) — reintroducing this remains a separate future task.
-- Parallelism uses :func:`tandemmp.core.parallel.dispatch_kwargs`, a shared
-  local :mod:`multiprocessing` dispatcher also used by
-  :mod:`tandemmp.pipeline.investigator`, instead of
-  ``open_iscat.utils.parallel``, so the module no longer depends on
-  ``open_iscat`` at all.
-
-Rust acceleration candidate — see refactor item 6 (drift correction shift +
-RMSE inner loop is currently driven by :func:`scipy.optimize.differential_evolution`).
+Callers handle file I/O and plotting. Parallel work uses
+:func:`tandemmp.core.parallel.dispatch_kwargs`. The optional Rust extension
+accelerates drift estimation and frame shifting, with a SciPy fallback.
 """
 
 from __future__ import annotations
@@ -40,9 +25,7 @@ from tandemmp.core.types import FloatArray, IntArray
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
 # Drift vector container
-# ---------------------------------------------------------------------------
 
 
 @dataclasses.dataclass(frozen=True)
@@ -85,9 +68,7 @@ class DriftVector:
         return DriftVector(-self.x, -self.y)
 
 
-# ---------------------------------------------------------------------------
 # Low-level shift / compare helpers
-# ---------------------------------------------------------------------------
 
 
 def _rmse(a: FloatArray, b: FloatArray) -> float:
@@ -124,9 +105,8 @@ def stabilise(
     """Shift *frame* by ``(-y, -x)`` to undo a drift of ``(x, y)``.
 
     ``use_rust=True`` (the default) prefers the compiled
-    ``tandemmp._rust.drift_correction`` extension (see WORKLIST.md priority 6)
-    when it has been built; otherwise (or if it isn't available) falls back
-    transparently to the :func:`scipy.ndimage.shift` implementation below.
+    ``tandemmp._rust.drift_correction`` extension when available, with a
+    fallback to :func:`scipy.ndimage.shift`.
     """
     if use_rust:
         try:
@@ -179,13 +159,11 @@ def _solve(
     """Find the ``(x, y)`` shift minimising RMSE between two frames.
 
     ``seed`` is forwarded to :func:`scipy.optimize.differential_evolution`.
-    Left as ``None`` (the default) the search is genuinely stochastic, which
-    is what real usage wants; pass an explicit seed for reproducible runs
-    (e.g. in tests).
+    The default, ``None``, leaves the search stochastic. Pass an explicit
+    seed for reproducible runs.
 
     ``use_rust=True`` (the default) prefers the fused Rust ``solve`` entry
-    point (a single differential-evolution + shift + RMSE call, see
-    WORKLIST.md priority 6) when the compiled
+    point (a single differential-evolution + shift + RMSE call) when the compiled
     ``tandemmp._rust.drift_correction`` extension is available; otherwise
     falls back transparently to :func:`scipy.optimize.differential_evolution`
     below. Only plain ``int`` (or ``None``) seeds are supported by the Rust
@@ -237,9 +215,7 @@ def _solve_rust(
     return np.array([x, y], dtype=float)
 
 
-# ---------------------------------------------------------------------------
 # Vector estimation
-# ---------------------------------------------------------------------------
 
 
 def _get_initial_vector(
@@ -423,9 +399,7 @@ def get_vector_segmented(
     return [get_vector(movie[sl], **kwargs) for sl in slices]
 
 
-# ---------------------------------------------------------------------------
 # Movie correction
-# ---------------------------------------------------------------------------
 
 
 def get_corrected_movie(
@@ -475,9 +449,7 @@ def get_corrected_movie(
     return stabilised_movie[sel3d], vector
 
 
-# ---------------------------------------------------------------------------
 # Illumination correction
-# ---------------------------------------------------------------------------
 
 
 def illumination_correction(

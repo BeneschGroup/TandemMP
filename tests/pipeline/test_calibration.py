@@ -34,9 +34,7 @@ class _FakeMplEvent:
         self.xdata = xdata
 
 
-# ---------------------------------------------------------------------------
 # _hist_bins
-# ---------------------------------------------------------------------------
 
 
 class TestHistBins:
@@ -53,9 +51,7 @@ class TestHistBins:
         assert bins.min() == 0.0
 
 
-# ---------------------------------------------------------------------------
 # _mass_to_contrast_line
-# ---------------------------------------------------------------------------
 
 
 class TestMassToContrastLine:
@@ -65,9 +61,7 @@ class TestMassToContrastLine:
         np.testing.assert_allclose(result, [-0.00007, -0.00007 - 0.003])
 
 
-# ---------------------------------------------------------------------------
 # _DragAndFitPeaks
-# ---------------------------------------------------------------------------
 
 
 class TestDragAndFitPeaks:
@@ -118,9 +112,7 @@ class TestDragAndFitPeaks:
         plt.close("all")
 
 
-# ---------------------------------------------------------------------------
 # calibrate() orchestration — interactive pieces stubbed out
-# ---------------------------------------------------------------------------
 
 
 class _FakeDrag:
@@ -171,9 +163,7 @@ class TestCalibrate:
         assert result.source_filepath == "foo.mp"
 
 
-# ---------------------------------------------------------------------------
 # run_calibration()
-# ---------------------------------------------------------------------------
 
 
 class _FakeEventsFound:
@@ -282,9 +272,7 @@ class TestRunCalibration:
         ]
 
 
-# ---------------------------------------------------------------------------
 # save_calibration / load_calibration
-# ---------------------------------------------------------------------------
 
 
 class TestSaveLoadCalibration:

@@ -3,8 +3,7 @@
 Provides ghost-prediction transforms, cutout overlap calculations, and
 PSF-based image corrections for subtraction events.
 
-Functions that accept ``particles`` use duck-typed particle objects
-(Layer 2, not yet refactored).  The required protocol is:
+Functions that accept ``particles`` require objects with these attributes:
 
 - ``p.ID: int``
 - ``p[frame] -> event_data | None``  (with ``.x``, ``.y``, ``.c``, ``.data_from``)
@@ -30,9 +29,7 @@ from tandemmp.fitting.psf_interface import PsfInterface
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
 # Ghost-prediction transform
-# ---------------------------------------------------------------------------
 
 
 def ghost_prediction_transform(
@@ -51,9 +48,7 @@ def ghost_prediction_transform(
     return peak * transform
 
 
-# ---------------------------------------------------------------------------
 # Cutout overlap
-# ---------------------------------------------------------------------------
 
 
 def calculate_overlapping_slice(
@@ -91,9 +86,7 @@ def calculate_overlapping_slice(
     return [slice(rel_coords[0][1], y2), slice(rel_coords[0][0], x2)]
 
 
-# ---------------------------------------------------------------------------
 # Artefact removal
-# ---------------------------------------------------------------------------
 
 
 def remove_artefacts(peak: PeakImage) -> npt.NDArray[np.floating]:
@@ -113,9 +106,7 @@ def remove_artefacts(peak: PeakImage) -> npt.NDArray[np.floating]:
     return peak.original - np.sum(corrections, axis=0)  # type: ignore[no-any-return, arg-type]
 
 
-# ---------------------------------------------------------------------------
 # Ghost correction
-# ---------------------------------------------------------------------------
 
 
 def correct_ghost(
@@ -180,9 +171,7 @@ def correct_ghost(
     return new_peaks
 
 
-# ---------------------------------------------------------------------------
 # PSF-fit based subtraction correction
-# ---------------------------------------------------------------------------
 
 
 def correct_subtraction_fit(  # noqa: PLR0913
@@ -298,9 +287,7 @@ def correct_subtraction_fit(  # noqa: PLR0913
     )
 
 
-# ---------------------------------------------------------------------------
 # Image-based subtraction correction
-# ---------------------------------------------------------------------------
 
 
 def correct_subtraction_image(

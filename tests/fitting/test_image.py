@@ -21,9 +21,7 @@ from tandemmp.fitting.image import (
 )
 from tandemmp.fitting.psf import PsfModel, psf_2d_cached
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_gaussian_spline(
@@ -119,9 +117,7 @@ def _make_mock_particle(
     return p
 
 
-# ---------------------------------------------------------------------------
 # ghost_prediction_transform
-# ---------------------------------------------------------------------------
 
 
 class TestGhostPredictionTransform:
@@ -158,9 +154,7 @@ class TestGhostPredictionTransform:
         np.testing.assert_allclose(result, result[:, ::-1], atol=1e-10)
 
 
-# ---------------------------------------------------------------------------
 # calculate_overlapping_slice
-# ---------------------------------------------------------------------------
 
 
 class TestCalculateOverlappingSlice:
@@ -229,9 +223,7 @@ class TestCalculateOverlappingSlice:
         assert result[1].stop == 1
 
 
-# ---------------------------------------------------------------------------
 # remove_artefacts
-# ---------------------------------------------------------------------------
 
 
 class TestRemoveArtefacts:
@@ -306,9 +298,7 @@ class TestRemoveArtefacts:
         np.testing.assert_array_equal(result, base)
 
 
-# ---------------------------------------------------------------------------
 # correct_ghost
-# ---------------------------------------------------------------------------
 
 
 class TestCorrectGhost:
@@ -362,9 +352,7 @@ class TestCorrectGhost:
         assert len(result) == 1
 
 
-# ---------------------------------------------------------------------------
 # correct_subtraction_fit
-# ---------------------------------------------------------------------------
 
 
 class TestCorrectSubtractionFit:
@@ -424,9 +412,7 @@ class TestCorrectSubtractionFit:
         assert result.background is not None
 
 
-# ---------------------------------------------------------------------------
 # correct_subtraction_image
-# ---------------------------------------------------------------------------
 
 
 class TestCorrectSubtractionImage:

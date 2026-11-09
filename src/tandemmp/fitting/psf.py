@@ -55,18 +55,14 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
 # Constants
-# ---------------------------------------------------------------------------
 
 _DEFAULT_A12: float = -5.184416672336133
 _DEFAULT_W: float = 2.2614175995143952
 _DEFAULT_S: float = 4.249591584927938
 _UPPER_CONTRAST_BOUND: float = -0.001652
 
-# ---------------------------------------------------------------------------
 # Optional dependency loader
-# ---------------------------------------------------------------------------
 
 
 @functools.lru_cache(maxsize=1)
@@ -77,9 +73,7 @@ def _get_open_iscat_psf_2d() -> Any:  # noqa: ANN401
     return psf_2d
 
 
-# ---------------------------------------------------------------------------
 # PSF Model
-# ---------------------------------------------------------------------------
 
 
 # TODO: make PsfModel immutable such that setting a new spline_model with
@@ -112,7 +106,7 @@ class PsfModel:
     # caches keyed on :class:`PsfModel` instances remain correct when the
     # model is mutated via :meth:`set_spline_model`.
 
-    # -- Properties ----------------------------------------------------------
+    # Properties
 
     @property
     def has_spline_model(self) -> bool:
@@ -133,7 +127,7 @@ class PsfModel:
         """Attach an empirical spline-based PSF model."""
         self._spline_model = spline
 
-    # -- PSF generation ------------------------------------------------------
+    # PSF generation
 
     def get_psf_function(self) -> Callable[..., npt.NDArray[np.floating]]:
         """Return a callable ``f(x, y, c=1.0) -> image``.
@@ -214,7 +208,7 @@ class PsfModel:
             return self.psf_2d_offset(size, dx, dy, c)
         return rust_model.psf_offset(dx, dy, c)  # type: ignore[no-any-return]
 
-    # -- 2-D peak fitting ----------------------------------------------------
+    # 2-D peak fitting
 
     def fit_peak(  # noqa: PLR0913
         self,
@@ -358,9 +352,7 @@ class PsfModel:
         return result
 
 
-# ---------------------------------------------------------------------------
 # Module-level cached PSF helpers
-# ---------------------------------------------------------------------------
 
 
 @overload
@@ -439,9 +431,7 @@ def correct_known_positions(
     return peak - impression
 
 
-# ---------------------------------------------------------------------------
 # 3-D ratiometric image construction
-# ---------------------------------------------------------------------------
 
 
 def _model_3d_psf(
@@ -523,9 +513,7 @@ def make_3d_image(
     return psfs[-navg:].mean(axis=0) - psfs[:navg].mean(axis=0)  # type: ignore[no-any-return]
 
 
-# ---------------------------------------------------------------------------
 # 3-D ratiometric fitting
-# ---------------------------------------------------------------------------
 
 
 def fit_3d_ratiometric(  # noqa: PLR0913

@@ -4,10 +4,6 @@ All public functions take plain numeric arrays rather than reaching into
 event or experiment objects. Callers are expected to extract the
 required per-event / per-particle quantities up-front (e.g. via
 :mod:`tandemmp.io.save` record builders) before handing them here.
-
-This keeps the plotting layer decoupled from the still-evolving
-pipeline / investigator APIs and aligns with the Layer 6k consolidation
-goal of "library code returns data; plotting owns matplotlib".
 """
 
 from __future__ import annotations
@@ -26,9 +22,7 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure
 
 
-# ---------------------------------------------------------------------------
 # Mass histogram
-# ---------------------------------------------------------------------------
 
 
 def mass_histogram(
@@ -78,9 +72,7 @@ def mass_histogram(
     return ax
 
 
-# ---------------------------------------------------------------------------
 # Initial / secondary mass scatter
-# ---------------------------------------------------------------------------
 
 
 def mass_tablecloth(
@@ -142,9 +134,7 @@ def mass_tablecloth(
     return fig, ax, ax_histx, ax_histy
 
 
-# ---------------------------------------------------------------------------
 # Mass vs error
-# ---------------------------------------------------------------------------
 
 
 def error_vs_mass(
@@ -220,9 +210,7 @@ def error_vs_mass(
     return fig, ax, ax_histx, ax_histy
 
 
-# ---------------------------------------------------------------------------
 # Events cube
-# ---------------------------------------------------------------------------
 
 
 #: Unit cube expressed as 6 quad faces, each a (4, 3) array of corner

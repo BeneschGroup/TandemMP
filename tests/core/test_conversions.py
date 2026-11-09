@@ -18,9 +18,7 @@ from tandemmp.core.conversions import (
     set_calibration,
 )
 
-# ---------------------------------------------------------------------------
 # Spatial conversions
-# ---------------------------------------------------------------------------
 
 
 class TestSpatialConversions:
@@ -45,9 +43,7 @@ class TestSpatialConversions:
         assert NM_PER_PIXEL == pytest.approx(72.6)
 
 
-# ---------------------------------------------------------------------------
 # Mass / contrast conversions
-# ---------------------------------------------------------------------------
 
 
 class TestMassContrastConversions:
@@ -75,9 +71,7 @@ class TestMassContrastConversions:
         assert result.shape == (2,)
 
 
-# ---------------------------------------------------------------------------
 # Calibration
-# ---------------------------------------------------------------------------
 
 
 class TestCalibration:
@@ -116,9 +110,7 @@ class TestCalibration:
             set_calibration(None)
 
 
-# ---------------------------------------------------------------------------
 # mass_to_sigma
-# ---------------------------------------------------------------------------
 
 
 class TestMassToSigma:
@@ -153,9 +145,7 @@ class TestMassToSigma:
         assert mass_to_sigma(-500.0) == mass_to_sigma(500.0)
 
 
-# ---------------------------------------------------------------------------
 # Radius conversions
-# ---------------------------------------------------------------------------
 
 
 class TestRadiusConversions:

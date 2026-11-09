@@ -2,8 +2,7 @@
 
 Fitting logic (bin selection, curve fitting, GMM selection) lives in
 :mod:`tandemmp.core.histogram`; this module owns the matplotlib calls that
-render those fits, per the Layer 6k consolidation goal of "library code
-returns data, plotting owns matplotlib".
+render those fits.
 """
 
 from __future__ import annotations

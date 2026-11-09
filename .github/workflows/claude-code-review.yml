@@ -35,8 +35,6 @@ jobs:
           claude_args: |
             --model claude-sonnet-5-5
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Write,Bash(gh api:*),Bash(cat:*),Bash(ls:*),Bash(grep:*),Bash(rg:*),Bash(find:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(sed:*),Bash(awk:*)"
-          # track_progress: true
-          # use_sticky_comment: true
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
@@ -99,4 +97,3 @@ jobs:
             with backticks, code fences, and pipes in the review content.
                     
           show_full_output: true
-

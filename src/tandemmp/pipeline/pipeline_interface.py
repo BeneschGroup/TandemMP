@@ -4,14 +4,9 @@ Defines :class:`PipelineRunner`, a :class:`typing.Protocol` describing the
 minimal surface an event-finding backend must expose, plus the shared result
 types (:class:`EventsFound`, :class:`PipelineResults`) any backend produces.
 
-This module is intentionally self-contained (no imports from
-:mod:`tandemmp.pipeline.open_iscat_pipeline`) so that the open_iscat-backed
-implementation and any future alternative backend (e.g. one wrapping
-Refeyn's own ``analyse_frames_twomp`` — see ``alex_area/refeyn.py``) can both
-depend on it without introducing an import cycle —
-:mod:`tandemmp.pipeline.open_iscat_pipeline` imports :class:`EventsFound` and
-:class:`PipelineResults` from here (and re-exports them for backward
-compatibility) rather than the other way around.
+This module does not import backend implementations, avoiding circular
+imports. :mod:`tandemmp.pipeline.open_iscat_pipeline` re-exports the result
+types for backward compatibility.
 """
 
 from __future__ import annotations
@@ -26,9 +21,7 @@ if TYPE_CHECKING:
 
     import numpy.typing as npt
 
-# ---------------------------------------------------------------------------
 # Data containers
-# ---------------------------------------------------------------------------
 
 
 class EventsFound(Protocol):
@@ -53,9 +46,7 @@ class PipelineResults:
     events: EventsFound
 
 
-# ---------------------------------------------------------------------------
 # Protocol
-# ---------------------------------------------------------------------------
 
 
 @runtime_checkable
@@ -70,10 +61,8 @@ class PipelineRunner(Protocol):
     use for.
 
     Concrete implementation:
-    :class:`tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`. A
-    different backend (e.g. wrapping Refeyn's own ``analyse_frames_twomp``,
-    see ``alex_area/refeyn.py``) can be dropped in by implementing this same
-    structural contract — no subclassing required.
+    :class:`tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`.
+    Other backends implement the same structural contract without subclassing.
     """
 
     def run(

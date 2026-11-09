@@ -28,9 +28,7 @@ __all__ = [
 ]
 
 
-# ---------------------------------------------------------------------------
 # ID allocation
-# ---------------------------------------------------------------------------
 
 
 _particle_id_counter: itertools.count[int] = itertools.count(0)
@@ -46,9 +44,7 @@ def _reset_particle_ids() -> None:
     _particle_id_counter = itertools.count(0)
 
 
-# ---------------------------------------------------------------------------
 # Value types
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -79,9 +75,7 @@ class ParticleData:
         return len(self.frames)
 
 
-# ---------------------------------------------------------------------------
 # Single particle
-# ---------------------------------------------------------------------------
 
 
 class SimulatedParticle:
@@ -181,9 +175,7 @@ class SimulatedParticle:
         )
 
 
-# ---------------------------------------------------------------------------
 # Particle list
-# ---------------------------------------------------------------------------
 
 
 class SimulatedParticleList:
@@ -206,21 +198,25 @@ class SimulatedParticleList:
     @overload
     def __getitem__(
         self,
-        index: slice
-        | npt.NDArray[np.bool_]
-        | npt.NDArray[np.integer]
-        | list[int]
-        | list[bool],
+        index: (
+            slice
+            | npt.NDArray[np.bool_]
+            | npt.NDArray[np.integer]
+            | list[int]
+            | list[bool]
+        ),
     ) -> npt.NDArray[np.object_]: ...
 
     def __getitem__(
         self,
-        index: int
-        | slice
-        | npt.NDArray[np.bool_]
-        | npt.NDArray[np.integer]
-        | list[int]
-        | list[bool],
+        index: (
+            int
+            | slice
+            | npt.NDArray[np.bool_]
+            | npt.NDArray[np.integer]
+            | list[int]
+            | list[bool]
+        ),
     ) -> SimulatedParticle | npt.NDArray[np.object_]:
         if isinstance(index, int):
             return self._particles[index]

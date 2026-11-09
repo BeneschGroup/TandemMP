@@ -27,9 +27,7 @@ from tandemmp.events import (
 )
 from tandemmp.fitting.psf import PsfModel
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_gaussian_spline(
@@ -80,9 +78,7 @@ def _make_peak_image(
     )
 
 
-# =========================================================================
 # Correction
-# =========================================================================
 
 
 class TestCorrection:
@@ -123,9 +119,7 @@ class TestCorrection:
         assert c.data_from is None
 
 
-# =========================================================================
 # PeakImage
-# =========================================================================
 
 
 class TestPeakImage:
@@ -166,9 +160,7 @@ class TestPeakImage:
         assert pi.corrections is None
 
 
-# =========================================================================
 # Connectable
-# =========================================================================
 
 
 class TestConnectable:
@@ -224,9 +216,7 @@ class TestConnectable:
             assert n.connected_events == []
 
 
-# =========================================================================
 # AbstractEvent
-# =========================================================================
 
 
 class TestAbstractEvent:
@@ -297,9 +287,7 @@ class TestAbstractEvent:
         assert event.has_connection is False
 
 
-# =========================================================================
 # RatiometricEvent
-# =========================================================================
 
 
 class TestRatiometricEvent:
@@ -420,9 +408,7 @@ class TestRatiometricEvent:
         assert ev in s
 
 
-# =========================================================================
 # SubtractionEvent
-# =========================================================================
 
 
 class TestSubtractionEvent:
@@ -517,9 +503,7 @@ class TestSubtractionEvent:
         assert ev.exc_fit is False
 
 
-# =========================================================================
 # SubtractionSeries
-# =========================================================================
 
 
 class TestSubtractionSeries:
@@ -612,9 +596,7 @@ class TestSubtractionSeries:
         assert isinstance(u, float)
 
 
-# =========================================================================
 # GhostEvent
-# =========================================================================
 
 
 class TestGhostEvent:
@@ -666,9 +648,7 @@ class TestGhostEvent:
         assert ev.basic_fit_error is None
 
 
-# =========================================================================
 # Ghost model loader
-# =========================================================================
 
 
 class TestGetGhostModel:
@@ -686,8 +666,7 @@ class TestGetGhostModel:
 
         Runs in a fresh subprocess so the check is deterministic regardless
         of whether an earlier test in this session already imported
-        tensorflow (previously this self-skipped via a sys.modules check,
-        making the result order-dependent). PYTHONPATH is set explicitly
+        tensorflow. PYTHONPATH is set explicitly
         since pytest's `pythonpath = ["src"]` setting (pyproject.toml)
         doesn't propagate to a subprocess.
         """
@@ -722,9 +701,7 @@ class TestGetGhostModel:
         assert get_ghost_model() is model
 
 
-# =========================================================================
 # Public API re-exports
-# =========================================================================
 
 
 class TestPublicAPI:

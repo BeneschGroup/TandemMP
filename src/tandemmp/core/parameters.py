@@ -22,9 +22,7 @@ def _validate_positive(value: float | int, name: str) -> None:
         raise ValueError(f"{name} must be positive, got {value}")
 
 
-# ---------------------------------------------------------------------------
 # Sub-parameter groups
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -158,9 +156,7 @@ class TandemMPAnalysisParams:
         _validate_positive(self.max_ghost_matches, "max_ghost_matches")
 
 
-# ---------------------------------------------------------------------------
 # Top-level parameters
-# ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -211,9 +207,7 @@ class FullAnalysisParams:
         _validate_positive(self.lid_open_margin, "lid_open_margin")
 
 
-# ---------------------------------------------------------------------------
 # Factory
-# ---------------------------------------------------------------------------
 
 
 def _recursive_replace(obj: Any, **kwargs: Any) -> Any:  # noqa: ANN401

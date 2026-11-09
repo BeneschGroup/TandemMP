@@ -37,9 +37,7 @@ def _fake_get_vector(*, movie: Any, **kwargs: Any) -> DriftVector:
     )
 
 
-# ---------------------------------------------------------------------------
 # DriftCorrectionFunction
-# ---------------------------------------------------------------------------
 
 
 class TestDriftCorrectionFunction:
@@ -96,9 +94,7 @@ class TestDriftCorrectionFunction:
         assert y == pytest.approx(3.0)
 
 
-# ---------------------------------------------------------------------------
 # DriftCorrectionFunction.correct_movie
-# ---------------------------------------------------------------------------
 
 
 def _rmse(a, b):
@@ -186,9 +182,7 @@ class TestCorrectMovie:
         assert corrected.ndim == 3
 
 
-# ---------------------------------------------------------------------------
 # DriftCorrectionResult
-# ---------------------------------------------------------------------------
 
 
 class TestDriftCorrectionResult:
@@ -200,9 +194,7 @@ class TestDriftCorrectionResult:
         assert fn.vector is vector
 
 
-# ---------------------------------------------------------------------------
 # run_drift_correction
-# ---------------------------------------------------------------------------
 
 
 class TestRunDriftCorrection:
@@ -283,9 +275,7 @@ class TestRunDriftCorrection:
         assert seen["parameters"].drift_correction is False
 
 
-# ---------------------------------------------------------------------------
 # save_drift_vector / load_drift_vector
-# ---------------------------------------------------------------------------
 
 
 class TestSaveLoadDriftVector:
@@ -349,9 +339,7 @@ class TestSaveLoadDriftVector:
         assert loaded.source_filepath == str(path)
 
 
-# ---------------------------------------------------------------------------
 # save_correction_function / load_correction_function
-# ---------------------------------------------------------------------------
 
 
 class TestSaveLoadCorrectionFunction:

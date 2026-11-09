@@ -66,34 +66,17 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src/tandemmp/_rust/drift_correction
-          # abi3 wheels aren't Python-version-specific, but each matrix job
-          # builds independently (maturin develop installs into that job's
-          # venv) — separate cache keys avoid cross-job artifact reuse
-          # across different CPython headers.
+          # Keep build caches separate for each Python version.
           key: ${{ matrix.python-version }}
 
       - name: Build & install tandemmp._rust.drift_correction (maturin)
         working-directory: src/tandemmp/_rust/drift_correction
         run: |
           pip install maturin
-          # `maturin develop` requires VIRTUAL_ENV/CONDA_PREFIX to locate the
-          # target environment, which actions/setup-python doesn't set (it
-          # just puts a system Python on PATH, no venv). `maturin build` +
-          # `pip install` of the resulting wheel needs neither.
+          # Build a wheel because setup-python does not create a virtualenv.
           maturin build --release --out dist
           pip install dist/*.whl
-          # The wheel install above lands in site-packages, but this
-          # project's pyproject.toml sets `pythonpath = ["src"]` for pytest,
-          # which puts the repo checkout's src/ ahead of site-packages on
-          # sys.path. Once `tandemmp` resolves from src/ (a regular
-          # package), Python never falls through to site-packages for its
-          # `_rust` submodule — it only looks inside src/tandemmp/_rust/,
-          # where the crate's own *source* directory (this directory, with
-          # no __init__.py) still sits from the git checkout and gets
-          # treated as an empty implicit namespace package, shadowing the
-          # wheel entirely. So also copy the compiled extension directly
-          # into src/tandemmp/_rust/ — what `maturin develop` would do,
-          # without needing its VIRTUAL_ENV/CONDA_PREFIX detection.
+          # Pytest imports from src/, so copy the extension into that package.
           python -c "
           import glob, zipfile, shutil
           wheel = glob.glob('dist/*.whl')[0]

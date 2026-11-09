@@ -22,9 +22,7 @@ import numpy.typing as npt
 # Type alias for values that can be scalar or array
 Numeric = float | npt.NDArray[np.floating]
 
-# ---------------------------------------------------------------------------
 # Constants
-# ---------------------------------------------------------------------------
 
 NM_PER_PIXEL: float = 72.6
 """Nanometres per pixel for the standard iSCAT camera."""
@@ -60,9 +58,7 @@ def get_calibration() -> Calibration:
     return _active_calibration
 
 
-# ---------------------------------------------------------------------------
 # Spatial conversions
-# ---------------------------------------------------------------------------
 
 
 def nm2pixels(nm: Numeric) -> Numeric:
@@ -75,9 +71,7 @@ def pixels2nm(px: Numeric) -> Numeric:
     return np.multiply(px, NM_PER_PIXEL)
 
 
-# ---------------------------------------------------------------------------
 # Mass / contrast conversions (open-iSCAT defaults)
-# ---------------------------------------------------------------------------
 
 
 def c_to_mass(c: Numeric) -> Numeric:
@@ -92,9 +86,7 @@ def mass_to_c(m: Numeric) -> Numeric:
     return np.add(np.multiply(m, cal.slope), cal.offset)  # type: ignore[no-any-return]
 
 
-# ---------------------------------------------------------------------------
 # Precision / size
-# ---------------------------------------------------------------------------
 
 
 def mass_to_sigma(mass: float) -> float:

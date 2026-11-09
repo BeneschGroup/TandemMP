@@ -25,12 +25,7 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
 tandemmp = ["resources/*.h5"]
-# Compiled Rust extension + type stub for tandemmp._rust.drift_correction
-# (built independently via maturin, see src/tandemmp/_rust/drift_correction/
-# pyproject.toml). These files only land in src/tandemmp/_rust/ after a
-# `maturin build`/`maturin develop` run; without this entry a normal
-# `pip install .` / `python -m build` from this pyproject.toml would ship a
-# wheel missing the extension, silently falling back to the Python path.
+# Include the type stub and any extension built separately with maturin.
 "tandemmp._rust" = ["drift_correction*.so", "drift_correction*.pyd", "drift_correction.pyi"]
 
 [tool.setuptools.packages.find]
@@ -81,11 +76,7 @@ ignore = [
 python_version = "3.10"
 strict = true
 ignore_missing_imports = true
-# `_rust/*/target/` is each Rust crate's `cargo build` output (per-crate
-# under `src/tandemmp/_rust/`, per WORKLIST.md's Rust-acceleration
-# convention) — not Python source, and mypy's directory walker can crash on
-# cargo's transient incremental-compilation files (long/short-lived paths)
-# if it isn't excluded.
+# Exclude Cargo build output from Python source discovery.
 exclude = ["notebooks/", "tests/", "alex_area/", "deprecated/", "_rust/.*/target/"]
 
 [[tool.mypy.overrides]]

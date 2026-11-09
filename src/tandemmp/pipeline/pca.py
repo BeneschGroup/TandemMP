@@ -104,7 +104,7 @@ class Experiment:
         self._index = 0
         self.interesting: list[tuple[RatiometricEvent, Particle | None]] = []
 
-    # -- Event views -----------------------------------------------------
+    # Event views
 
     @property
     def events(self) -> list[RatiometricEvent]:
@@ -120,7 +120,7 @@ class Experiment:
             if e.decision is not None and e.decision.action != Action.ignore
         ]
 
-    # -- Simple pair matching ---------------------------------------------
+    # Simple pair matching
 
     def simple_analysis(
         self,
@@ -142,7 +142,7 @@ class Experiment:
             analyse_distance=analyse_distance,
         )
 
-    # -- Analysis loop -----------------------------------------------------
+    # Analysis loop
 
     def reset(self) -> None:
         """Undo in-progress classification state so :meth:`analyse` can restart.
@@ -266,7 +266,7 @@ class Experiment:
                                     "Coincidence rejected by particle %s", trial_p.ID
                                 )
 
-    # -- Persistence ---------------------------------------------------------
+    # Persistence
 
     def save(self, filepath: str | Path, *, save_movie: bool = True) -> Path:
         """Pickle this experiment's events and particles to *filepath*."""

@@ -65,7 +65,7 @@ class RatiometricEvent(AbstractEvent):
     def __hash__(self) -> int:
         return hash(self._ID)
 
-    # -- Classification ------------------------------------------------------
+    # Classification
 
     def self_classify(self) -> None:
         """Set classification based on the sign of the contrast."""
@@ -77,7 +77,7 @@ class RatiometricEvent(AbstractEvent):
         self.c = -abs(self.c)
         self.m = float(c_to_mass(self.c))
 
-    # -- 3-D fitting ---------------------------------------------------------
+    # 3-D fitting
 
     def apply_3D_fit(self, fit_result: MultiFitResult) -> None:  # noqa: N802
         """Apply a 3-D ratiometric fit result to this event."""
@@ -119,7 +119,7 @@ class RatiometricEvent(AbstractEvent):
         # always supplies best_image, so this is never None in practice.
         self.fit_image: npt.NDArray[np.floating] = fit_result.fit_image  # type: ignore[assignment]
 
-    # -- Disconnect ----------------------------------------------------------
+    # Disconnect
 
     def disconnect_all(self) -> None:
         """Reset 3-D fit state and restore basic-fit attributes."""
@@ -136,7 +136,7 @@ class RatiometricEvent(AbstractEvent):
         self.x = self.peak.midpoint[0] + self.dx
         self.y = self.peak.midpoint[1] + self.dy
 
-    # -- Properties ----------------------------------------------------------
+    # Properties
 
     @property
     def frame_range(self) -> set[int]:

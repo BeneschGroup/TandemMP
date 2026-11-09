@@ -37,9 +37,7 @@ from tandemmp.io.movie import (
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
 # Mosaic builders (operate on arrays; no rendering)
-# ---------------------------------------------------------------------------
 
 
 def reconstruct_particle_movie(
@@ -160,9 +158,7 @@ def create_mosaic_movie(
     return new_movie
 
 
-# ---------------------------------------------------------------------------
 # Animation rendering helpers
-# ---------------------------------------------------------------------------
 
 
 def quick_output_movie(
