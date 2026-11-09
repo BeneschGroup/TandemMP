@@ -7,14 +7,19 @@ monkeypatched, avoiding a real ``.mp``/``open_iscat`` dependency.
 from __future__ import annotations
 
 import dataclasses
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pytest
 
+from tandemmp.core.conversions import Calibration, get_calibration
 from tandemmp.pipeline import pair_matching as pm
+from tandemmp.pipeline.calibration import load_mc
 from tandemmp.pipeline.pair_matching import PairMatchingResult, run_pair_matching
 from tandemmp.pipeline.simple_analysis import Pair, SimpleEvent
+
+MC_FIXTURE = Path(__file__).parent / "fixtures" / "20260329_mfp1.mc"
 
 
 @dataclasses.dataclass
@@ -155,6 +160,47 @@ class TestRunPairMatchingWiring:
 
         assert result.source_filepath == "some/movie.mp"
         assert len(result.events) == 2
+
+    def test_no_calibration_leaves_active_calibration_unchanged(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(pm, "Loader", _FakeLoader)
+        monkeypatch.setattr(pm, "match_pairs_sigma", lambda *a, **k: [])
+        custom = Calibration(slope=-0.00005, offset=-0.0001)
+        pm.set_calibration(custom)
+
+        run_pair_matching("movie.mp")
+
+        assert get_calibration() == custom
+
+    def test_calibration_sets_active_calibration_before_loader(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        seen: dict[str, Any] = {}
+
+        class _CapturingLoader(_FakeLoader):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                seen["calibration"] = get_calibration()
+                super().__init__(*args, **kwargs)
+
+        monkeypatch.setattr(pm, "Loader", _CapturingLoader)
+        monkeypatch.setattr(pm, "match_pairs_sigma", lambda *a, **k: [])
+        custom = Calibration(slope=-0.00005, offset=-0.0001)
+
+        run_pair_matching("movie.mp", calibration=custom)
+
+        assert seen["calibration"] == custom
+        assert get_calibration() == custom
+
+    def test_calibration_accepts_mc_filepath(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(pm, "Loader", _FakeLoader)
+        monkeypatch.setattr(pm, "match_pairs_sigma", lambda *a, **k: [])
+
+        run_pair_matching("movie.mp", calibration=MC_FIXTURE)
+
+        assert get_calibration() == load_mc(MC_FIXTURE).calibration
 
 
 # run_pair_matching — end to end (real match_pairs_sigma)

@@ -14,8 +14,9 @@ from typing import Any
 import numpy as np
 import pytest
 
-from tandemmp.core.conversions import c_to_mass
+from tandemmp.core.conversions import Calibration, c_to_mass, get_calibration
 from tandemmp.pipeline import simple_analysis as sa
+from tandemmp.pipeline.calibration import load_mc
 from tandemmp.pipeline.simple_analysis import (
     NewPair,
     Pair,
@@ -28,6 +29,8 @@ from tandemmp.pipeline.simple_analysis import (
     match_pairs_sigma,
     match_pairs_tally,
 )
+
+MC_FIXTURE = Path(__file__).parent / "fixtures" / "20260329_mfp1.mc"
 
 
 @pytest.fixture(autouse=True)
@@ -148,6 +151,44 @@ class TestLoadEvents:
         np.testing.assert_allclose(
             [e.m for e in events], c_to_mass(np.array(contrasts))
         )
+
+    def test_missing_mass_column_uses_given_calibration(
+        self, tmp_path: Path
+    ) -> None:
+        contrasts = [-0.01, -0.02]
+        csv_path = self._write_csv(
+            tmp_path,
+            [
+                (0, 10.0, 20.0, contrasts[0], float("nan")),
+                (1, 11.0, 21.0, contrasts[1], float("nan")),
+            ],
+        )
+        custom = Calibration(slope=-0.00005, offset=-0.0001)
+
+        events = load_events(csv_path, calibration=custom)
+
+        expected = (np.array(contrasts) - custom.offset) / custom.slope
+        np.testing.assert_allclose([e.m for e in events], expected)
+        # The process-wide calibration is untouched by load_events.
+        assert get_calibration() != custom
+
+    def test_missing_mass_column_accepts_mc_filepath_as_calibration(
+        self, tmp_path: Path
+    ) -> None:
+        contrasts = [-0.01, -0.02]
+        csv_path = self._write_csv(
+            tmp_path,
+            [
+                (0, 10.0, 20.0, contrasts[0], float("nan")),
+                (1, 11.0, 21.0, contrasts[1], float("nan")),
+            ],
+        )
+
+        events = load_events(csv_path, calibration=MC_FIXTURE)
+
+        cal = load_mc(MC_FIXTURE).calibration
+        expected = (np.array(contrasts) - cal.offset) / cal.slope
+        np.testing.assert_allclose([e.m for e in events], expected)
 
     def test_movie_filepath_applies_drift_correction(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

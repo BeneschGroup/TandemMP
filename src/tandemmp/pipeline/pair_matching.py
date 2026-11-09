@@ -25,9 +25,11 @@ from typing import Any
 
 import numpy as np
 
+from tandemmp.core.conversions import set_calibration
 from tandemmp.core.parameters import get_parameters
 from tandemmp.core.types import FloatArray
 from tandemmp.events import RatiometricEvent
+from tandemmp.pipeline.calibration import CalibrationLike, resolve_calibration
 from tandemmp.pipeline.loader import Loader
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
 from tandemmp.pipeline.simple_analysis import (
@@ -73,6 +75,7 @@ def run_pair_matching(
     frame_end: int | None = None,
     seed: int | np.random.Generator | np.random.RandomState | None = None,
     pipeline_runner: PipelineRunner | None = None,
+    calibration: CalibrationLike | None = None,
     sigma_multiplier: float = 3.0,
     max_pairs: int = 5,
     analyse_distance: float = 4.0,
@@ -92,10 +95,17 @@ def run_pair_matching(
     keywords against the full, possibly-nested
     :class:`~tandemmp.core.parameters.FullAnalysisParams` tree).
 
+    *calibration* (a :class:`~tandemmp.core.conversions.Calibration` or a
+    calibration filepath) sets the process-wide contrast/mass conversion
+    before events are loaded; left as ``None``, whatever calibration is
+    already active is used unchanged.
+
     See :func:`~tandemmp.pipeline.simple_analysis.match_pairs_sigma` for the
     meaning of *sigma_multiplier*, *max_pairs*, *analyse_distance*,
     *minimum_overlap* and *match_binding*.
     """
+    if calibration is not None:
+        set_calibration(resolve_calibration(calibration))
     parameters = get_parameters(parallel=parallel, **parameter_overrides)
 
     loader = Loader(
