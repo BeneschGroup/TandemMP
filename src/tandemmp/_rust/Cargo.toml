@@ -1,5 +1,5 @@
 [workspace]
-members = ["drift_correction", "_native"]
+members = ["drift_correction", "psf", "_native"]
 resolver = "2"
 
 # Keep panic unwinding enabled so PyO3 can convert panics to Python

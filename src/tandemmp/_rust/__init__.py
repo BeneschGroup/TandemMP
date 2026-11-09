@@ -9,6 +9,6 @@ correction falls back to Python when the extension is unavailable; see
 
 from __future__ import annotations
 
-from tandemmp._rust._native import drift_correction
+from tandemmp._rust._native import drift_correction, psf
 
-__all__ = ["drift_correction"]
+__all__ = ["drift_correction", "psf"]
