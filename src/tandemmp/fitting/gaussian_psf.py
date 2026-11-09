@@ -27,10 +27,9 @@ if TYPE_CHECKING:
 
 # ``1.5`` matches the PSF-width scale already used elsewhere in the codebase
 # for a "typical" iSCAT point-spread function in pixel units (e.g.
-# `pipeline/investigator.py`'s `fake_sigma = 1.5` and
-# `pipeline/open_iscat.py`'s `sigma_iimg=1.5`) — there is no single canonical
-# default sigma for a generic Gaussian PSF, so this value is chosen for
-# consistency with those call sites rather than derived from a fit.
+# `pipeline/investigator.py`'s `fake_sigma = 1.5`) — there is no single
+# canonical default sigma for a generic Gaussian PSF, so this value is chosen
+# for consistency with that call site rather than derived from a fit.
 _DEFAULT_SIGMA: float = 1.5
 
 
@@ -55,10 +54,8 @@ class GaussianPsfModel:
         """Return a callable ``f(x, y, c=1.0) -> image``.
 
         Uses the analytic 2-D Gaussian ``c * exp(-(x^2 + y^2) / (2 sigma^2))``
-        — the same un-normalised, pass-through-contrast convention used by
-        :meth:`tandemmp.fitting.psf.PsfModel.get_psf_function`'s
-        ``open_iscat``-backed fallback (contrast is applied as a direct
-        multiplicative factor, not negated).
+        — contrast is applied as a direct multiplicative factor, not negated
+        (unlike :class:`tandemmp.fitting.psf.PsfModel`'s spline backend).
         """
         sigma = self.sigma
 

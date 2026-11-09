@@ -263,7 +263,7 @@ class TestReconstructParticleMovie:
 
         from tandemmp.fitting.psf import PsfModel
 
-        # Build a spline-based PSF model so open_iscat is not required
+        # Build a spline-based PSF model (required — no analytic fallback)
         grid_size = 101
         half = grid_size // 2
         coords = np.linspace(-half, half, grid_size)

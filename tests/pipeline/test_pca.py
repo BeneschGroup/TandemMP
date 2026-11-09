@@ -14,7 +14,6 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 from scipy.interpolate import RectBivariateSpline
-
 from tandemmp.core.classifications import ProcessingMethod
 from tandemmp.core.conversions import (
     DEFAULT_CALIBRATION,
@@ -28,7 +27,7 @@ from tandemmp.fitting.psf import PsfModel
 from tandemmp.io.save import load_results
 from tandemmp.pipeline import pca
 from tandemmp.pipeline.investigator import Action, Decision
-from tandemmp.pipeline.open_iscat_pipeline import Info
+from tandemmp.pipeline.pipeline_interface import Info
 from tandemmp.tracking.manager import ParticleManager
 from tandemmp.tracking.particle import GhostParticle, Particle, _reset_particle_ids
 
@@ -127,7 +126,7 @@ def _bare_experiment(**attrs: Any) -> pca.Experiment:
     """Construct an ``Experiment`` bypassing ``__init__``.
 
     Only the attributes under test need to be set, isolating each method
-    from the (heavy, ``open_iscat``-dependent) construction path.
+    from the heavy movie-loading/event-finding construction path.
     """
     exp = object.__new__(pca.Experiment)
     for key, value in attrs.items():
@@ -181,12 +180,22 @@ class _FakeLoader:
         just_movie: bool,
         special_bypass: Any,
         pipeline_runner: Any = None,
+        frame_start: int | None = None,
+        frame_end: int | None = None,
+        seed: Any = None,
+        events_csv: Any = None,
+        skip_exp_model: bool = False,
     ) -> None:
         self.mp_filepath = mp_filepath
         self.parameters = parameters
         self.just_movie = just_movie
         self.special_bypass = special_bypass
         self.pipeline_runner = pipeline_runner
+        self.frame_start = frame_start
+        self.frame_end = frame_end
+        self.seed = seed
+        self.events_csv = events_csv
+        self.skip_exp_model = skip_exp_model
         self.folder = Path("fake_folder")
         self.movie = np.zeros((3, 4, 4))
         self.params: Info | None = (
@@ -270,6 +279,49 @@ class TestInit:
         assert exp._index == 0
         assert exp.interesting == []
 
+    def test_forwards_frame_start_end_and_seed(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setattr(pca, "Loader", _FakeLoader)
+        exp = pca.Experiment(
+            tmp_path / "movie.mp",
+            just_movie=True,
+            frame_start=5,
+            frame_end=15,
+            seed=42,
+        )
+        assert exp.loader.frame_start == 5
+        assert exp.loader.frame_end == 15
+        assert exp.loader.seed == 42
+
+    def test_events_csv_forwarded_to_loader(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        seen: dict[str, Any] = {}
+
+        class _CapturingLoader(_FakeLoader):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                seen["kwargs"] = kwargs
+                super().__init__(*args, **kwargs)
+
+        monkeypatch.setattr(pca, "Loader", _CapturingLoader)
+        pca.Experiment(tmp_path / "movie.mp", just_movie=True, events_csv="events.csv")
+        assert seen["kwargs"]["events_csv"] == "events.csv"
+
+    def test_no_events_csv_omits_kwarg(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        seen: dict[str, Any] = {}
+
+        class _CapturingLoader(_FakeLoader):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                seen["kwargs"] = kwargs
+                super().__init__(*args, **kwargs)
+
+        monkeypatch.setattr(pca, "Loader", _CapturingLoader)
+        pca.Experiment(tmp_path / "movie.mp", just_movie=True)
+        assert "events_csv" not in seen["kwargs"]
+
 
 # events / clean_events
 
@@ -314,11 +366,15 @@ class TestSimpleAnalysis:
             sigma_multiplier: float,
             max_pairs: int,
             analyse_distance: float,
+            minimum_overlap: float,
+            match_binding: bool,
         ) -> list[Any]:
             captured["simple_events"] = simple_events
             captured["sigma_multiplier"] = sigma_multiplier
             captured["max_pairs"] = max_pairs
             captured["analyse_distance"] = analyse_distance
+            captured["minimum_overlap"] = minimum_overlap
+            captured["match_binding"] = match_binding
             return []
 
         monkeypatch.setattr(pca, "match_pairs_sigma", _fake_match)
@@ -330,6 +386,8 @@ class TestSimpleAnalysis:
         assert captured["sigma_multiplier"] == 2.0
         assert captured["max_pairs"] == 3
         assert captured["analyse_distance"] == 5.0
+        assert captured["minimum_overlap"] == 0.01
+        assert captured["match_binding"] is False
         simple = captured["simple_events"]
         assert len(simple) == 2
         assert simple[0].c == pytest.approx(e1.particle_c)

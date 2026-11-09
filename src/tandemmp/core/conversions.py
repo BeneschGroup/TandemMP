@@ -37,7 +37,7 @@ class Calibration:
 
 
 DEFAULT_CALIBRATION = Calibration(slope=-0.000030, offset=-0.000070)
-"""Open-iSCAT default calibration (linear contrast-to-mass)."""
+"""Legacy default calibration (linear contrast-to-mass)."""
 
 _active_calibration: Calibration = DEFAULT_CALIBRATION
 
@@ -71,7 +71,7 @@ def pixels2nm(px: Numeric) -> Numeric:
     return np.multiply(px, NM_PER_PIXEL)
 
 
-# Mass / contrast conversions (open-iSCAT defaults)
+# Mass / contrast conversions (legacy defaults)
 
 
 def c_to_mass(c: Numeric) -> Numeric:
