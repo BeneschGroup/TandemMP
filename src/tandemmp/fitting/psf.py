@@ -22,11 +22,12 @@ import scipy.optimize
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from scipy.interpolate import RectBivariateSpline
+    from scipy.interpolate import BivariateSpline
 
     from tandemmp.fitting.gaussian_psf import GaussianPsfModel
 
 from tandemmp.core.classifications import Classification
+from tandemmp.core.parameters import DEFAULT_L_THUM
 from tandemmp.fitting.minimize import minimize_model
 from tandemmp.fitting.psf_interface import (
     PeakFitResult,
@@ -83,7 +84,7 @@ class PsfModel:
 
     Standalone replacement for the old ``CustomPeakModel``.  Does **not**
     inherit from ``open_iscat``'s ``PeakModel`` — all required functionality
-    is implemented directly.  When a :class:`~scipy.interpolate.RectBivariateSpline`
+    is implemented directly.  When a :class:`~scipy.interpolate.BivariateSpline`
     is set via :meth:`set_spline_model`, ``open_iscat`` is not required at all.
     """
 
@@ -99,8 +100,8 @@ class PsfModel:
         self.w = w
         self.s = s
         self.use_rust = use_rust
-        self._spline_model: RectBivariateSpline | None = None
-        self._rust_model_cache: dict[int, Any] = {}
+        self._spline_model: BivariateSpline | None = None
+        self._rust_model_cache: Any | None = None
 
     # Identity-based hashing (inherited from ``object``) is used so that
     # caches keyed on :class:`PsfModel` instances remain correct when the
@@ -114,7 +115,7 @@ class PsfModel:
         return self._spline_model is not None
 
     @property
-    def spline_model(self) -> RectBivariateSpline | None:
+    def spline_model(self) -> BivariateSpline | None:
         """The empirical spline PSF, or ``None`` if not set."""
         return self._spline_model
 
@@ -123,7 +124,7 @@ class PsfModel:
         """Return the three analytical PSF parameters."""
         return {"a12": self.a12, "w": self.w, "s": self.s}
 
-    def set_spline_model(self, spline: RectBivariateSpline) -> None:
+    def set_spline_model(self, spline: BivariateSpline) -> None:
         """Attach an empirical spline-based PSF model."""
         self._spline_model = spline
 
@@ -172,22 +173,21 @@ class PsfModel:
         psf_fn = self.get_psf_function()
         return psf_fn(x_coords - dx, y_coords - dy, c=c)
 
-    def _rust_model(self, thumb_size: int) -> Any:  # noqa: ANN202,ANN401
-        """Create or retrieve the Rust ``BesselPSF`` model for *thumb_size*."""
-        cached = self._rust_model_cache.get(thumb_size)
-        if cached is not None:
-            return cached
-        try:
-            # deprecated/rust is pre-refactor, unmaintained code kept only
-            # until the Rust PSF hot path is re-implemented under _rust/.
-            from deprecated.rust.psf_a12ws import (
-                psf_a12ws,
-            )
-        except (ModuleNotFoundError, ImportError) as exc:
-            msg = "Rust PSF module (psf_a12ws) is not available"
-            raise ImportError(msg) from exc
-        model = psf_a12ws.BesselPSF(self.a12, self.w, self.s, thumb_size)
-        self._rust_model_cache[thumb_size] = model
+    def _rust_model(self) -> Any:  # noqa: ANN401
+        """Create or retrieve the Rust ``SplinePsf`` model for the spline PSF."""
+        if self._rust_model_cache is not None:
+            return self._rust_model_cache
+        if self._spline_model is None:
+            msg = "Rust PSF backend requires a spline model"
+            raise ImportError(msg)
+        from tandemmp._rust.psf import SplinePsf
+
+        tx, ty, c = self._spline_model.tck
+        kx, ky = self._spline_model.degrees
+        model = SplinePsf(
+            np.asarray(tx), np.asarray(ty), np.asarray(c), int(kx), int(ky)
+        )
+        self._rust_model_cache = model
         return model
 
     def render(
@@ -198,15 +198,16 @@ class PsfModel:
         size: int,
     ) -> npt.NDArray[np.floating]:
         """Render a PSF image at *(dx, dy)* with contrast *c*, using the
-        best available backend (spline > Rust > open_iscat).
+        best available backend (Rust spline > Python spline > open_iscat).
         """
         if self._spline_model is not None:
+            if self.use_rust:
+                try:
+                    return self._rust_model().render(dx, dy, c, size)  # type: ignore[no-any-return]
+                except ImportError:
+                    pass
             return self.psf_2d_offset(size, dx, dy, c)
-        try:
-            rust_model = self._rust_model(size)
-        except ImportError:
-            return self.psf_2d_offset(size, dx, dy, c)
-        return rust_model.psf_offset(dx, dy, c)  # type: ignore[no-any-return]
+        return self.psf_2d_offset(size, dx, dy, c)
 
     # 2-D peak fitting
 
@@ -309,22 +310,73 @@ class PsfModel:
         c_guess: float,
         gtol: float,
     ) -> PeakFitResult:
-        """Fit using the Rust ``BesselPSF`` backend."""
-        rust_model = self._rust_model(peak.shape[0])
-        dx_fit, dy_fit, c_fit = rust_model.psf_fit(
-            thumbnail=peak,
-            init_param=np.array([dx_guess, dy_guess, c_guess]),
-            g_tol=gtol,
+        """Fit using the Rust ``SplinePsf`` backend."""
+        rust_model = self._rust_model()
+        c_fit, dx_fit, dy_fit, error, converged = rust_model.fit(
+            peak, (c_guess, dx_guess, dy_guess), tol=gtol
         )
-        rust_im = rust_model.psf_offset(dx_fit, dy_fit, contrast=c_fit)
         return PeakFitResult(
             contrast=float(c_fit),
             dx=float(dx_fit),
             dy=float(dy_fit),
-            error=float(error_metric(peak, rust_im)),
-            converged=True,
+            error=float(error),
+            converged=bool(converged),
             backend="rust",
         )
+
+    def fit_peaks_batch(
+        self, peaks: Sequence[npt.NDArray[np.floating]]
+    ) -> list[PeakFitResult] | None:
+        """Batch-fit every thumbnail in *peaks* in one Rust call (rayon).
+
+        Returns ``None`` when the Rust spline backend isn't available —
+        callers should fall back to per-peak :meth:`fit_peak`.
+        """
+        if not self.use_rust or self._spline_model is None or not peaks:
+            return None
+        try:
+            rust_model = self._rust_model()
+        except ImportError:
+            return None
+
+        results: list[PeakFitResult | None] = [None] * len(peaks)
+        fit_indices: list[int] = []
+        thumbs: list[npt.NDArray[np.floating]] = []
+        inits: list[tuple[float, float, float]] = []
+        for idx, peak in enumerate(peaks):
+            arr = np.asarray(peak, dtype=np.float64)
+            if np.all(arr == 0):
+                results[idx] = PeakFitResult(
+                    contrast=0.0,
+                    dx=0.0,
+                    dy=0.0,
+                    error=1.0,
+                    converged=False,
+                    backend="none",
+                )
+                continue
+            width = arr.shape[0]
+            x_coords, y_coords = square_mesh(width)
+            r = np.hypot(x_coords, y_coords)
+            dx_guess, dy_guess = _initial_position_guess(arr)
+            fit_indices.append(idx)
+            thumbs.append(arr)
+            inits.append((float(np.mean(arr[r <= 1])), dx_guess, dy_guess))
+
+        if thumbs:
+            batch = rust_model.fit_batch(np.stack(thumbs), np.asarray(inits))
+            for idx, row in zip(fit_indices, batch, strict=True):
+                c, dx, dy, error, converged = row
+                results[idx] = PeakFitResult(
+                    contrast=float(c),
+                    dx=float(dx),
+                    dy=float(dy),
+                    error=float(error),
+                    converged=bool(converged),
+                    backend="rust",
+                )
+
+        return results  # type: ignore[return-value]
 
     def fit_peak_exclusion(
         self,
@@ -357,8 +409,12 @@ class PsfModel:
 
 @overload
 def get_psf_model(
-    *, use_rust: bool = False, kind: Literal["bessel"] = "bessel"
+    *, use_rust: bool = True, kind: Literal["experimental"] = "experimental"
 ) -> PsfModel: ...
+
+
+@overload
+def get_psf_model(*, use_rust: bool = False, kind: Literal["bessel"]) -> PsfModel: ...
 
 
 @overload
@@ -368,13 +424,16 @@ def get_psf_model(*, kind: Literal["gaussian"]) -> GaussianPsfModel: ...
 @functools.lru_cache(maxsize=4)
 def get_psf_model(
     *,
-    use_rust: bool = False,
-    kind: Literal["bessel", "gaussian"] = "bessel",
+    use_rust: bool = True,
+    kind: Literal["bessel", "gaussian", "experimental"] = "experimental",
 ) -> PsfInterface:
     """Return a cached default :class:`PsfInterface` implementation.
 
-    ``kind="bessel"`` (the default) returns a :class:`PsfModel`, honouring
-    ``use_rust``. ``kind="gaussian"`` returns a
+    ``kind="experimental"`` (the default) returns the bundled experimental
+    spline :class:`PsfModel`
+    (:func:`tandemmp.fitting.spline_psf.get_experimental_psf_model`),
+    honouring ``use_rust``. ``kind="bessel"`` returns a bare analytic
+    :class:`PsfModel`. ``kind="gaussian"`` returns a
     :class:`~tandemmp.fitting.gaussian_psf.GaussianPsfModel`, which has no
     Rust backend — the ``kind="gaussian"`` overload deliberately omits
     ``use_rust`` so passing it together with ``kind="gaussian"`` is a
@@ -384,7 +443,12 @@ def get_psf_model(
         from tandemmp.fitting.gaussian_psf import GaussianPsfModel
 
         return GaussianPsfModel()
-    return PsfModel(use_rust=use_rust)
+    if kind == "bessel":
+        return PsfModel(use_rust=use_rust)
+
+    from tandemmp.fitting.spline_psf import get_experimental_psf_model
+
+    return get_experimental_psf_model(use_rust=use_rust)
 
 
 @functools.lru_cache(maxsize=128)
@@ -438,7 +502,7 @@ def _model_3d_psf(
     dx: Sequence[float],
     dy: Sequence[float],
     c: float | Sequence[float],
-    l_thum: int = 15,
+    l_thum: int = DEFAULT_L_THUM,
     psf_model: PsfInterface | None = None,
     use_cache: bool = True,
 ) -> npt.NDArray[np.floating]:
@@ -484,7 +548,7 @@ def make_3d_image(
     c: float | Sequence[float],
     classification: Classification,
     navg: int,
-    l_thum: int = 15,
+    l_thum: int = DEFAULT_L_THUM,
     is_bad: Sequence[bool] | None = None,
     psf_model: PsfInterface | None = None,
     *,
@@ -612,7 +676,7 @@ def native_impression(
     dy: Sequence[float],
     c: Sequence[float],
     classification: Classification,
-    l_thum: int = 15,
+    l_thum: int = DEFAULT_L_THUM,
     psf_model: PsfInterface | None = None,
 ) -> npt.NDArray[np.floating]:
     """Generate a PSF impression for known positions and contrasts."""

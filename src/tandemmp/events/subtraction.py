@@ -21,7 +21,7 @@ from tandemmp.fitting.psf import (
     error_metric,
     native_impression,
 )
-from tandemmp.fitting.psf_interface import PsfInterface
+from tandemmp.fitting.psf_interface import PeakFitResult, PsfInterface
 
 if TYPE_CHECKING:
     pass
@@ -108,9 +108,15 @@ class SubtractionEvent(AbstractEvent):
         *,
         allow_offset: bool = False,
         gtol: float = 1e-6,
+        precomputed_fit: PeakFitResult | None = None,
     ) -> None:
         """Perform the basic 2-D PSF fit and update bad-fit flag."""
-        self._underlying_basic_fit(method, allow_offset=allow_offset, gtol=gtol)
+        self._underlying_basic_fit(
+            method,
+            allow_offset=allow_offset,
+            gtol=gtol,
+            precomputed_fit=precomputed_fit,
+        )
         self.test_bad()
 
     def test_bad(self) -> None:

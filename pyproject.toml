@@ -26,7 +26,11 @@ module-name = "tandemmp._rust._native"
 manifest-path = "src/tandemmp/_rust/_native/Cargo.toml"
 features = ["pyo3/extension-module"]
 # Keep Rust sources, tests, and build output out of the wheel.
-exclude = ["tandemmp/_rust/drift_correction/**", "tandemmp/_rust/_native/**"]
+exclude = [
+    "tandemmp/_rust/drift_correction/**",
+    "tandemmp/_rust/psf/**",
+    "tandemmp/_rust/_native/**",
+]
 
 # ---------------------------------------------------------------------------
 # pytest

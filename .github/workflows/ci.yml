@@ -11,7 +11,7 @@ on:
 
 jobs:
   rust:
-    name: Rust CI (drift_correction)
+    name: Rust CI (drift_correction, psf)
     runs-on: ubuntu-latest
 
     steps:

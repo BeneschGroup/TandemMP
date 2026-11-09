@@ -6,8 +6,8 @@
 //! dotted imports (`import tandemmp._rust.drift_correction`) and for
 //! pickling to resolve `__module__` correctly.
 //!
-//! Add future crates (e.g. `psf`) the same way: create the submodule,
-//! call its registration function, `add_submodule`, and register it in
+//! Add future crates the same way: create the submodule, call its
+//! registration function, `add_submodule`, and register it in
 //! `sys.modules` under `tandemmp._rust.<name>`.
 
 use pyo3::prelude::*;
@@ -21,5 +21,13 @@ fn _native(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     py.import("sys")?
         .getattr("modules")?
         .set_item("tandemmp._rust.drift_correction", &drift_correction_mod)?;
+
+    let psf_mod = PyModule::new(py, "psf")?;
+    psf::python::psf(&psf_mod)?;
+    m.add_submodule(&psf_mod)?;
+    py.import("sys")?
+        .getattr("modules")?
+        .set_item("tandemmp._rust.psf", &psf_mod)?;
+
     Ok(())
 }
