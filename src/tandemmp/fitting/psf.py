@@ -3,8 +3,8 @@
 Provides :class:`PsfModel` (replaces the old ``CustomPeakModel``), 2-D peak
 fitting, 3-D ratiometric fitting, and cached PSF generation utilities.
 
-``open_iscat`` functions (``psf_2d``, ``radialcenter``) are lazy-imported so
-the module works without that package when a spline model is provided.
+:class:`PsfModel` requires an empirical spline PSF (:meth:`PsfModel.set_spline_model`)
+— there is no analytic fallback shape.
 """
 
 from __future__ import annotations
@@ -63,17 +63,6 @@ _DEFAULT_W: float = 2.2614175995143952
 _DEFAULT_S: float = 4.249591584927938
 _UPPER_CONTRAST_BOUND: float = -0.001652
 
-# Optional dependency loader
-
-
-@functools.lru_cache(maxsize=1)
-def _get_open_iscat_psf_2d() -> Any:  # noqa: ANN401
-    """Load and cache ``open_iscat.utils.psf.psf_2d`` on first use."""
-    from open_iscat.utils.psf import psf_2d
-
-    return psf_2d
-
-
 # PSF Model
 
 
@@ -82,10 +71,9 @@ def _get_open_iscat_psf_2d() -> Any:  # noqa: ANN401
 class PsfModel:
     """PSF model for iSCAT peak fitting.
 
-    Standalone replacement for the old ``CustomPeakModel``.  Does **not**
-    inherit from ``open_iscat``'s ``PeakModel`` — all required functionality
-    is implemented directly.  When a :class:`~scipy.interpolate.BivariateSpline`
-    is set via :meth:`set_spline_model`, ``open_iscat`` is not required at all.
+    Standalone replacement for the old ``CustomPeakModel``. Requires an
+    empirical spline PSF (:meth:`set_spline_model`) — there is no analytic
+    fallback shape.
     """
 
     def __init__(
@@ -133,33 +121,27 @@ class PsfModel:
     def get_psf_function(self) -> Callable[..., npt.NDArray[np.floating]]:
         """Return a callable ``f(x, y, c=1.0) -> image``.
 
-        Uses the spline model if available, otherwise falls back to
-        ``open_iscat.utils.psf.psf_2d`` (lazy-imported).
+        Requires a spline model (:meth:`set_spline_model`) — there is no
+        analytic fallback shape. The check is deferred to the returned
+        callable (rather than raised here) so a caller that never actually
+        invokes it — e.g. because there is no data to render — is unaffected.
         """
-        if self._spline_model is not None:
-            spline = self._spline_model
+        spline = self._spline_model
 
-            def _psf_spline(
-                x: npt.NDArray[np.floating],
-                y: npt.NDArray[np.floating],
-                c: float = 1.0,
-            ) -> npt.NDArray[np.floating]:
-                return spline(y, x, grid=False) * -c  # type: ignore[no-any-return]
-
-            return _psf_spline
-
-        # Fallback — requires open_iscat
-        a12, w, s = self.a12, self.w, self.s
-
-        def _psf_oiscat(
+        def _psf_spline(
             x: npt.NDArray[np.floating],
             y: npt.NDArray[np.floating],
             c: float = 1.0,
         ) -> npt.NDArray[np.floating]:
-            psf_2d = _get_open_iscat_psf_2d()
-            return psf_2d(x=x, y=y, a12=a12, w=w, s=s, c=c)  # type: ignore[no-any-return]
+            if spline is None:
+                msg = (
+                    "PsfModel has no spline model set; call set_spline_model() "
+                    "first (there is no analytic fallback PSF)"
+                )
+                raise ValueError(msg)
+            return spline(y, x, grid=False) * -c  # type: ignore[no-any-return]
 
-        return _psf_oiscat
+        return _psf_spline
 
     def psf_2d_offset(
         self,
@@ -197,16 +179,17 @@ class PsfModel:
         c: float,
         size: int,
     ) -> npt.NDArray[np.floating]:
-        """Render a PSF image at *(dx, dy)* with contrast *c*, using the
-        best available backend (Rust spline > Python spline > open_iscat).
+        """Render a PSF image at *(dx, dy)* with contrast *c*.
+
+        Requires a spline model (:meth:`set_spline_model`); uses the Rust
+        backend when ``use_rust`` is set, falling back to the pure-Python
+        spline evaluation.
         """
-        if self._spline_model is not None:
-            if self.use_rust:
-                try:
-                    return self._rust_model().render(dx, dy, c, size)  # type: ignore[no-any-return]
-                except ImportError:
-                    pass
-            return self.psf_2d_offset(size, dx, dy, c)
+        if self._spline_model is not None and self.use_rust:
+            try:
+                return self._rust_model().render(dx, dy, c, size)  # type: ignore[no-any-return]
+            except ImportError:
+                pass
         return self.psf_2d_offset(size, dx, dy, c)
 
     # 2-D peak fitting
@@ -220,7 +203,6 @@ class PsfModel:
         dy_guess: float | None = None,
         method: str = "BFGS",
         gtol: float = 1e-6,
-        rust: bool = False,
         allow_offset: bool = False,
         **kwargs: Any,  # noqa: ANN401
     ) -> PeakFitResult:
@@ -233,7 +215,6 @@ class PsfModel:
             dy_guess: Initial y position offset. Estimated automatically if *None*.
             method: Optimisation method for :func:`scipy.optimize.minimize`.
             gtol: Gradient tolerance (BFGS).
-            rust: Prefer the Rust backend if available.
             allow_offset: Allow a constant-offset parameter in the fit.
             **kwargs: Ignored. Accepted only so this method's signature satisfies
                 :class:`~tandemmp.fitting.psf_interface.PsfInterface`'s
@@ -260,33 +241,6 @@ class PsfModel:
                 converged=False,
                 backend="none",
             )
-
-        # Resolve guesses here (rather than leaving them to
-        # `fit_peak_generic`) because the Rust fast-path below needs
-        # concrete values *before* deciding whether to attempt it.
-        if dx_guess is None or dy_guess is None:
-            dx_est, dy_est = _initial_position_guess(peak)
-            if dx_guess is None:
-                dx_guess = dx_est
-            if dy_guess is None:
-                dy_guess = dy_est
-
-        if c_guess is None:
-            width = peak.shape[0]
-            x_coords, y_coords = square_mesh(width)
-            r = np.hypot(x_coords, y_coords)
-            c_guess = float(np.mean(peak[r <= 1]))
-
-        c_under = abs(c_guess) < 0.5
-
-        # Try Rust path
-        if not allow_offset and (rust or self.use_rust) and c_under:
-            try:
-                return self._fit_peak_rust(peak, dx_guess, dy_guess, c_guess, gtol)
-            except ImportError:
-                logger.debug("Rust PSF module unavailable, falling back to Python")
-            except Exception:  # noqa: BLE001
-                logger.debug("Rust fit failed, falling back to Python", exc_info=True)
 
         result = fit_peak_generic(
             self,
@@ -414,10 +368,6 @@ def get_psf_model(
 
 
 @overload
-def get_psf_model(*, use_rust: bool = False, kind: Literal["bessel"]) -> PsfModel: ...
-
-
-@overload
 def get_psf_model(*, kind: Literal["gaussian"]) -> GaussianPsfModel: ...
 
 
@@ -425,15 +375,14 @@ def get_psf_model(*, kind: Literal["gaussian"]) -> GaussianPsfModel: ...
 def get_psf_model(
     *,
     use_rust: bool = True,
-    kind: Literal["bessel", "gaussian", "experimental"] = "experimental",
+    kind: Literal["gaussian", "experimental"] = "experimental",
 ) -> PsfInterface:
     """Return a cached default :class:`PsfInterface` implementation.
 
-    ``kind="experimental"`` (the default) returns the bundled experimental
-    spline :class:`PsfModel`
-    (:func:`tandemmp.fitting.spline_psf.get_experimental_psf_model`),
-    honouring ``use_rust``. ``kind="bessel"`` returns a bare analytic
-    :class:`PsfModel`. ``kind="gaussian"`` returns a
+    ``kind="experimental"`` (the default, and the only PSF — there is no
+    analytic fallback) returns the bundled experimental spline
+    :class:`PsfModel` (:func:`tandemmp.fitting.spline_psf.get_experimental_psf_model`),
+    honouring ``use_rust``. ``kind="gaussian"`` returns a
     :class:`~tandemmp.fitting.gaussian_psf.GaussianPsfModel`, which has no
     Rust backend — the ``kind="gaussian"`` overload deliberately omits
     ``use_rust`` so passing it together with ``kind="gaussian"`` is a
@@ -443,8 +392,6 @@ def get_psf_model(
         from tandemmp.fitting.gaussian_psf import GaussianPsfModel
 
         return GaussianPsfModel()
-    if kind == "bessel":
-        return PsfModel(use_rust=use_rust)
 
     from tandemmp.fitting.spline_psf import get_experimental_psf_model
 

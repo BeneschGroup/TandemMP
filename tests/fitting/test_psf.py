@@ -40,7 +40,7 @@ def _make_gaussian_spline(
 
 @pytest.fixture()
 def spline_model():
-    """PsfModel backed by a Gaussian spline (no open_iscat needed)."""
+    """PsfModel backed by a Gaussian spline."""
     model = PsfModel()
     model.set_spline_model(_make_gaussian_spline())
     return model
@@ -263,13 +263,10 @@ class TestFitPeakExclusion:
 
 
 class TestGetPsfModel:
-    def test_default_kind_is_bessel(self):
+    def test_default_kind_is_experimental_spline(self):
         model = get_psf_model()
         assert isinstance(model, PsfModel)
-
-    def test_kind_bessel_returns_psf_model(self):
-        model = get_psf_model(kind="bessel")
-        assert isinstance(model, PsfModel)
+        assert model.has_spline_model
 
     def test_kind_gaussian_returns_gaussian_model(self):
         model = get_psf_model(kind="gaussian")
@@ -280,10 +277,10 @@ class TestGetPsfModel:
         second = get_psf_model(kind="gaussian")
         assert first is second
 
-    def test_bessel_and_gaussian_are_distinct_instances(self):
-        bessel = get_psf_model(kind="bessel")
+    def test_experimental_and_gaussian_are_distinct_instances(self):
+        experimental = get_psf_model(kind="experimental")
         gaussian = get_psf_model(kind="gaussian")
-        assert bessel is not gaussian
+        assert experimental is not gaussian
 
 
 # psf_2d_cached

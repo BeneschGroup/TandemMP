@@ -14,7 +14,6 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 from scipy.interpolate import RectBivariateSpline
-
 from tandemmp.core.classifications import ProcessingMethod
 from tandemmp.core.conversions import (
     DEFAULT_CALIBRATION,
@@ -28,7 +27,7 @@ from tandemmp.fitting.psf import PsfModel
 from tandemmp.io.save import load_results
 from tandemmp.pipeline import pca
 from tandemmp.pipeline.investigator import Action, Decision
-from tandemmp.pipeline.open_iscat_pipeline import Info
+from tandemmp.pipeline.pipeline_interface import Info
 from tandemmp.tracking.manager import ParticleManager
 from tandemmp.tracking.particle import GhostParticle, Particle, _reset_particle_ids
 
@@ -127,7 +126,7 @@ def _bare_experiment(**attrs: Any) -> pca.Experiment:
     """Construct an ``Experiment`` bypassing ``__init__``.
 
     Only the attributes under test need to be set, isolating each method
-    from the (heavy, ``open_iscat``-dependent) construction path.
+    from the heavy movie-loading/event-finding construction path.
     """
     exp = object.__new__(pca.Experiment)
     for key, value in attrs.items():

@@ -6,8 +6,8 @@ the backend-agnostic peak-fitting algorithm (:func:`fit_peak_generic`,
 :func:`fit_peak_exclusion_generic`) that operates on any conforming model.
 
 This module is intentionally self-contained (no imports from
-:mod:`tandemmp.fitting.psf`) so that Bessel-specific
-(:class:`~tandemmp.fitting.psf.PsfModel`) and non-Bessel (e.g.
+:mod:`tandemmp.fitting.psf`) so that spline-based
+(:class:`~tandemmp.fitting.psf.PsfModel`) and analytic (e.g.
 :class:`~tandemmp.fitting.gaussian_psf.GaussianPsfModel`) implementations can
 both depend on it without introducing an import cycle — :mod:`tandemmp.fitting.psf`
 imports :data:`PeakFitResult`, :func:`square_mesh`, :func:`dynamic_mesh`, and
@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 from tandemmp.fitting.minimize import minimize_model
+from tandemmp.fitting.radialcenter import radialcenter
 
 logger = logging.getLogger(__name__)
 
@@ -90,23 +91,6 @@ def error_metric(
     return float(np.sum((fit - peak) ** 2))
 
 
-# Optional dependency loader
-
-
-@functools.lru_cache(maxsize=1)
-def _get_open_iscat_radialcenter() -> Any:  # noqa: ANN401
-    """Load and cache ``open_iscat.utils.radialcenter.radialcenter``.
-
-    Lives here (rather than in :mod:`tandemmp.fitting.psf`) because it is
-    :func:`_initial_position_guess`'s own dependency and nothing about it is
-    Bessel-PSF-specific — keeping the pair together avoids re-introducing an
-    import cycle with :mod:`tandemmp.fitting.psf`.
-    """
-    from open_iscat.utils.radialcenter import radialcenter
-
-    return radialcenter
-
-
 # PSF interface
 
 
@@ -116,8 +100,8 @@ class PsfInterface(Protocol):
     peak-fitting algorithm (:func:`fit_peak_generic`,
     :func:`fit_peak_exclusion_generic`).
 
-    Concrete implementations: :class:`tandemmp.fitting.psf.PsfModel` (Bessel
-    PSF, spline/Rust backends) and
+    Concrete implementations: :class:`tandemmp.fitting.psf.PsfModel`
+    (spline/Rust backends) and
     :class:`tandemmp.fitting.gaussian_psf.GaussianPsfModel` (analytic 2-D
     Gaussian, no spline/Rust backends).
     """
@@ -187,27 +171,30 @@ def _initial_position_guess(
     """Estimate initial *(dx, dy)* from a peak image.
 
     Shared by every :class:`PsfInterface` implementation — the estimator
-    (``open_iscat``'s ``radialcenter``, with a weighted-centre-of-mass
-    fallback) has no dependency on any particular PSF shape.
+    (:func:`tandemmp.fitting.radialcenter.radialcenter`, with a
+    weighted-centre-of-mass fallback for degenerate thumbnails) has no
+    dependency on any particular PSF shape.
     """
     if np.isnan(np.asarray(peak)).any():
         return 0.0, 0.0
     try:
-        radialcenter = _get_open_iscat_radialcenter()
-        dx, dy, _ = radialcenter(peak, mode="rel")
-        return float(dx), float(dy)
-    except (ImportError, ModuleNotFoundError):
-        # Fallback: weighted centre-of-mass
-        weights = np.abs(np.asarray(peak, dtype=float))
-        total = np.sum(weights)
-        if total == 0:
-            return 0.0, 0.0
-        width = peak.shape[0]
-        x_coords, y_coords = square_mesh(width)
-        return (
-            float(np.sum(x_coords * weights) / total),
-            float(np.sum(y_coords * weights) / total),
-        )
+        dx, dy, _ = radialcenter(np.asarray(peak, dtype=float), mode="rel")
+        if np.isfinite(dx) and np.isfinite(dy):
+            return float(dx), float(dy)
+    except (ValueError, ZeroDivisionError, FloatingPointError):
+        pass
+
+    # Fallback: weighted centre-of-mass
+    weights = np.abs(np.asarray(peak, dtype=float))
+    total = np.sum(weights)
+    if total == 0:
+        return 0.0, 0.0
+    width = peak.shape[0]
+    x_coords, y_coords = square_mesh(width)
+    return (
+        float(np.sum(x_coords * weights) / total),
+        float(np.sum(y_coords * weights) / total),
+    )
 
 
 # Generic peak fitting

@@ -54,11 +54,11 @@ from tandemmp.fitting.psf import (
     psf_2d_cached,
 )
 from tandemmp.fitting.psf_interface import PsfInterface
-from tandemmp.pipeline.open_iscat_pipeline import Info
 from tandemmp.pipeline.parallel import (
     make_subtraction_event,
     make_subtraction_event_from_peak,
 )
+from tandemmp.pipeline.pipeline_interface import Info
 from tandemmp.tracking.manager import ParticleManager
 from tandemmp.tracking.particle import GhostParticle, HistoryEntry, Particle
 

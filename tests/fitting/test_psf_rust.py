@@ -209,7 +209,3 @@ class TestGetPsfModelDefault:
         assert isinstance(model, PsfModel)
         assert model.has_spline_model
         assert model.use_rust is True
-
-    def test_kind_bessel_has_no_spline(self) -> None:
-        model = get_psf_model(kind="bessel")
-        assert not model.has_spline_model
