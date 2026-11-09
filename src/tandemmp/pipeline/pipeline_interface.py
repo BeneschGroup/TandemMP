@@ -2,11 +2,12 @@
 
 Defines :class:`PipelineRunner`, a :class:`typing.Protocol` describing the
 minimal surface an event-finding backend must expose, plus the shared result
-types (:class:`EventsFound`, :class:`PipelineResults`) any backend produces.
+types (:class:`EventsFound`, :class:`PipelineResults`) any backend produces,
+and the movie/metadata containers (:class:`Info`, :class:`Movie`) a backend
+reads a movie into.
 
 This module does not import backend implementations, avoiding circular
-imports. :mod:`tandemmp.pipeline.open_iscat_pipeline` re-exports the result
-types for backward compatibility.
+imports.
 """
 
 from __future__ import annotations
@@ -22,6 +23,33 @@ if TYPE_CHECKING:
     import numpy.typing as npt
 
 # Data containers
+
+
+@dataclasses.dataclass(frozen=True)
+class Info:
+    """Microscope acquisition metadata."""
+
+    scatter_interference_destructive: bool | None
+    raw_camera_frame_rate: float
+    frame_binning: int
+    pixel_binning: int
+    full_well_capacity: float | None
+    grey_levels: int | None
+
+
+@dataclasses.dataclass(frozen=True)
+class Movie:
+    """Movie frames with acquisition metadata.
+
+    Attribute access falls through to the underlying *frames* array,
+    so ``movie.shape`` is equivalent to ``movie.frames.shape``.
+    """
+
+    frames: npt.NDArray[np.floating[Any]]
+    info: Info
+
+    def __getattr__(self, attr: str) -> Any:  # noqa: ANN401
+        return getattr(self.frames, attr)
 
 
 class EventsFound(Protocol):
@@ -54,15 +82,11 @@ class PipelineRunner(Protocol):
     """Structural interface an event-finding pipeline must satisfy.
 
     Only ``filepath``/``frame_bypass``/``parallel`` are treated as universal
-    across backends — backend-specific tuning (e.g. open_iscat's ``navg``
+    across backends — backend-specific tuning (e.g. a ``navg``
     ratiometric-averaging window and ``l_thum`` thumbnail size) is forwarded
     via ``**kwargs`` rather than fixed in this signature, so a
     differently-parameterised backend isn't forced to accept knobs it has no
-    use for.
-
-    Concrete implementation:
-    :class:`tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`.
-    Other backends implement the same structural contract without subclassing.
+    use for. Backends implement this structural contract without subclassing.
     """
 
     def run(

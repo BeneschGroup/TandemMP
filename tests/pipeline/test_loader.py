@@ -1,8 +1,7 @@
 """Tests for tandemmp.pipeline.loader.
 
-Pure helper functions are exercised directly with synthetic data; ``load_mp_file``
-and pipeline-backed event finding are tested via bypasses/fakes to avoid a real
-``open_iscat`` dependency.
+Pure helper functions are exercised directly with synthetic data; movie
+loading and pipeline-backed event finding are tested via bypasses/fakes.
 """
 
 from __future__ import annotations
@@ -14,7 +13,6 @@ import numpy as np
 import pytest
 from scipy.interpolate import RectBivariateSpline
 from scipy.ndimage import shift
-
 from tandemmp.core.classifications import ProcessingMethod
 from tandemmp.core.parameters import (
     DriftCorrectionParams,
@@ -36,7 +34,6 @@ from tandemmp.pipeline.loader import (
     get_peak,
     mark_overlaps,
 )
-from tandemmp.pipeline.open_iscat_pipeline import OpenIscatPipeline
 from tandemmp.pipeline.pipeline_interface import PipelineResults
 
 # Fixtures / helpers
@@ -492,7 +489,7 @@ class _FakeEventsFound:
 
 class _FakePipelineRunner:
     """Minimal PipelineRunner double, exercising Loader's full event-finding
-    path without needing ``open_iscat``."""
+    path without a real event-finding backend."""
 
     def __init__(self, movie: np.ndarray) -> None:
         self.movie = movie
@@ -578,7 +575,7 @@ class TestLoader:
         assert loader.movie.shape[1] <= movie.shape[1]
         assert loader.movie.shape[2] <= movie.shape[2]
 
-    def test_defaults_to_open_iscat_pipeline(self):
+    def test_no_pipeline_runner_is_fine_for_just_movie(self):
         movie = np.arange(5 * 4 * 4, dtype=np.uint16).reshape(5, 4, 4)
         params = get_parameters(drift_correction=False)
         loader = Loader(
@@ -587,7 +584,13 @@ class TestLoader:
             parameters=params,
             just_movie=True,
         )
-        assert isinstance(loader.pipeline_runner, OpenIscatPipeline)
+        assert loader.pipeline_runner is None
+
+    def test_no_pipeline_runner_raises_on_full_analysis(self):
+        movie = np.zeros((5, 8, 8), dtype=np.uint16)
+        params = get_parameters(drift_correction=False, lid_open_threshold=0.0)
+        with pytest.raises(ValueError, match="pipeline_runner"):
+            Loader("fake/path.mp", special_bypass=movie, parameters=params)
 
     def test_full_analysis_uses_injected_pipeline_runner(self):
         movie = np.zeros((5, 8, 8), dtype=np.uint16)
