@@ -49,8 +49,8 @@ def process_movie(
     ``_tandemmp`` appended before its (``.pkl``) suffix.
 
     *pipeline_runner* selects the event-finding backend (see
-    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); defaults
-    to open_iscat.
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); there is
+    no default — required for a full analysis.
 
     *calibration* overrides the process-wide contrast/mass conversion (see
     :mod:`tandemmp.core.conversions`) for the duration of this call — set
@@ -139,12 +139,11 @@ def batch_process(
     once.
 
     *pipeline_runner* selects the event-finding backend (see
-    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); defaults
-    to open_iscat. When *parallel* is ``True`` it must be picklable, since
-    each :func:`process_movie` call (and the *pipeline_runner* passed to it)
-    is sent across the :class:`multiprocessing.Pool` boundary —
-    :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline` is
-    stateless and satisfies this, as does the default ``None``.
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); there is
+    no default — required for a full analysis. When *parallel* is ``True``
+    it must be picklable, since each :func:`process_movie` call (and the
+    *pipeline_runner* passed to it) is sent across the
+    :class:`multiprocessing.Pool` boundary.
 
     *calibration* overrides the process-wide contrast/mass conversion (see
     :mod:`tandemmp.core.conversions`) for every movie in this batch; it is

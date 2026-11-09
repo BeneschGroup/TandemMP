@@ -2,10 +2,10 @@
 
 :class:`Loader` reads a raw movie (from a file or an injected array), applies
 optional drift correction, runs an event-finding pipeline conforming to
-:class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner` (defaulting to
-:class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`), fits a
-first-pass :class:`~tandemmp.events.RatiometricEvent` for every detected
-peak, and then merges/filters/marks-overlaps on those events ready for
+:class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner` (no default —
+a *pipeline_runner* must be supplied for full analysis), fits a first-pass
+:class:`~tandemmp.events.RatiometricEvent` for every detected peak, and then
+merges/filters/marks-overlaps on those events ready for
 :class:`tandemmp.pipeline.investigator.Investigator`.
 
 Parallel work uses :func:`tandemmp.core.parallel.dispatch_kwargs`.
@@ -35,10 +35,9 @@ from tandemmp.drift.corrector import get_corrected_movie
 from tandemmp.events import PeakImage, RatiometricEvent
 from tandemmp.fitting.psf import PsfModel, get_psf_model
 from tandemmp.fitting.psf_interface import PsfInterface
-from tandemmp.io.movie import final_polish_fix
-from tandemmp.pipeline.open_iscat_pipeline import Info, OpenIscatPipeline, load_mp_file
+from tandemmp.io.movie import final_polish_fix, load_mp
 from tandemmp.pipeline.parallel import make_ratiometric_event_from_peak, median_frame
-from tandemmp.pipeline.pipeline_interface import PipelineResults, PipelineRunner
+from tandemmp.pipeline.pipeline_interface import Info, PipelineResults, PipelineRunner
 
 logger = logging.getLogger(__name__)
 
@@ -527,9 +526,9 @@ class Loader:
     """Load a movie, optionally drift-correct it, and find/fit first-pass events.
 
     Args:
-        mp_filepath: Path to the ``.mp``/``.tdms`` movie file. Still required
-            (and used for naming outputs) even when *special_bypass* supplies
-            the frames directly.
+        mp_filepath: Path to the ``.mp`` movie file. Still required (and used
+            for naming outputs) even when *special_bypass* supplies the
+            frames directly.
         special_bypass: Use these frames directly instead of reading
             *mp_filepath* — for injecting simulated movies. Must be a
             ``uint16`` array, matching the dtype of real camera-captured
@@ -549,10 +548,8 @@ class Loader:
             for real usage.
         pipeline_runner: The event-finding backend, conforming to
             :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`.
-            Defaults to
-            :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`.
-            A different backend can be dropped in here without any other
-            changes to :class:`Loader`.
+            Required (raises :class:`ValueError`) unless *just_movie* is
+            ``True`` — there is no default event-finder.
     """
 
     def __init__(  # noqa: PLR0913
@@ -570,9 +567,7 @@ class Loader:
     ) -> None:
         self.parameters = parameters if parameters is not None else FullAnalysisParams()
         self.peak_model = get_psf_model(use_rust=self.parameters.use_rust)
-        self.pipeline_runner: PipelineRunner = (
-            pipeline_runner if pipeline_runner is not None else OpenIscatPipeline()
-        )
+        self.pipeline_runner: PipelineRunner | None = pipeline_runner
         self.mp_filepath = Path(mp_filepath)
         self.folder = self.mp_filepath.parent
         self.vector = None
@@ -584,8 +579,17 @@ class Loader:
             self.params: Info | None = None
             self._fps: float | None = None
         else:
-            movie = load_mp_file(self.mp_filepath)
-            info = movie.info
+            frames, metadata = load_mp(self.mp_filepath)
+            info = Info(
+                scatter_interference_destructive=(
+                    metadata.scatter_interference_destructive
+                ),
+                raw_camera_frame_rate=metadata.frame_rate,
+                frame_binning=metadata.frame_binning,
+                pixel_binning=metadata.pixel_binning,
+                full_well_capacity=None,
+                grey_levels=None,
+            )
 
             pre_binning = info.frame_binning
             navg = self.parameters.first_analysis.navg
@@ -595,13 +599,13 @@ class Loader:
 
             if self.parameters.auto_bin and post_binning > 1:
                 self.movie = bin_movie(
-                    np.asarray(movie)[frame_start:frame_end], binning=post_binning
+                    frames[frame_start:frame_end], binning=post_binning
                 )
                 info = dataclasses.replace(
                     info, frame_binning=pre_binning * post_binning
                 )
             else:
-                self.movie = np.asarray(movie)[frame_start:frame_end]
+                self.movie = np.asarray(frames)[frame_start:frame_end]
 
             self.params = info
             self._fps = info.raw_camera_frame_rate / info.frame_binning
@@ -755,6 +759,13 @@ class Loader:
         return False
 
     def _run_pipeline(self) -> None:
+        if self.pipeline_runner is None:
+            msg = (
+                "No pipeline_runner provided; pass an events CSV / "
+                "PipelineRunner implementation to find events "
+                "(e.g. a CsvEventsRunner), or use just_movie=True"
+            )
+            raise ValueError(msg)
         pipeline_results = self.pipeline_runner.run(
             self.mp_filepath,
             frame_bypass=self.movie,

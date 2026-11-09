@@ -14,7 +14,6 @@ import numpy as np
 import pytest
 from scipy.interpolate import RectBivariateSpline
 from scipy.optimize import OptimizeResult
-
 from tandemmp.core.classifications import (
     Classification,
     EvClassification,
@@ -39,7 +38,7 @@ from tandemmp.pipeline.investigator import (
     _distance_array,
     create_ghost_event,
 )
-from tandemmp.pipeline.open_iscat_pipeline import Info
+from tandemmp.pipeline.pipeline_interface import Info
 from tandemmp.tracking.manager import ParticleManager
 from tandemmp.tracking.particle import (
     GhostParticle,

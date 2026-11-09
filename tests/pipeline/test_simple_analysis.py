@@ -2,7 +2,7 @@
 
 Covers CSV loading + drift correction, pair-matching algorithms, and RDF/ring-area
 helpers; ``load_events`` uses a monkeypatched ``Loader``/``get_vector`` to avoid a
-real ``open_iscat`` dependency.
+real ``.mp`` file dependency.
 """
 
 from __future__ import annotations

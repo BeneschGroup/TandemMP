@@ -11,6 +11,7 @@ module.  Animation and visualisation helpers live in
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 from shutil import copyfile
 from typing import Any, cast
@@ -25,6 +26,104 @@ def _maybe_tqdm(iterable: Any, *, silent: bool, desc: str) -> Any:  # noqa: ANN4
     if silent:
         return iterable
     return tqdm(iterable, desc=desc)
+
+
+# Raw .mp (HDF5) loading
+
+
+@dataclasses.dataclass(frozen=True)
+class MpMetadata:
+    """Acquisition metadata read from an ``.mp`` file."""
+
+    scatter_interference_destructive: bool
+    frame_rate: float
+    frame_binning: int
+    pixel_binning: int
+
+
+def _decode_encoding_attr(value: Any) -> str:  # noqa: ANN401
+    """Normalise an ``encoding`` h5py attribute (str, bytes, or 1-element array)."""
+    if isinstance(value, np.ndarray):
+        value = value[0]
+    if isinstance(value, bytes):
+        value = value.decode()
+    return str(value)
+
+
+def _read_acq_metadata(cfg: Any, filepath: str | Path) -> MpMetadata:  # noqa: ANN401
+    """Read frame-rate/binning/destructive-interference metadata.
+
+    Two schemas are seen in the wild for ``movie/configuration``: a
+    lowercase ``acq_camera`` group plus a top-level
+    ``scatter_interference_destructive`` dataset, or a nested
+    ``Devices/AcqCam`` group with capitalised field names.
+    """
+    if "acq_camera" in cfg:
+        acq = cfg["acq_camera"]
+        try:
+            return MpMetadata(
+                scatter_interference_destructive=bool(
+                    cfg["scatter_interference_destructive"][()]
+                ),
+                frame_rate=float(acq["frame_rate"][()]),
+                frame_binning=int(acq["frame_binning"][()]),
+                pixel_binning=int(acq["pixel_binning"][()]),
+            )
+        except KeyError as exc:
+            msg = f"{filepath}: missing acq_camera metadata field {exc}"
+            raise ValueError(msg) from exc
+
+    try:
+        acq = cfg["Devices"]["AcqCam"]
+        return MpMetadata(
+            scatter_interference_destructive=bool(
+                acq["ScatterInterferenceDestructive"][()]
+            ),
+            frame_rate=float(acq["FrameRate"][()]),
+            frame_binning=int(acq["SoftwareFrameBinning"][()]),
+            pixel_binning=int(acq["SoftwarePixelBinning"][()]),
+        )
+    except KeyError as exc:
+        msg = f"{filepath}: unrecognised movie/configuration schema"
+        raise ValueError(msg) from exc
+
+
+def load_mp(
+    fp: str | Path,
+) -> tuple[npt.NDArray[np.uint16], MpMetadata]:
+    """Load raw frames and acquisition metadata from an ``.mp`` (HDF5) file.
+
+    Returns ``(frames, metadata)`` where *frames* is the raw, undecoded
+    ``movie/frame`` dataset. Raises :class:`ValueError` if ``movie/frame``
+    is missing, is not 3-D, or carries an ``encoding`` attribute other than
+    ``BASIC`` (e.g. ``TIME_DIFFERENCE``).
+    """
+    import h5py
+
+    with h5py.File(fp, "r") as f:
+        if "movie" not in f or "frame" not in f["movie"]:
+            msg = f"{fp}: no 'movie/frame' dataset"
+            raise ValueError(msg)
+
+        frame_ds = f["movie"]["frame"]
+        encoding = frame_ds.attrs.get("encoding")
+        if encoding is not None:
+            encoding_str = _decode_encoding_attr(encoding)
+            if encoding_str != "BASIC":
+                msg = (
+                    f"{fp}: unsupported frame encoding {encoding_str!r} "
+                    "(only BASIC is supported)"
+                )
+                raise ValueError(msg)
+
+        frames = frame_ds[()]
+        if frames.ndim != 3:
+            msg = f"{fp}: movie/frame is not 3-D (got shape {frames.shape})"
+            raise ValueError(msg)
+
+        metadata = _read_acq_metadata(f["movie"]["configuration"], fp)
+
+    return frames, metadata
 
 
 def ratiometric(

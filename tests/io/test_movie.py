@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
 from tandemmp.io.movie import (
+    MpMetadata,
     duplicate_and_change_frames,
     fast_ratiometric,
     fast_rolling_mean,
     final_polish_fix,
+    load_mp,
     pre_bin,
     ratiometric,
     rolling_mean,
@@ -386,6 +387,108 @@ class TestFinalPolishFix:
         movie = _movie(n_frames=8)
         result = final_polish_fix(movie)
         assert result.shape[0] == 8 + 10
+
+
+# load_mp
+
+
+def _write_lowercase_schema_mp(
+    path, frames, *, encoding="BASIC", scatter_destructive=False
+):
+    h5py = pytest.importorskip("h5py")
+    with h5py.File(path, "w") as f:
+        frame_ds = f.create_dataset("movie/frame", data=frames)
+        if encoding is not None:
+            frame_ds.attrs["encoding"] = encoding
+        acq = f.create_group("movie/configuration/acq_camera")
+        acq.create_dataset("frame_rate", data=500.0)
+        acq.create_dataset("frame_binning", data=2)
+        acq.create_dataset("pixel_binning", data=4)
+        f["movie/configuration"].create_dataset(
+            "scatter_interference_destructive", data=scatter_destructive
+        )
+    return path
+
+
+def _write_devices_schema_mp(path, frames, *, scatter_destructive=True):
+    h5py = pytest.importorskip("h5py")
+    with h5py.File(path, "w") as f:
+        frame_ds = f.create_dataset("movie/frame", data=frames)
+        frame_ds.attrs["encoding"] = np.array(["BASIC"], dtype=object)
+        acq = f.create_group("movie/configuration/Devices/AcqCam")
+        acq.create_dataset("FrameRate", data=1320.0)
+        acq.create_dataset("SoftwareFrameBinning", data=1)
+        acq.create_dataset("SoftwarePixelBinning", data=1)
+        acq.create_dataset("ScatterInterferenceDestructive", data=scatter_destructive)
+    return path
+
+
+class TestLoadMp:
+    def test_lowercase_schema_loads(self, tmp_path):
+        frames = np.arange(3 * 4 * 4, dtype=np.uint16).reshape(3, 4, 4)
+        path = _write_lowercase_schema_mp(tmp_path / "a.mp", frames)
+        loaded_frames, metadata = load_mp(path)
+        np.testing.assert_array_equal(loaded_frames, frames)
+        assert metadata == MpMetadata(
+            scatter_interference_destructive=False,
+            frame_rate=500.0,
+            frame_binning=2,
+            pixel_binning=4,
+        )
+
+    def test_devices_schema_loads(self, tmp_path):
+        frames = np.ones((2, 3, 3), dtype=np.uint16)
+        path = _write_devices_schema_mp(tmp_path / "b.mp", frames)
+        loaded_frames, metadata = load_mp(path)
+        np.testing.assert_array_equal(loaded_frames, frames)
+        assert metadata == MpMetadata(
+            scatter_interference_destructive=True,
+            frame_rate=1320.0,
+            frame_binning=1,
+            pixel_binning=1,
+        )
+
+    def test_basic_encoding_as_array_attr(self, tmp_path):
+        frames = np.ones((2, 3, 3), dtype=np.uint16)
+        path = _write_lowercase_schema_mp(
+            tmp_path / "c.mp", frames, encoding=np.array(["BASIC"], dtype=object)
+        )
+        loaded_frames, _ = load_mp(path)
+        np.testing.assert_array_equal(loaded_frames, frames)
+
+    def test_time_difference_encoding_raises(self, tmp_path):
+        frames = np.ones((2, 3, 3), dtype=np.uint16)
+        path = _write_lowercase_schema_mp(
+            tmp_path / "d.mp", frames, encoding="TIME_DIFFERENCE"
+        )
+        with pytest.raises(ValueError, match="TIME_DIFFERENCE"):
+            load_mp(path)
+
+    def test_missing_movie_frame_raises(self, tmp_path):
+        h5py = pytest.importorskip("h5py")
+        path = tmp_path / "e.mp"
+        with h5py.File(path, "w") as f:
+            f.create_group("movie")
+        with pytest.raises(ValueError, match="movie/frame"):
+            load_mp(path)
+
+    def test_non_3d_frame_raises(self, tmp_path):
+        frames = np.ones((4, 4), dtype=np.uint16)
+        path = _write_lowercase_schema_mp(tmp_path / "f.mp", frames)
+        with pytest.raises(ValueError, match="3-D"):
+            load_mp(path)
+
+    def test_unrecognised_configuration_schema_raises(self, tmp_path):
+        h5py = pytest.importorskip("h5py")
+        path = tmp_path / "g.mp"
+        with h5py.File(path, "w") as f:
+            frame_ds = f.create_dataset(
+                "movie/frame", data=np.ones((2, 3, 3), dtype=np.uint16)
+            )
+            frame_ds.attrs["encoding"] = "BASIC"
+            f.create_group("movie/configuration")
+        with pytest.raises(ValueError, match="configuration schema"):
+            load_mp(path)
 
 
 # duplicate_and_change_frames

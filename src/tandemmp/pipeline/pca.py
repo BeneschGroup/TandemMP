@@ -52,9 +52,8 @@ class Experiment:
     accumulate the resulting tracked particles.
 
     *pipeline_runner* selects the event-finding backend (see
-    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); defaults
-    to :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline` via
-    :class:`~tandemmp.pipeline.loader.Loader`.
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); there is
+    no default — required unless *just_movie* is ``True``.
     """
 
     def __init__(
