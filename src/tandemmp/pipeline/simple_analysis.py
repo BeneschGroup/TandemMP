@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NamedTuple
@@ -13,11 +13,17 @@ import tqdm
 
 from tandemmp.core.conversions import NM_PER_PIXEL, c_to_mass, mass_to_sigma
 from tandemmp.core.functions import get_overlap_probability
-from tandemmp.core.parameters import FullAnalysisParams
 from tandemmp.core.types import BoolArray, FloatArray
-from tandemmp.drift.corrector import get_vector
 from tandemmp.events import RatiometricEvent
-from tandemmp.pipeline.loader import Loader
+from tandemmp.pipeline.csv_events import (
+    DISCOVERMP_COLUMNS,
+    check_csv_matches_movie,
+    load_event_csv,
+)
+from tandemmp.pipeline.drift_correction import (
+    DriftCorrectionFunction,
+    drift_vector_for_movie,
+)
 
 # SimpleEvent
 
@@ -85,49 +91,52 @@ def load_events(
     movie_filepath: str | Path | None = None,
     *,
     parallel: bool = True,
+    column_map: Mapping[str, str] = DISCOVERMP_COLUMNS,
+    selected_only: bool = False,
 ) -> list[SimpleEvent]:
-    """Load point-events from a CSV export.
+    """Load point-events from a DiscoverMP CSV export (see :func:`load_event_csv`).
 
-    *events_filepath* must have a header row followed by
-    ``frame, x, y, contrast, mass`` columns (extra trailing columns are
-    ignored). If the mass column is entirely ``NaN``, mass is derived from
-    contrast via :func:`~tandemmp.core.conversions.c_to_mass`.
+    If the mass column is entirely ``NaN``, mass is derived from contrast
+    via :func:`~tandemmp.core.conversions.c_to_mass`.
 
-    If *movie_filepath* is given, the companion movie is loaded (without
-    running the full pipeline) purely to estimate a drift vector via
-    :func:`~tandemmp.drift.corrector.get_vector`, which is then subtracted
-    from every event's position.
+    If *movie_filepath* is given, its filename is checked against
+    *events_filepath* (see :func:`check_csv_matches_movie`) and the movie is
+    loaded (without running the full pipeline) purely to estimate a drift
+    vector via :func:`~tandemmp.pipeline.drift_correction.drift_vector_for_movie`,
+    which is then subtracted from every event's position.
     """
-    vector = None
     if movie_filepath is not None:
-        movie = Loader(
-            movie_filepath,
-            just_movie=True,
-            parameters=FullAnalysisParams(drift_correction=False, parallel=parallel),
-        ).movie
-        vector = get_vector(
-            movie=movie,
-            frame_gap=50,
-            rolling_baseline=True,
-            threshold=0,
-            threshold_margin=1,
-            parallel=parallel,
-        )
+        check_csv_matches_movie(events_filepath, movie_filepath)
 
-    data = np.loadtxt(events_filepath, delimiter=",", skiprows=1)
-    frames, xs, ys, cs, masses = data.T[:5].astype(float)
+    rows = load_event_csv(
+        events_filepath, column_map=column_map, selected_only=selected_only
+    )
+    masses: FloatArray = rows.mass
     if np.isnan(masses).all():
-        masses = c_to_mass(cs)
+        masses = np.asarray(c_to_mass(rows.contrast), dtype=float)
 
-    if vector is None:
+    if movie_filepath is None:
         return [
             SimpleEvent(c=c, m=m, x=x, y=y, i=i)
-            for i, x, y, c, m in zip(frames, xs, ys, cs, masses, strict=True)
+            for i, x, y, c, m in zip(
+                rows.frame, rows.x, rows.y, rows.contrast, masses, strict=True
+            )
         ]
 
+    vector = drift_vector_for_movie(
+        movie_filepath,
+        parallel=parallel,
+        frame_gap=50,
+        rolling_baseline=True,
+        threshold=0,
+        threshold_margin=1,
+    )
+    xs, ys = DriftCorrectionFunction(vector=vector).correct_coordinates(
+        rows.x, rows.y, rows.frame.astype(float)
+    )
     return [
-        SimpleEvent(c=c, m=m, x=x - vector[int(i)][0], y=y - vector[int(i)][1], i=i)
-        for i, x, y, c, m in zip(frames, xs, ys, cs, masses, strict=True)
+        SimpleEvent(c=c, m=m, x=x, y=y, i=i)
+        for i, x, y, c, m in zip(rows.frame, xs, ys, rows.contrast, masses, strict=True)
     ]
 
 

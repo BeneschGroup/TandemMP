@@ -12,6 +12,7 @@ from typing import Any
 
 from tandemmp.core.conversions import Calibration, set_calibration
 from tandemmp.core.parallel import dispatch_kwargs
+from tandemmp.pipeline.csv_events import find_matching_csv
 from tandemmp.pipeline.pca import Experiment
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
 
@@ -29,13 +30,14 @@ class BatchResult:
     output_filepath: Path | None
 
 
-def process_movie(
+def process_movie(  # noqa: PLR0913
     filepath: str | Path,
     *,
     parameters: Mapping[str, Any] | None = None,
     save_filepath: str | Path | None = None,
     max_events: int = 3500,
     pipeline_runner: PipelineRunner | None = None,
+    events_csv: str | Path | None = None,
     calibration: Calibration | None = None,
     save_movie: bool = False,
 ) -> BatchResult:
@@ -62,8 +64,11 @@ def process_movie(
 
     filepath = Path(filepath)
     start = time.monotonic()
+    experiment_kwargs: dict[str, Any] = dict(parameters or {})
+    if events_csv is not None:
+        experiment_kwargs["events_csv"] = events_csv
     experiment = Experiment(
-        filepath, pipeline_runner=pipeline_runner, **(parameters or {})
+        filepath, pipeline_runner=pipeline_runner, **experiment_kwargs
     )
     n_events = len(experiment.events)
 
@@ -101,6 +106,35 @@ def process_movie(
     )
 
 
+def _resolve_batch_events_csv(
+    filepaths: Sequence[str | Path],
+    events_csv: Sequence[str | Path | None] | str | Path | None,
+) -> list[str | Path | None]:
+    """Resolve *events_csv* into one CSV path (or ``None``) per *filepaths* entry.
+
+    A sequence is taken as explicit ``(movie, csv)`` pairs (zipped 1:1); a
+    single path is taken as a folder to auto-pair movies and CSVs in by
+    filename (see :func:`~tandemmp.pipeline.csv_events.find_matching_csv`).
+    """
+    if events_csv is None:
+        return [None] * len(filepaths)
+    if isinstance(events_csv, (str, Path)):
+        folder = Path(events_csv)
+        resolved: list[str | Path | None] = []
+        for fp in filepaths:
+            match = find_matching_csv(fp, folder)
+            if match is None:
+                msg = f"no matching events CSV for {fp!r} in {folder!r}"
+                raise ValueError(msg)
+            resolved.append(match)
+        return resolved
+    resolved = list(events_csv)
+    if len(resolved) != len(filepaths):
+        msg = f"events_csv has {len(resolved)} entries, filepaths has {len(filepaths)}"
+        raise ValueError(msg)
+    return resolved
+
+
 def batch_process(
     filepaths: Sequence[str | Path],
     *,
@@ -109,6 +143,7 @@ def batch_process(
     parallel: bool = True,
     n_jobs: int | None = None,
     pipeline_runner: PipelineRunner | None = None,
+    events_csv: Sequence[str | Path | None] | str | Path | None = None,
     calibration: Calibration | None = None,
 ) -> list[BatchResult]:
     """Run :func:`process_movie` over *filepaths*, in parallel by default.
@@ -149,16 +184,22 @@ def batch_process(
     :mod:`tandemmp.core.conversions`) for every movie in this batch; it is
     forwarded to each :func:`process_movie` call the same way as
     *pipeline_runner*, so it is applied per-call and survives worker reuse.
+
+    *events_csv* pairs each movie with a CSV: either an explicit sequence
+    matching *filepaths* 1:1, or a single folder to auto-pair movies/CSVs in
+    by filename (see :func:`~tandemmp.pipeline.csv_events.find_matching_csv`).
     """
+    resolved_csvs = _resolve_batch_events_csv(filepaths, events_csv)
     args_list: list[dict[str, Any]] = [
         {
             "filepath": fp,
             "parameters": parameters,
             "max_events": max_events,
             "pipeline_runner": pipeline_runner,
+            "events_csv": csv,
             "calibration": calibration,
         }
-        for fp in filepaths
+        for fp, csv in zip(filepaths, resolved_csvs, strict=True)
     ]
     resolved_n_jobs = n_jobs if n_jobs is not None else min(6, len(filepaths))
     results = dispatch_kwargs(

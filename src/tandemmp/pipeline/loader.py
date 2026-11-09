@@ -565,6 +565,9 @@ class Loader:
             :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`.
             Required (raises :class:`ValueError`) unless *just_movie* is
             ``True`` — there is no default event-finder.
+        events_csv: Convenience for
+            ``pipeline_runner=CsvEventsRunner(events_csv)`` — mutually
+            exclusive with *pipeline_runner*.
     """
 
     def __init__(  # noqa: PLR0913
@@ -579,13 +582,26 @@ class Loader:
         frame_end: int | None = None,
         seed: int | np.random.Generator | np.random.RandomState | None = None,
         pipeline_runner: PipelineRunner | None = None,
+        events_csv: str | Path | None = None,
     ) -> None:
         self.parameters = parameters if parameters is not None else FullAnalysisParams()
         self.peak_model = get_psf_model(use_rust=self.parameters.use_rust)
+        if events_csv is not None:
+            if pipeline_runner is not None:
+                msg = "pass only one of pipeline_runner / events_csv"
+                raise ValueError(msg)
+            from tandemmp.pipeline.csv_events import (
+                CsvEventsRunner,
+                check_csv_matches_movie,
+            )
+
+            check_csv_matches_movie(events_csv, mp_filepath)
+            pipeline_runner = CsvEventsRunner(events_csv)
         self.pipeline_runner: PipelineRunner | None = pipeline_runner
         self.mp_filepath = Path(mp_filepath)
         self.folder = self.mp_filepath.parent
         self.vector = None
+        self._drift_crop: tuple[slice, ...] | None = None
         self.exp_model: PsfModel | None = None
         self.movie: npt.NDArray[Any]
 
@@ -768,6 +784,7 @@ class Loader:
         if improvement > 0:
             logger.info("Accepting drift correction")
             self.movie = corrected_movie
+            self._drift_crop = sel3d
             return True
 
         logger.info("Refusing drift correction")
@@ -781,12 +798,17 @@ class Loader:
                 "(e.g. a CsvEventsRunner), or use just_movie=True"
             )
             raise ValueError(msg)
+        drift_kwargs: dict[str, Any] = {}
+        if self._drift_crop is not None:
+            drift_kwargs["drift_vector"] = self.vector
+            drift_kwargs["drift_crop"] = self._drift_crop
         pipeline_results = self.pipeline_runner.run(
             self.mp_filepath,
             frame_bypass=self.movie,
             navg=self.parameters.first_analysis.navg,
             l_thum=self.parameters.first_analysis.l_thum,
             parallel=self.parameters.parallel,
+            **drift_kwargs,
         )
         if not isinstance(pipeline_results, PipelineResults):
             msg = (
