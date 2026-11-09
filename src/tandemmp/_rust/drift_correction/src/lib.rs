@@ -26,9 +26,8 @@
 //! copies numpy arrays into row-major `Vec<f64>`s (via
 //! `ndarray::ArrayView::as_standard_layout`, so non-contiguous/Fortran-order
 //! input is handled correctly), and calls straight through to the functions
-//! below. See `Cargo.toml`/`pyproject.toml` in this directory for how the
-//! crate is packaged as the `tandemmp._rust.drift_correction` extension
-//! module via maturin.
+//! below. This crate is an `rlib` registered as the `tandemmp._rust.drift_correction`
+//! submodule by `../_native`, which is the crate maturin actually builds.
 //!
 //! # Modules
 //!
