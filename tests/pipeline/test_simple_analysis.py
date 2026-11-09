@@ -1,7 +1,7 @@
 """Tests for tandemmp.pipeline.simple_analysis — target API.
 
 Covers CSV loading + drift correction, pair-matching algorithms, and RDF/ring-area
-helpers; ``load_events`` uses a monkeypatched ``Loader``/``get_vector`` to avoid a
+helpers; ``load_events`` uses a monkeypatched ``drift_vector_for_movie`` to avoid a
 real ``.mp`` file dependency.
 """
 
@@ -114,8 +114,8 @@ class TestBuildSimpleEvents:
 
 class TestLoadEvents:
     def _write_csv(self, tmp_path: Path, rows: list[tuple[float, ...]]) -> Path:
-        path = tmp_path / "events.csv"
-        header = "frame,x,y,contrast,mass\n"
+        path = tmp_path / "018_sample_events.csv"
+        header = "frame_indices,x_coords,y_coords,contrasts,calibrated_values\n"
         body = "\n".join(",".join(str(v) for v in row) for row in rows)
         path.write_text(header + body + "\n")
         return path
@@ -149,6 +149,14 @@ class TestLoadEvents:
             [e.m for e in events], c_to_mass(np.array(contrasts))
         )
 
+    def test_filename_mismatch_raises(self, tmp_path: Path) -> None:
+        csv_path = self._write_csv(
+            tmp_path,
+            [(0, 10.0, 20.0, -0.05, 100.0)],
+        )
+        with pytest.raises(ValueError, match="does not match"):
+            load_events(csv_path, movie_filepath=tmp_path / "unrelated.mp")
+
     def test_movie_filepath_applies_drift_correction(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -159,24 +167,22 @@ class TestLoadEvents:
                 (1, 10.0, 20.0, -0.05, 100.0),
             ],
         )
+        movie_path = tmp_path / "018_sample.mp"
 
-        class _FakeLoader:
-            def __init__(self, *args: Any, **kwargs: Any) -> None:
-                self.movie = np.zeros((2, 8, 8))
+        from tandemmp.drift.corrector import DriftVector
 
-        shifts = {0: (1.0, -2.0), 1: (3.0, -4.0)}
+        shifts_x = {0: 1.0, 1: 3.0}
+        shifts_y = {0: -2.0, 1: -4.0}
+        vector = DriftVector(
+            np.array([shifts_x[0], shifts_x[1]]), np.array([shifts_y[0], shifts_y[1]])
+        )
 
-        def _fake_get_vector(*, movie: Any, **kwargs: Any) -> Any:
-            class _Vector:
-                def __getitem__(self, key: int) -> tuple[float, float]:
-                    return shifts[key]
+        def _fake_drift_vector_for_movie(movie_path: Any, **kwargs: Any) -> Any:
+            return vector
 
-            return _Vector()
+        monkeypatch.setattr(sa, "drift_vector_for_movie", _fake_drift_vector_for_movie)
 
-        monkeypatch.setattr(sa, "Loader", _FakeLoader)
-        monkeypatch.setattr(sa, "get_vector", _fake_get_vector)
-
-        events = load_events(csv_path, movie_filepath="dummy.mp")
+        events = load_events(csv_path, movie_filepath=movie_path)
 
         assert events[0].x == pytest.approx(10.0 - 1.0)
         assert events[0].y == pytest.approx(20.0 - -2.0)

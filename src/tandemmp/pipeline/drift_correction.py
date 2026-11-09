@@ -3,12 +3,11 @@
 Standalone from :mod:`tandemmp.pipeline.batch` so a movie's drift can be
 estimated (:func:`run_drift_correction`) and persisted
 (:func:`save_drift_vector` / :func:`save_correction_function`) without
-running a full tracking/pair-matching analysis. The movie is loaded through
-:class:`~tandemmp.pipeline.loader.Loader` with ``just_movie=True`` and the
-loader's own drift correction disabled — this module drives the lower-level
-:func:`tandemmp.drift.corrector.get_vector` directly instead, mirroring how
-:func:`tandemmp.pipeline.simple_analysis.load_events` obtains a vector for
-its CSV-only workflow.
+running a full tracking/pair-matching analysis. :func:`drift_vector_for_movie`
+is the shared "just the vector" glue (``Loader(just_movie=True)`` +
+:func:`tandemmp.drift.corrector.get_vector`), also used by
+:func:`tandemmp.pipeline.simple_analysis.load_events` and
+:class:`tandemmp.pipeline.csv_events.CsvEventsRunner`.
 
 Two on-disk representations are supported for the resulting
 :class:`~tandemmp.drift.corrector.DriftVector`:
@@ -172,6 +171,38 @@ class DriftCorrectionResult:
 # Orchestration
 
 
+def drift_vector_for_movie(
+    movie_path: str | Path,
+    *,
+    frame_start: int | None = None,
+    frame_end: int | None = None,
+    parallel: bool = True,
+    n_jobs: int | None = None,
+    **get_vector_kwargs: Any,  # noqa: ANN401
+) -> DriftVector:
+    """Load a movie (via :class:`~tandemmp.pipeline.loader.Loader`, drift
+    correction disabled) and estimate its :func:`~tandemmp.drift.corrector.get_vector`.
+
+    Shared glue behind :func:`run_drift_correction` and
+    :func:`tandemmp.pipeline.simple_analysis.load_events` — the two other
+    places that need "just the vector" for a movie without running a full
+    analysis. ``**get_vector_kwargs`` (``frame_gap``, ``rolling_baseline``,
+    ``threshold``, ``threshold_margin``, ``seed``, ``use_rust``) is forwarded
+    to :func:`~tandemmp.drift.corrector.get_vector` as-is.
+    """
+    movie = Loader(
+        movie_path,
+        just_movie=True,
+        parameters=FullAnalysisParams(drift_correction=False, parallel=parallel),
+        frame_start=frame_start,
+        frame_end=frame_end,
+    ).movie
+
+    return get_vector(
+        movie=movie, parallel=parallel, n_jobs=n_jobs, **get_vector_kwargs
+    )
+
+
 def run_drift_correction(
     filepath: str | Path,
     *,
@@ -188,31 +219,22 @@ def run_drift_correction(
 ) -> DriftCorrectionResult:
     """Load a movie and estimate its :class:`~tandemmp.drift.corrector.DriftVector`.
 
-    The movie is loaded via :class:`~tandemmp.pipeline.loader.Loader` with
-    ``just_movie=True`` and the loader's own drift correction disabled — this
-    function drives :func:`~tandemmp.drift.corrector.get_vector` itself so
-    the raw vector is returned for inspection/persistence rather than being
-    silently applied and discarded inside the loader. See
+    The raw vector is returned for inspection/persistence rather than being
+    silently applied and discarded. See
     :func:`~tandemmp.drift.corrector.get_vector` for the meaning of
     *frame_gap*, *rolling_baseline*, *threshold*, *threshold_margin*,
     *parallel*, *n_jobs*, *seed* and *use_rust*.
     """
-    movie = Loader(
+    vector = drift_vector_for_movie(
         filepath,
-        just_movie=True,
-        parameters=FullAnalysisParams(drift_correction=False, parallel=parallel),
         frame_start=frame_start,
         frame_end=frame_end,
-    ).movie
-
-    vector = get_vector(
-        movie=movie,
+        parallel=parallel,
+        n_jobs=n_jobs,
         frame_gap=frame_gap,
         rolling_baseline=rolling_baseline,
         threshold=threshold,
         threshold_margin=threshold_margin,
-        parallel=parallel,
-        n_jobs=n_jobs,
         use_rust=use_rust,
         seed=seed,
     )
