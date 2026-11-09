@@ -21,6 +21,7 @@ import numpy as np
 
 from tandemmp.core.types import FloatArray
 from tandemmp.events import RatiometricEvent
+from tandemmp.pipeline.calibration import CalibrationLike
 from tandemmp.pipeline.pca import Experiment
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
 from tandemmp.pipeline.simple_analysis import Pair
@@ -63,6 +64,7 @@ def run_pair_matching(  # noqa: PLR0913
     seed: int | np.random.Generator | np.random.RandomState | None = None,
     pipeline_runner: PipelineRunner | None = None,
     events_csv: str | Path | None = None,
+    calibration: CalibrationLike | None = None,
     sigma_multiplier: float = 3.0,
     max_pairs: int = 5,
     analyse_distance: float = 4.0,
@@ -74,8 +76,14 @@ def run_pair_matching(  # noqa: PLR0913
     """Load a movie, drift-correct it, and match binding/unbinding event pairs.
 
     Thin wrapper around :class:`~tandemmp.pipeline.pca.Experiment` and
-    :meth:`~tandemmp.pipeline.pca.Experiment.simple_analysis` — see
-    :func:`~tandemmp.pipeline.simple_analysis.match_pairs_sigma` for the
+    :meth:`~tandemmp.pipeline.pca.Experiment.simple_analysis`.
+
+    *calibration* (a :class:`~tandemmp.core.conversions.Calibration` or a
+    calibration filepath) sets the process-wide contrast/mass conversion
+    before events are loaded; left as ``None``, whatever calibration is
+    already active is used unchanged.
+
+    See :func:`~tandemmp.pipeline.simple_analysis.match_pairs_sigma` for the
     meaning of *sigma_multiplier*, *max_pairs*, *analyse_distance*,
     *minimum_overlap* and *match_binding*. ``**parameter_overrides`` is
     forwarded to :func:`~tandemmp.core.parameters.get_parameters` (e.g.
@@ -87,6 +95,7 @@ def run_pair_matching(  # noqa: PLR0913
         "frame_end": frame_end,
         "seed": seed,
         "parallel": parallel,
+        "calibration": calibration,
         **parameter_overrides,
     }
     if events_csv is not None:

@@ -18,7 +18,7 @@ from typing import Any, cast
 import numpy as np
 
 from tandemmp.core.classifications import EvClassification
-from tandemmp.core.conversions import get_calibration
+from tandemmp.core.conversions import get_calibration, set_calibration
 from tandemmp.core.parameters import FullAnalysisParams, get_parameters
 from tandemmp.core.types import FloatArray, UInt16Array
 from tandemmp.events import RatiometricEvent
@@ -28,6 +28,7 @@ from tandemmp.io.save import (
     build_particle_records,
     save_results,
 )
+from tandemmp.pipeline.calibration import CalibrationLike, resolve_calibration
 from tandemmp.pipeline.investigator import Action, Decision, Investigator
 from tandemmp.pipeline.loader import Loader
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
@@ -53,7 +54,12 @@ class Experiment:
 
     *pipeline_runner* selects the event-finding backend (see
     :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); there is
-    no default — required unless *just_movie* is ``True``.
+    no default — required unless *events_csv* or *just_movie* is passed.
+
+    *calibration* (a :class:`~tandemmp.core.conversions.Calibration` or a
+    calibration filepath) sets the process-wide contrast/mass conversion
+    before events are loaded; left as ``None``, whatever calibration is
+    already active is used unchanged.
     """
 
     def __init__(  # noqa: PLR0913
@@ -68,8 +74,11 @@ class Experiment:
         frame_end: int | None = None,
         seed: int | np.random.Generator | np.random.RandomState | None = None,
         skip_exp_model: bool = False,
+        calibration: CalibrationLike | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> None:
+        if calibration is not None:
+            set_calibration(resolve_calibration(calibration))
         self.parameters: FullAnalysisParams = get_parameters(**kwargs)
         loader_kwargs: dict[str, Any] = {
             "parameters": self.parameters,

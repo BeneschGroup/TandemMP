@@ -245,6 +245,35 @@ class TestInit:
         assert not hasattr(exp, "particles")
         assert not hasattr(exp, "investigator")
 
+    def test_no_calibration_leaves_active_calibration_unchanged(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setattr(pca, "Loader", _FakeLoader)
+        custom = Calibration(slope=-0.00005, offset=-0.0001)
+        set_calibration(custom)
+        pca.Experiment(tmp_path / "movie.mp", just_movie=True)
+        assert get_calibration() == custom
+
+    def test_calibration_sets_active_calibration_before_loader(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setattr(pca, "Loader", _FakeLoader)
+        custom = Calibration(slope=-0.00005, offset=-0.0001)
+        pca.Experiment(tmp_path / "movie.mp", just_movie=True, calibration=custom)
+        assert get_calibration() == custom
+
+    def test_calibration_accepts_mc_filepath(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        from tandemmp.pipeline.calibration import load_mc
+
+        mc_fixture = Path(__file__).parent / "fixtures" / "20260329_mfp1.mc"
+        monkeypatch.setattr(pca, "Loader", _FakeLoader)
+        pca.Experiment(
+            tmp_path / "movie.mp", just_movie=True, calibration=mc_fixture
+        )
+        assert get_calibration() == load_mc(mc_fixture).calibration
+
     def test_raises_without_movie_params(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:

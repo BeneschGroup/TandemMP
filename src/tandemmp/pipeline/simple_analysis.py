@@ -11,10 +11,11 @@ import numpy as np
 import numpy.typing as npt
 import tqdm
 
-from tandemmp.core.conversions import NM_PER_PIXEL, c_to_mass, mass_to_sigma
+from tandemmp.core.conversions import NM_PER_PIXEL, get_calibration, mass_to_sigma
 from tandemmp.core.functions import get_overlap_probability
 from tandemmp.core.types import BoolArray, FloatArray
 from tandemmp.events import RatiometricEvent
+from tandemmp.pipeline.calibration import CalibrationLike, resolve_calibration
 from tandemmp.pipeline.csv_events import (
     DISCOVERMP_COLUMNS,
     check_csv_matches_movie,
@@ -90,6 +91,7 @@ def load_events(
     events_filepath: str | Path,
     movie_filepath: str | Path | None = None,
     *,
+    calibration: CalibrationLike | None = None,
     parallel: bool = True,
     column_map: Mapping[str, str] = DISCOVERMP_COLUMNS,
     selected_only: bool = False,
@@ -97,7 +99,10 @@ def load_events(
     """Load point-events from a DiscoverMP CSV export (see :func:`load_event_csv`).
 
     If the mass column is entirely ``NaN``, mass is derived from contrast
-    via :func:`~tandemmp.core.conversions.c_to_mass`.
+    using *calibration* (a :class:`~tandemmp.core.conversions.Calibration`
+    or a calibration filepath; defaults to whatever is process-wide active,
+    see :func:`~tandemmp.core.conversions.get_calibration`) — this does not
+    change the process-wide active calibration.
 
     If *movie_filepath* is given, its filename is checked against
     *events_filepath* (see :func:`check_csv_matches_movie`) and the movie is
@@ -113,7 +118,8 @@ def load_events(
     )
     masses: FloatArray = rows.mass
     if np.isnan(masses).all():
-        masses = np.asarray(c_to_mass(rows.contrast), dtype=float)
+        cal = resolve_calibration(calibration) or get_calibration()
+        masses = (rows.contrast - cal.offset) / cal.slope
 
     if movie_filepath is None:
         return [

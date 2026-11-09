@@ -13,6 +13,9 @@ import pytest
 
 from tandemmp.core.conversions import Calibration, get_calibration
 from tandemmp.pipeline import batch
+from tandemmp.pipeline.calibration import load_mc
+
+MC_FIXTURE = Path(__file__).parent / "fixtures" / "20260329_mfp1.mc"
 
 # Fakes / helpers
 
@@ -102,6 +105,14 @@ class TestProcessMovie:
         custom = Calibration(slope=-0.00005, offset=-0.0001)
         batch.process_movie(tmp_path / "movie.mp", calibration=custom)
         assert fake_experiment.instances[0].calibration_at_construction == custom
+
+    def test_accepts_mc_filepath_as_calibration(
+        self, fake_experiment: type[_FakeExperiment], tmp_path: Path
+    ) -> None:
+        batch.process_movie(tmp_path / "movie.mp", calibration=MC_FIXTURE)
+        assert fake_experiment.instances[0].calibration_at_construction == (
+            load_mc(MC_FIXTURE).calibration
+        )
 
     def test_analyses_and_saves_below_threshold(
         self, fake_experiment: type[_FakeExperiment], tmp_path: Path
@@ -222,6 +233,19 @@ class TestBatchProcess:
 
         assert all(
             exp.calibration_at_construction == custom
+            for exp in fake_experiment.instances
+        )
+
+    def test_accepts_mc_filepath_as_calibration(
+        self, fake_experiment: type[_FakeExperiment], tmp_path: Path
+    ) -> None:
+        movies = [tmp_path / "a.mp", tmp_path / "b.mp"]
+
+        batch.batch_process(movies, calibration=MC_FIXTURE, parallel=False)
+
+        expected = load_mc(MC_FIXTURE).calibration
+        assert all(
+            exp.calibration_at_construction == expected
             for exp in fake_experiment.instances
         )
 
