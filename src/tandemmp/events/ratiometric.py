@@ -15,7 +15,7 @@ from tandemmp.core.classifications import (
 from tandemmp.core.conversions import c_to_mass
 from tandemmp.events._base import AbstractEvent, PeakImage, _allocate_event_id
 from tandemmp.events.subtraction import SubtractionSeries
-from tandemmp.fitting.psf_interface import PsfInterface
+from tandemmp.fitting.psf_interface import PeakFitResult, PsfInterface
 
 if TYPE_CHECKING:
     from tandemmp.pipeline.investigator import MultiFitResult
@@ -41,12 +41,15 @@ class RatiometricEvent(AbstractEvent):
         fit: bool = True,
         navg: int = 5,
         peak_model: PsfInterface | None = None,
+        precomputed_fit: PeakFitResult | None = None,
     ) -> None:
         if peak.method != ProcessingMethod.ratiometric:
             msg = f"Expected ProcessingMethod.ratiometric, got {peak.method!r}"
             raise ValueError(msg)
 
-        super().__init__(peak, fit=fit, peak_model=peak_model)
+        super().__init__(
+            peak, fit=fit, peak_model=peak_model, precomputed_fit=precomputed_fit
+        )
 
         self.navg: int = navg
         self.overlaps: list[OverlapArea] = []

@@ -1,0 +1,14 @@
+[package]
+name = "tandemmp-native"
+version = "0.1.0"
+edition = "2021"
+description = "tandemmp._rust._native: registers each native crate as a submodule."
+
+[lib]
+name = "_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.29", features = ["abi3-py310"] }
+drift_correction = { path = "../drift_correction" }
+psf = { path = "../psf" }

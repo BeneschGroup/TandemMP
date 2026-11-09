@@ -149,7 +149,22 @@ def build_first_pass_events(
         for x, y, i in zip(xs, ys, indices, strict=True)
         if int(i) > navg
     ]
-    args = [{"peak": p, "navg": navg, "peak_model": peak_model} for p in peak_images]
+    # Pre-fit every thumbnail in one Rust batch call when the model supports
+    # it (all thumbnails are already known here), skipping the per-event fit
+    # `RatiometricEvent.__init__` would otherwise do one at a time.
+    fit_peaks_batch = getattr(peak_model, "fit_peaks_batch", None)
+    precomputed = (
+        fit_peaks_batch([p.image for p in peak_images]) if fit_peaks_batch else None
+    )
+    args = [
+        {
+            "peak": p,
+            "navg": navg,
+            "peak_model": peak_model,
+            "precomputed_fit": precomputed[idx] if precomputed is not None else None,
+        }
+        for idx, p in enumerate(peak_images)
+    ]
     return dispatch_kwargs(
         make_ratiometric_event_from_peak, args, parallel=parallel, n_jobs=n_jobs
     )

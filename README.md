@@ -4,6 +4,10 @@ Pair matching and particle tracking analysis for Mass Photometry data.
 
 ## Installation
 
+One-time prerequisite: a Rust toolchain ([rustup](https://rustup.rs)), plus,
+on Windows, the MSVC Build Tools (the "Desktop development with C++"
+workload). `pip install` then compiles the native extension automatically.
+
 ```bash
 pip install -e /path_to_repo/.
 ```

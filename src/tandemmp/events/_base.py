@@ -125,6 +125,7 @@ class AbstractEvent(Connectable):
         peak: PeakImage,
         fit: bool,
         peak_model: PsfInterface | None = None,
+        precomputed_fit: PeakFitResult | None = None,
     ) -> None:
         super().__init__()
         self.decision: Any | None = None
@@ -138,7 +139,7 @@ class AbstractEvent(Connectable):
         )
 
         if fit:
-            self.basic_fit()
+            self.basic_fit(precomputed_fit=precomputed_fit)
         else:
             self.c: float = 0.0
 
@@ -163,17 +164,24 @@ class AbstractEvent(Connectable):
         *,
         allow_offset: bool = False,
         gtol: float = 1e-6,
+        precomputed_fit: PeakFitResult | None = None,
     ) -> None:
-        """Run a basic 2-D PSF fit and store the results on *self*."""
-        c_guess = float(np.min(self.peak.image))
+        """Run a basic 2-D PSF fit and store the results on *self*.
 
-        fit_result: PeakFitResult = self.peak_model.fit_peak(
-            self.peak.image,
-            method=method,
-            c_guess=c_guess,
-            allow_offset=allow_offset,
-            gtol=gtol,
-        )
+        *precomputed_fit* skips the fit entirely (e.g. a batch Rust fit
+        already computed upstream for every event's thumbnail).
+        """
+        if precomputed_fit is not None:
+            fit_result = precomputed_fit
+        else:
+            c_guess = float(np.min(self.peak.image))
+            fit_result = self.peak_model.fit_peak(
+                self.peak.image,
+                method=method,
+                c_guess=c_guess,
+                allow_offset=allow_offset,
+                gtol=gtol,
+            )
 
         self.dx: float | npt.NDArray[np.floating] = fit_result.dx
         self.dy: float | npt.NDArray[np.floating] = fit_result.dy
@@ -192,9 +200,15 @@ class AbstractEvent(Connectable):
         *,
         allow_offset: bool = False,
         gtol: float = 1e-6,
+        precomputed_fit: PeakFitResult | None = None,
     ) -> None:
         """Perform (or redo) the basic 2-D PSF fit."""
-        self._underlying_basic_fit(method, allow_offset=allow_offset, gtol=gtol)
+        self._underlying_basic_fit(
+            method,
+            allow_offset=allow_offset,
+            gtol=gtol,
+            precomputed_fit=precomputed_fit,
+        )
 
     # SNR / noise
 

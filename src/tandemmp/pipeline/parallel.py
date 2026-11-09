@@ -25,7 +25,7 @@ from tandemmp.events._base import PeakImage
 from tandemmp.events.ratiometric import RatiometricEvent
 from tandemmp.events.subtraction import SubtractionEvent
 from tandemmp.fitting.psf import fit_3d_ratiometric
-from tandemmp.fitting.psf_interface import PsfInterface
+from tandemmp.fitting.psf_interface import PeakFitResult, PsfInterface
 
 logger = logging.getLogger(__name__)
 
@@ -67,9 +67,16 @@ def make_ratiometric_event_from_peak(
     peak: PeakImage,
     navg: int,
     peak_model: PsfInterface | None = None,
+    precomputed_fit: PeakFitResult | None = None,
 ) -> RatiometricEvent:
     """Create a :class:`RatiometricEvent` from a :class:`PeakImage`."""
-    return RatiometricEvent(peak, fit=True, navg=navg, peak_model=peak_model)
+    return RatiometricEvent(
+        peak,
+        fit=True,
+        navg=navg,
+        peak_model=peak_model,
+        precomputed_fit=precomputed_fit,
+    )
 
 
 def make_subtraction_event(

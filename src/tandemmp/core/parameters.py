@@ -6,6 +6,10 @@ import dataclasses
 from dataclasses import dataclass, fields
 from typing import Any
 
+#: Default event thumbnail side length (pixels), matching ml_mp_movements'
+#: ``DEFAULT_THUMBNAIL_SIZE``.
+DEFAULT_L_THUM: int = 21
+
 
 def _validate_probability(value: float, name: str) -> None:
     if not 0.0 <= value <= 1.0:
@@ -93,11 +97,11 @@ class FirstAnalysisParams:
     #: this temporally will be reduced down.
     minimum_navg: int = 3
     #: Event thumbnail size — side length in pixels.
-    l_thum: int = 13
-    #: Experimental PSF model config, or ``False`` to disable.
-    experimental_psf_model: ExperimentalPsfParams | bool = dataclasses.field(
-        default_factory=ExperimentalPsfParams,
-    )
+    l_thum: int = DEFAULT_L_THUM
+    #: Per-movie experimental PSF spline refit config, or ``False`` to
+    #: disable. Opt-in: off by default since the bundled experimental PSF
+    #: (see ``get_psf_model``) is already the default fitting model.
+    experimental_psf_model: ExperimentalPsfParams | bool = False
 
     def __post_init__(self) -> None:
         _validate_positive(self.navg, "navg")
@@ -195,7 +199,7 @@ class FullAnalysisParams:
     save_memory: bool = True
     #: Display event report after every fit.
     supervise: bool = False
-    use_rust: bool = False
+    use_rust: bool = True
     reflectivity_correction: bool = True
     #: Auto-bin to ~100 ms integration time.
     auto_bin: bool = True
