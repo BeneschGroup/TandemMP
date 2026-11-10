@@ -1,6 +1,9 @@
 # Python
 __pycache__/
 *.py[cod]
+# Ship the prebuilt Rust extension so installs don't need a Rust toolchain.
+!src/tandemmp/_rust/drift_correction*.pyd
+!src/tandemmp/_rust/drift_correction*.so
 *.egg-info/
 *.egg
 dist/
