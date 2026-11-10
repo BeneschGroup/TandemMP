@@ -351,6 +351,20 @@ class TestCorrectGhost:
         result = correct_ghost([mock_item], 0.0, 0.0, -0.01, peak_model=spline_model)
         assert len(result) == 1
 
+    def test_subtraction_series_input(self, spline_model):
+        """A SubtractionSeries (not a list) is unwrapped to its peaks."""
+        from tandemmp.events.subtraction import SubtractionEvent, SubtractionSeries
+
+        peaks = [_make_peak_image(frame=i) for i in range(10, 13)]
+        series = SubtractionSeries(
+            [
+                SubtractionEvent(p, subtracted_i=5, fit=False, peak_model=spline_model)
+                for p in peaks
+            ]
+        )
+        result = correct_ghost(series, 0.0, 0.0, -0.01, peak_model=spline_model)
+        assert [r.i for r in result] == [10, 11, 12]
+
 
 # correct_subtraction_fit
 
