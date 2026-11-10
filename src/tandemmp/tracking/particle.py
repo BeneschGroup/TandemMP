@@ -617,9 +617,10 @@ class Particle:
             if trust.any():
                 return (xs[trust], ys[trust]), frames[trust]
 
+        # after a 3-D fit the binding event's x/y are per-frame arrays
         b = self.binding_event
         return (
-            (np.array([float(b.x)]), np.array([float(b.y)])),
+            (np.array([float(np.nanmean(b.x))]), np.array([float(np.nanmean(b.y))])),
             np.array([b.i]),
         )
 

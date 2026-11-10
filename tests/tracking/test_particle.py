@@ -421,6 +421,19 @@ class TestTrajectory:
         assert len(frames) == 1
         assert frames[0] == 50
 
+    def test_fallback_with_3d_fitted_binding_event(self, spline_model):
+        """3-D fitted binding events store per-frame x/y arrays."""
+        b = _make_binding_ratiometric(spline_model, frame=50)
+        b.x = np.array([10.0, 10.2, 10.4])
+        b.y = np.array([20.0, 20.4, np.nan])
+        p = Particle(b)
+        (xs, ys), frames = p.trajectory
+        np.testing.assert_allclose(xs, [10.2])
+        np.testing.assert_allclose(ys, [20.2])
+        assert frames.tolist() == [50]
+        out = p.choose_background(55, midpoint=(0, 0), l_thum=5, psf_radius=2)
+        assert out == 50
+
     def test_uses_fixed_events_when_available(self, spline_model):
         p = Particle(_make_binding_ratiometric(spline_model, frame=10))
         e = _make_subtraction(spline_model, frame=20, subtracted_i=15)
