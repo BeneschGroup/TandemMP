@@ -223,16 +223,23 @@ def batch_process(
 
 if __name__ == "__main__":
     from tandemmp.core.functions import choose_file
-
+    
+    print("Choose calibration")
     calibration_file = choose_file(mp_file=False)
     if not isinstance(calibration_file, str):
         raise TypeError("Select a single calibration file (.mc or .json).")
 
+    print("Choose movie(s)")
     chosen_movies = choose_file()
     movie_filepaths = (
         [chosen_movies] if isinstance(chosen_movies, str) else list(chosen_movies)
     )
+    print("Choose movie event .csv file(s)")
+    chosen_csvs = choose_file(mp_file=False)
+    csv_filepaths = (
+        [chosen_csvs] if isinstance(chosen_csvs, str) else list(chosen_csvs)
+    )
 
     results = batch_process(
-        movie_filepaths, calibration=calibration_file, parallel=False
+        movie_filepaths, calibration=calibration_file, parallel=False, events_csv=csv_filepaths
     )
