@@ -428,11 +428,26 @@ class TestTrajectory:
         b.y = np.array([20.0, 20.4, np.nan])
         p = Particle(b)
         (xs, ys), frames = p.trajectory
-        np.testing.assert_allclose(xs, [10.2])
-        np.testing.assert_allclose(ys, [20.2])
-        assert frames.tolist() == [50]
+        np.testing.assert_allclose(xs, [10.0, 10.2, 10.4])
+        np.testing.assert_allclose(ys, [20.0, 20.4, np.nan])
+        assert frames.tolist() == [50, 50, 50]
         out = p.choose_background(55, midpoint=(0, 0), l_thum=5, psf_radius=2)
         assert out == 50
+
+    def test_3d_fitted_fallback_any_position_clears(self, spline_model):
+        """Background is chosen if any 3-D fit position clears the thumbnail."""
+        b = _make_binding_ratiometric(spline_model, frame=50)
+        b.x = np.array([4.0, 4.0, 4.6])
+        b.y = np.array([4.6, 4.0, 4.6])
+        p = Particle(b)
+        # min_dist = 5 // 2 + 2 = 4: only the last position has dx > 4 and dy > 4
+        out = p.choose_background(55, midpoint=(0, 0), l_thum=5, psf_radius=2)
+        assert out == 50
+        b.x = np.array([4.0, 4.0, 4.0])
+        assert (
+            p.choose_background(55, midpoint=(0, 0), l_thum=5, psf_radius=2)
+            == p.preferred_background
+        )
 
     def test_uses_fixed_events_when_available(self, spline_model):
         p = Particle(_make_binding_ratiometric(spline_model, frame=10))
