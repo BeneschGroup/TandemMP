@@ -14,7 +14,10 @@ dependencies = [
     "scikit-learn",
     "tqdm",
     "opencv-python",
-    "tensorflow",
+    # Keras 2 for the ghost model; needs TF_USE_LEGACY_KERAS=1 set before
+    # tensorflow is imported. tf-keras must match the tensorflow minor version.
+    "tensorflow>=2.21,<2.22",
+    "tf-keras>=2.21,<2.22",
     "h5py",
 ]
 
