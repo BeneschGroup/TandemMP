@@ -39,7 +39,7 @@ from tandemmp.pipeline.investigator import (
     _distance_array,
     create_ghost_event,
 )
-from tandemmp.pipeline.open_iscat_pipeline import Info
+from tandemmp.pipeline.pipeline_interface import Info
 from tandemmp.tracking.manager import ParticleManager
 from tandemmp.tracking.particle import (
     GhostParticle,
@@ -419,9 +419,9 @@ class TestDistanceArray:
         """Unbound candidates must rank behind candidates with known distances."""
         for known in (0.1, 1.0, 10.0):
             arr = _distance_array([self._r(known), self._r(None)])
-            assert (
-                arr[1] > arr[0]
-            ), f"None-distance candidate scored better than known={known}: {arr}"
+            assert arr[1] > arr[0], (
+                f"None-distance candidate scored better than known={known}: {arr}"
+            )
 
     def test_empty_input(self):
         arr = _distance_array([])

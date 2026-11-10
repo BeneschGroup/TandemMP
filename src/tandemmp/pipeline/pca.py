@@ -18,7 +18,7 @@ from typing import Any, cast
 import numpy as np
 
 from tandemmp.core.classifications import EvClassification
-from tandemmp.core.conversions import get_calibration
+from tandemmp.core.conversions import get_calibration, set_calibration
 from tandemmp.core.parameters import FullAnalysisParams, get_parameters
 from tandemmp.core.types import FloatArray, UInt16Array
 from tandemmp.events import RatiometricEvent
@@ -28,6 +28,7 @@ from tandemmp.io.save import (
     build_particle_records,
     save_results,
 )
+from tandemmp.pipeline.calibration import CalibrationLike, resolve_calibration
 from tandemmp.pipeline.investigator import Action, Decision, Investigator
 from tandemmp.pipeline.loader import Loader
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
@@ -52,28 +53,46 @@ class Experiment:
     accumulate the resulting tracked particles.
 
     *pipeline_runner* selects the event-finding backend (see
-    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); defaults
-    to :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline` via
-    :class:`~tandemmp.pipeline.loader.Loader`.
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); there is
+    no default — required unless *events_csv* or *just_movie* is passed.
+
+    *calibration* (a :class:`~tandemmp.core.conversions.Calibration` or a
+    calibration filepath) sets the process-wide contrast/mass conversion
+    before events are loaded; left as ``None``, whatever calibration is
+    already active is used unchanged.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         mp_filepath: str | Path,
         *,
         just_movie: bool = False,
         special_bypass: UInt16Array | None = None,
         pipeline_runner: PipelineRunner | None = None,
+        events_csv: str | Path | None = None,
+        frame_start: int | None = None,
+        frame_end: int | None = None,
+        seed: int | np.random.Generator | np.random.RandomState | None = None,
+        skip_exp_model: bool = False,
+        calibration: CalibrationLike | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> None:
+        if calibration is not None:
+            set_calibration(resolve_calibration(calibration))
         self.parameters: FullAnalysisParams = get_parameters(**kwargs)
-        self.loader = Loader(
-            mp_filepath,
-            parameters=self.parameters,
-            just_movie=just_movie,
-            special_bypass=special_bypass,
-            pipeline_runner=pipeline_runner,
-        )
+        loader_kwargs: dict[str, Any] = {
+            "parameters": self.parameters,
+            "just_movie": just_movie,
+            "special_bypass": special_bypass,
+            "pipeline_runner": pipeline_runner,
+            "frame_start": frame_start,
+            "frame_end": frame_end,
+            "seed": seed,
+            "skip_exp_model": skip_exp_model,
+        }
+        if events_csv is not None:
+            loader_kwargs["events_csv"] = events_csv
+        self.loader = Loader(mp_filepath, **loader_kwargs)
         self.folder = self.loader.folder
         self.movie = self.loader.movie
         self.movie_params = self.loader.params
@@ -128,6 +147,8 @@ class Experiment:
         sigma_multiplier: float = 3.0,
         max_pairs: int = 5,
         analyse_distance: float = 4.0,
+        minimum_overlap: float = 0.01,
+        match_binding: bool = False,
     ) -> list[Pair]:
         """Match binding/unbinding events by spatial and temporal overlap.
 
@@ -140,6 +161,8 @@ class Experiment:
             sigma_multiplier=sigma_multiplier,
             max_pairs=max_pairs,
             analyse_distance=analyse_distance,
+            minimum_overlap=minimum_overlap,
+            match_binding=match_binding,
         )
 
     # Analysis loop

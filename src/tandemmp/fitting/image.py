@@ -121,13 +121,13 @@ def correct_ghost(
 ) -> list[PeakImage]:
     """Subtract a ghost PSF impression from each peak in *series*.
 
-    *series* can be a list of :class:`PeakImage` objects, or a list of
-    objects with a ``.peak`` attribute (e.g. events).
+    *series* can hold :class:`PeakImage` objects, or objects with a ``.peak``
+    attribute (e.g. events, or a ``SubtractionSeries``).
     """
-    if isinstance(series, list) and series and hasattr(series[0], "peak"):
-        peaks: list[PeakImage] = [item.peak for item in series]  # type: ignore[union-attr]
-    else:
-        peaks = series
+    peaks: list[PeakImage] = [
+        p if isinstance(p, PeakImage) else p.peak  # type: ignore[union-attr]
+        for p in series
+    ]
 
     images = [p.image for p in peaks]
     l_thum = images[0].shape[0]

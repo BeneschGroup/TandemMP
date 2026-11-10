@@ -161,9 +161,9 @@ fn shift_compare(
     ))
 }
 
-/// The `tandemmp._rust.drift_correction` extension module.
+/// The `tandemmp._rust.drift_correction` submodule, registered by `_native`.
 #[pymodule]
-fn drift_correction(m: &Bound<'_, PyModule>) -> PyResult<()> {
+pub fn drift_correction(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(solve, m)?)?;
     m.add_function(wrap_pyfunction!(stabilise, m)?)?;
     m.add_function(wrap_pyfunction!(rmse, m)?)?;

@@ -29,10 +29,9 @@ class TestDefaults:
         assert isinstance(p.drift_correction, DriftCorrectionParams)
         assert isinstance(p.first_analysis, FirstAnalysisParams)
         assert isinstance(p.tandemmp_analysis, TandemMPAnalysisParams)
-        assert isinstance(
-            p.first_analysis.experimental_psf_model,
-            ExperimentalPsfParams,
-        )
+        # Per-movie experimental PSF refit is opt-in — the bundled
+        # experimental PSF is already the default fitting model.
+        assert p.first_analysis.experimental_psf_model is False
         assert isinstance(
             p.tandemmp_analysis.particle_continuation,
             ContinuationParams,
@@ -46,7 +45,7 @@ class TestDefaults:
     def test_first_analysis_defaults(self) -> None:
         fa = FirstAnalysisParams()
         assert fa.navg == 5
-        assert fa.l_thum == 13
+        assert fa.l_thum == 21
 
 
 # Frozen (immutable)
@@ -114,7 +113,11 @@ class TestGetParameters:
         assert p.first_analysis.navg == 10
 
     def test_deeply_nested_override(self) -> None:
-        p = get_parameters(sampling_points=0.5)
+        # experimental_psf_model is off by default (a bool, not a nested
+        # dataclass) — enable it first so the override has somewhere to land.
+        p = get_parameters(
+            experimental_psf_model=ExperimentalPsfParams(), sampling_points=0.5
+        )
         assert p.first_analysis.experimental_psf_model.sampling_points == 0.5
 
     def test_multiple_overrides(self) -> None:

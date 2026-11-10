@@ -10,8 +10,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from tandemmp.core.conversions import Calibration, set_calibration
+from tandemmp.core.conversions import set_calibration
 from tandemmp.core.parallel import dispatch_kwargs
+from tandemmp.pipeline.calibration import CalibrationLike, resolve_calibration
+from tandemmp.pipeline.csv_events import find_matching_csv
 from tandemmp.pipeline.pca import Experiment
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
 
@@ -29,14 +31,15 @@ class BatchResult:
     output_filepath: Path | None
 
 
-def process_movie(
+def process_movie(  # noqa: PLR0913
     filepath: str | Path,
     *,
     parameters: Mapping[str, Any] | None = None,
     save_filepath: str | Path | None = None,
     max_events: int = 3500,
     pipeline_runner: PipelineRunner | None = None,
-    calibration: Calibration | None = None,
+    events_csv: str | Path | None = None,
+    calibration: CalibrationLike | None = None,
     save_movie: bool = False,
 ) -> BatchResult:
     """Run a full :class:`~tandemmp.pipeline.pca.Experiment` analysis on one movie.
@@ -49,21 +52,26 @@ def process_movie(
     ``_tandemmp`` appended before its (``.pkl``) suffix.
 
     *pipeline_runner* selects the event-finding backend (see
-    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); defaults
-    to open_iscat.
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); there is
+    no default — required for a full analysis.
 
     *calibration* overrides the process-wide contrast/mass conversion (see
-    :mod:`tandemmp.core.conversions`) for the duration of this call — set
-    explicitly (including resetting to the default when ``None``) so this is
-    safe to call repeatedly against a persistent, possibly-reused worker
-    process (see :func:`batch_process`).
+    :mod:`tandemmp.core.conversions`) for the duration of this call — a
+    :class:`~tandemmp.core.conversions.Calibration`, a path to a calibration
+    file (see :func:`~tandemmp.pipeline.calibration.load_calibration`), or
+    ``None``. Set explicitly (including resetting to the default when
+    ``None``) so this is safe to call repeatedly against a persistent,
+    possibly-reused worker process (see :func:`batch_process`).
     """
-    set_calibration(calibration)
+    set_calibration(resolve_calibration(calibration))
 
     filepath = Path(filepath)
     start = time.monotonic()
+    experiment_kwargs: dict[str, Any] = dict(parameters or {})
+    if events_csv is not None:
+        experiment_kwargs["events_csv"] = events_csv
     experiment = Experiment(
-        filepath, pipeline_runner=pipeline_runner, **(parameters or {})
+        filepath, pipeline_runner=pipeline_runner, **experiment_kwargs
     )
     n_events = len(experiment.events)
 
@@ -101,6 +109,35 @@ def process_movie(
     )
 
 
+def _resolve_batch_events_csv(
+    filepaths: Sequence[str | Path],
+    events_csv: Sequence[str | Path | None] | str | Path | None,
+) -> list[str | Path | None]:
+    """Resolve *events_csv* into one CSV path (or ``None``) per *filepaths* entry.
+
+    A sequence is taken as explicit ``(movie, csv)`` pairs (zipped 1:1); a
+    single path is taken as a folder to auto-pair movies and CSVs in by
+    filename (see :func:`~tandemmp.pipeline.csv_events.find_matching_csv`).
+    """
+    if events_csv is None:
+        return [None] * len(filepaths)
+    if isinstance(events_csv, (str, Path)):
+        folder = Path(events_csv)
+        resolved: list[str | Path | None] = []
+        for fp in filepaths:
+            match = find_matching_csv(fp, folder)
+            if match is None:
+                msg = f"no matching events CSV for {fp!r} in {folder!r}"
+                raise ValueError(msg)
+            resolved.append(match)
+        return resolved
+    resolved = list(events_csv)
+    if len(resolved) != len(filepaths):
+        msg = f"events_csv has {len(resolved)} entries, filepaths has {len(filepaths)}"
+        raise ValueError(msg)
+    return resolved
+
+
 def batch_process(
     filepaths: Sequence[str | Path],
     *,
@@ -109,7 +146,8 @@ def batch_process(
     parallel: bool = True,
     n_jobs: int | None = None,
     pipeline_runner: PipelineRunner | None = None,
-    calibration: Calibration | None = None,
+    events_csv: Sequence[str | Path | None] | str | Path | None = None,
+    calibration: CalibrationLike | None = None,
 ) -> list[BatchResult]:
     """Run :func:`process_movie` over *filepaths*, in parallel by default.
 
@@ -139,27 +177,34 @@ def batch_process(
     once.
 
     *pipeline_runner* selects the event-finding backend (see
-    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); defaults
-    to open_iscat. When *parallel* is ``True`` it must be picklable, since
-    each :func:`process_movie` call (and the *pipeline_runner* passed to it)
-    is sent across the :class:`multiprocessing.Pool` boundary —
-    :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline` is
-    stateless and satisfies this, as does the default ``None``.
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); there is
+    no default — required for a full analysis. When *parallel* is ``True``
+    it must be picklable, since each :func:`process_movie` call (and the
+    *pipeline_runner* passed to it) is sent across the
+    :class:`multiprocessing.Pool` boundary.
 
     *calibration* overrides the process-wide contrast/mass conversion (see
-    :mod:`tandemmp.core.conversions`) for every movie in this batch; it is
-    forwarded to each :func:`process_movie` call the same way as
-    *pipeline_runner*, so it is applied per-call and survives worker reuse.
+    :mod:`tandemmp.core.conversions`) for every movie in this batch — a
+    :class:`~tandemmp.core.conversions.Calibration` or a calibration
+    filepath; it is forwarded to each :func:`process_movie` call the same
+    way as *pipeline_runner*, so it is applied per-call and survives worker
+    reuse.
+
+    *events_csv* pairs each movie with a CSV: either an explicit sequence
+    matching *filepaths* 1:1, or a single folder to auto-pair movies/CSVs in
+    by filename (see :func:`~tandemmp.pipeline.csv_events.find_matching_csv`).
     """
+    resolved_csvs = _resolve_batch_events_csv(filepaths, events_csv)
     args_list: list[dict[str, Any]] = [
         {
             "filepath": fp,
             "parameters": parameters,
             "max_events": max_events,
             "pipeline_runner": pipeline_runner,
+            "events_csv": csv,
             "calibration": calibration,
         }
-        for fp in filepaths
+        for fp, csv in zip(filepaths, resolved_csvs, strict=True)
     ]
     resolved_n_jobs = n_jobs if n_jobs is not None else min(6, len(filepaths))
     results = dispatch_kwargs(
@@ -178,30 +223,23 @@ def batch_process(
 
 if __name__ == "__main__":
     from tandemmp.core.functions import choose_file
-    from tandemmp.pipeline.calibration import (
-        load_calibration,
-        run_calibration,
-        save_calibration,
-    )
-
+    
+    print("Choose calibration")
     calibration_file = choose_file(mp_file=False)
     if not isinstance(calibration_file, str):
-        raise TypeError("Select a single calibration movie or calibration file.")
+        raise TypeError("Select a single calibration file (.mc or .json).")
 
-    if calibration_file.endswith((".json", ".pkl", ".pickle")):
-        calibration_result = load_calibration(calibration_file)
-    else:
-        calibration_result = run_calibration(calibration_file)
-        calibration_path = Path(calibration_file).with_name(
-            f"{Path(calibration_file).stem}_calibration.json"
-        )
-        save_calibration(calibration_path, calibration_result)
-
+    print("Choose movie(s)")
     chosen_movies = choose_file()
     movie_filepaths = (
         [chosen_movies] if isinstance(chosen_movies, str) else list(chosen_movies)
     )
+    print("Choose movie event .csv file(s)")
+    chosen_csvs = choose_file(mp_file=False)
+    csv_filepaths = (
+        [chosen_csvs] if isinstance(chosen_csvs, str) else list(chosen_csvs)
+    )
 
     results = batch_process(
-        movie_filepaths, calibration=calibration_result.calibration, parallel=False
+        movie_filepaths, calibration=calibration_file, parallel=False, events_csv=csv_filepaths
     )
