@@ -56,7 +56,7 @@ class Experiment:
     :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); defaults
     to :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline` via
     :class:`~tandemmp.pipeline.loader.Loader`. *peak_model* sets the PSF
-    model (default Bessel ``PsfModel``).
+    model (default: bundled Rust spline).
     """
 
     def __init__(

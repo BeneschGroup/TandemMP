@@ -6,13 +6,11 @@ the backend-agnostic peak-fitting algorithm (:func:`fit_peak_generic`,
 :func:`fit_peak_exclusion_generic`) that operates on any conforming model.
 
 This module is intentionally self-contained (no imports from
-:mod:`tandemmp.fitting.psf`) so that Bessel-specific
-(:class:`~tandemmp.fitting.psf.PsfModel`) and non-Bessel (e.g.
-:class:`~tandemmp.fitting.gaussian_psf.GaussianPsfModel`) implementations can
-both depend on it without introducing an import cycle — :mod:`tandemmp.fitting.psf`
-imports :data:`PeakFitResult`, :func:`square_mesh`, :func:`dynamic_mesh`, and
-:func:`error_metric` from here (and re-exports them for backward
-compatibility) rather than the other way around.
+:mod:`tandemmp.fitting.psf`) so that every implementation
+(:class:`~tandemmp.fitting.psf.PsfModel`,
+:class:`~tandemmp.fitting.spline_psf.SplinePsfModel`,
+:class:`~tandemmp.fitting.gaussian_psf.GaussianPsfModel`) can depend on it
+without an import cycle.
 """
 
 from __future__ import annotations
@@ -98,23 +96,6 @@ def _check_param_names(params: dict[str, float], known: dict[str, float]) -> Non
         raise ValueError(msg)
 
 
-# Optional dependency loader
-
-
-@functools.lru_cache(maxsize=1)
-def _get_open_iscat_radialcenter() -> Any:  # noqa: ANN401
-    """Load and cache ``open_iscat.utils.radialcenter.radialcenter``.
-
-    Lives here (rather than in :mod:`tandemmp.fitting.psf`) because it is
-    :func:`_initial_position_guess`'s own dependency and nothing about it is
-    Bessel-PSF-specific — keeping the pair together avoids re-introducing an
-    import cycle with :mod:`tandemmp.fitting.psf`.
-    """
-    from open_iscat.utils.radialcenter import radialcenter
-
-    return radialcenter
-
-
 # PSF interface
 
 
@@ -124,10 +105,11 @@ class PsfInterface(Protocol):
     peak-fitting algorithm (:func:`fit_peak_generic`,
     :func:`fit_peak_exclusion_generic`).
 
-    Concrete implementations: :class:`tandemmp.fitting.psf.PsfModel` (Bessel
-    PSF, spline/Rust backends) and
+    Concrete implementations: :class:`tandemmp.fitting.spline_psf.SplinePsfModel`
+    (bundled Rust spline, default), :class:`tandemmp.fitting.psf.PsfModel`
+    (scipy spline, e.g. the per-movie experimental PSF) and
     :class:`tandemmp.fitting.gaussian_psf.GaussianPsfModel` (analytic 2-D
-    Gaussian, no spline/Rust backends).
+    Gaussian).
     """
 
     def __hash__(self) -> int:
@@ -201,30 +183,23 @@ class PsfInterface(Protocol):
 def _initial_position_guess(
     peak: npt.NDArray[np.floating],
 ) -> tuple[float, float]:
-    """Estimate initial *(dx, dy)* from a peak image.
+    """Estimate initial *(dx, dy)* as the ``|peak|``-weighted centre of mass.
 
-    Shared by every :class:`PsfInterface` implementation — the estimator
-    (``open_iscat``'s ``radialcenter``, with a weighted-centre-of-mass
-    fallback) has no dependency on any particular PSF shape.
+    Masked pixels (``np.ma`` input) get zero weight.
     """
-    if np.isnan(np.asarray(peak)).any():
+    masked = np.ma.asarray(peak, dtype=float)  # type: ignore[no-untyped-call]
+    weights = np.ma.filled(np.abs(masked), 0.0)  # type: ignore[no-untyped-call]
+    if np.isnan(weights).any():
         return 0.0, 0.0
-    try:
-        radialcenter = _get_open_iscat_radialcenter()
-        dx, dy, _ = radialcenter(peak, mode="rel")
-        return float(dx), float(dy)
-    except (ImportError, ModuleNotFoundError):
-        # Fallback: weighted centre-of-mass
-        weights = np.abs(np.asarray(peak, dtype=float))
-        total = np.sum(weights)
-        if total == 0:
-            return 0.0, 0.0
-        width = peak.shape[0]
-        x_coords, y_coords = square_mesh(width)
-        return (
-            float(np.sum(x_coords * weights) / total),
-            float(np.sum(y_coords * weights) / total),
-        )
+    total = np.sum(weights)
+    if total == 0:
+        return 0.0, 0.0
+    width = peak.shape[0]
+    x_coords, y_coords = square_mesh(width)
+    return (
+        float(np.sum(x_coords * weights) / total),
+        float(np.sum(y_coords * weights) / total),
+    )
 
 
 # Generic peak fitting
@@ -263,11 +238,8 @@ def fit_peak_generic(  # noqa: PLR0913
         gtol: Gradient tolerance (BFGS).
         allow_offset: Allow a constant-offset parameter in the fit. Forced to
             *True* regardless of this argument when the contrast guess is large.
-        **kwargs: Ignored. Accepted so every :class:`PsfInterface` implementation
-            that forwards its own ``fit_peak(**kwargs)`` here (e.g.
-            :class:`~tandemmp.fitting.gaussian_psf.GaussianPsfModel`) tolerates
-            backend-specific keywords like :class:`~tandemmp.fitting.psf.PsfModel`
-            ``.fit_peak``'s ``rust=`` the same way that method does.
+        **kwargs: Ignored, so implementations can forward their own
+            ``fit_peak(**kwargs)`` here and tolerate unused keywords (e.g. ``rust=``).
     """
     if peak.ndim != 2 or peak.shape[0] != peak.shape[1]:
         msg = "Peak image must be a square 2D array"
@@ -347,7 +319,7 @@ def fit_peak_exclusion_generic(
     """Fit any :class:`PsfInterface` model to *peak*, ignoring pixels where
     *exclusion* is True.
 
-    Two initial guesses (radial-centre and argmin) are tried; the one
+    Two initial guesses (centre of mass and argmin) are tried; the one
     with lower error is returned. Always reports ``backend="python"`` —
     see :func:`fit_peak_generic` for the override convention. ``**kwargs``
     is ignored, for the same reason documented on :func:`fit_peak_generic`.

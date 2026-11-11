@@ -457,6 +457,17 @@ class TestDetermineExperimentalPsfModel:
         assert result.psf_params["sigma"] == pytest.approx(4.0, rel=0.05)
         assert event.peak_model is result
 
+    def test_refits_default_rust_spline(self):
+        pytest.importorskip("tandemmp._rust.spline_psf")
+        from tandemmp.fitting.spline_psf import SplinePsfModel
+
+        start = SplinePsfModel()
+        event, (result, exp_model, refit) = self._run(start)
+        assert isinstance(result, SplinePsfModel)
+        assert result is refit
+        assert result is not start
+        assert event.peak_model is result
+
     def test_keeps_old_model_when_refit_is_worse(self, monkeypatch):
         import tandemmp.pipeline.loader as loader_mod
 

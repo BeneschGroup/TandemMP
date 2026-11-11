@@ -155,15 +155,13 @@ class TestErrorMetric:
 class TestPsfModel:
     def test_defaults(self):
         m = PsfModel()
-        assert m.a12 == pytest.approx(-5.1844, abs=0.01)
         assert not m.has_spline_model
         assert m.spline_model is None
-        assert m.use_rust is False
+        assert m.psf_params == {}
 
-    def test_custom_params(self):
-        m = PsfModel(a12=-1.0, w=2.0, s=3.0, use_rust=True)
-        assert m.psf_params == {"a12": -1.0, "w": 2.0, "s": 3.0}
-        assert m.use_rust is True
+    def test_no_spline_raises(self):
+        with pytest.raises(ValueError, match="no spline"):
+            PsfModel().get_psf_function()
 
     def test_set_spline_model(self, spline_model):
         assert spline_model.has_spline_model
@@ -193,22 +191,18 @@ class TestPsfModel:
     def test_hashable_by_identity(self):
         """PsfModel uses identity-based hashing so mutation via
         set_spline_model does not corrupt caches keyed on the model."""
-        m1 = PsfModel(a12=-1.0, w=2.0, s=3.0)
-        m2 = PsfModel(a12=-1.0, w=2.0, s=3.0)
+        m1 = PsfModel()
+        m2 = PsfModel()
         d = {m1: "a", m2: "b"}
         assert len(d) == 2
         assert hash(m1) == hash(m1)
 
-    def test_with_params_drops_spline_keeps_use_rust(self, spline_model):
-        spline_model.use_rust = True
-        new = spline_model.with_params(w=3.0)
-        assert not new.has_spline_model
-        assert new.use_rust
-        assert new.psf_params == {
-            "a12": spline_model.a12,
-            "w": 3.0,
-            "s": spline_model.s,
-        }
+    def test_with_params_keeps_spline(self, spline_model):
+        new = spline_model.with_params()
+        assert new is not spline_model
+        assert new.spline_model is spline_model.spline_model
+        with pytest.raises(ValueError, match="Unknown PSF parameter"):
+            spline_model.with_params(w=3.0)
 
 
 # PsfModel.fit_peak
@@ -274,27 +268,19 @@ class TestFitPeakExclusion:
 
 
 class TestGetPsfModel:
-    def test_default_kind_is_bessel(self):
-        model = get_psf_model()
-        assert isinstance(model, PsfModel)
+    def test_default_kind_is_spline(self):
+        from tandemmp.fitting.spline_psf import SplinePsfModel
 
-    def test_kind_bessel_returns_psf_model(self):
-        model = get_psf_model(kind="bessel")
-        assert isinstance(model, PsfModel)
+        assert isinstance(get_psf_model(), SplinePsfModel)
 
     def test_kind_gaussian_returns_gaussian_model(self):
         model = get_psf_model(kind="gaussian")
         assert isinstance(model, GaussianPsfModel)
 
-    def test_gaussian_model_is_cached(self):
-        first = get_psf_model(kind="gaussian")
-        second = get_psf_model(kind="gaussian")
-        assert first is second
-
-    def test_bessel_and_gaussian_are_distinct_instances(self):
-        bessel = get_psf_model(kind="bessel")
-        gaussian = get_psf_model(kind="gaussian")
-        assert bessel is not gaussian
+    def test_models_are_cached_and_distinct(self):
+        assert get_psf_model() is get_psf_model()
+        assert get_psf_model(kind="gaussian") is get_psf_model(kind="gaussian")
+        assert get_psf_model() is not get_psf_model(kind="gaussian")
 
 
 # psf_2d_cached

@@ -476,8 +476,7 @@ def determine_experimental_psf_model(
     model[np.isnan(model)] = 0
 
     spline_model = RectBivariateSpline(new_dim, new_dim, model)
-    exp_model = PsfModel(use_rust=parameters.use_rust)
-    exp_model.set_spline_model(spline_model)
+    exp_model = PsfModel(spline_model)
 
     if not model_params.attempt_parametric_refit:  # type: ignore[union-attr]
         return peak_model, exp_model, None
@@ -553,7 +552,8 @@ class Loader:
             :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`.
             A different backend can be dropped in here without any other
             changes to :class:`Loader`.
-        peak_model: PSF model to use. Defaults to the Bessel ``PsfModel``.
+        peak_model: PSF model to use. Defaults to the bundled Rust spline
+            (:class:`~tandemmp.fitting.spline_psf.SplinePsfModel`).
     """
 
     def __init__(  # noqa: PLR0913
@@ -572,9 +572,7 @@ class Loader:
     ) -> None:
         self.parameters = parameters if parameters is not None else FullAnalysisParams()
         self.peak_model: PsfInterface = (
-            peak_model
-            if peak_model is not None
-            else get_psf_model(use_rust=self.parameters.use_rust)
+            peak_model if peak_model is not None else get_psf_model()
         )
         self.pipeline_runner: PipelineRunner = (
             pipeline_runner if pipeline_runner is not None else OpenIscatPipeline()

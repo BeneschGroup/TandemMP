@@ -70,6 +70,8 @@ class TestWithParams:
     def test_returns_new_model_with_replaced_param(
         self, psf_model: PsfInterface
     ) -> None:
+        if not psf_model.psf_params:
+            pytest.skip("model has no shape parameters")
         name, value = next(iter(psf_model.psf_params.items()))
         new = psf_model.with_params(**{name: value + 1.0})
         assert new is not psf_model

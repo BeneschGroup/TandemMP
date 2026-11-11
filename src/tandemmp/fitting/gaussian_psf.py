@@ -2,10 +2,7 @@
 
 The simplest concrete :class:`~tandemmp.fitting.psf_interface.PsfInterface`
 implementation: an analytic, un-normalised 2-D Gaussian with a single
-``sigma`` shape parameter, no spline/Rust backends. Exists primarily as a
-worked example that the generic peak-fitting algorithm in
-:mod:`tandemmp.fitting.psf_interface` is not coupled to the Bessel PSF shape
-used by :class:`tandemmp.fitting.psf.PsfModel`.
+``sigma`` shape parameter. A worked example for writing your own PSF model.
 """
 
 from __future__ import annotations
@@ -63,14 +60,7 @@ class GaussianPsfModel:
     # PSF generation
 
     def get_psf_function(self) -> Callable[..., npt.NDArray[np.floating]]:
-        """Return a callable ``f(x, y, c=1.0) -> image``.
-
-        Uses the analytic 2-D Gaussian ``c * exp(-(x^2 + y^2) / (2 sigma^2))``
-        — the same un-normalised, pass-through-contrast convention used by
-        :meth:`tandemmp.fitting.psf.PsfModel.get_psf_function`'s
-        ``open_iscat``-backed fallback (contrast is applied as a direct
-        multiplicative factor, not negated).
-        """
+        """Return ``f(x, y, c=1.0) = c * exp(-(x^2 + y^2) / (2 sigma^2))``."""
         sigma = self.sigma
 
         def _psf(

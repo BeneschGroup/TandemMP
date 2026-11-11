@@ -245,8 +245,7 @@ class TestAbstractEvent:
         assert abs(event.c - (-0.04)) < 0.005
 
     def test_basic_fit_recovers_position(self, spline_model):
-        # Use a centred peak — the spline+radialcenter initial guess can
-        # produce NaN for off-centre peaks on synthetic Gaussian data.
+        # Centred peak, so the result doesn't depend on the initial guess.
         peak = _make_peak_image(spline_model, dx=0.0, dy=0.0, c=-0.04)
         event = AbstractEvent(peak, fit=True, peak_model=spline_model)
         assert abs(event.dx) < 0.5

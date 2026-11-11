@@ -12,7 +12,6 @@ from typing import Any
 
 from tandemmp.core.conversions import Calibration, set_calibration
 from tandemmp.core.parallel import dispatch_kwargs
-from tandemmp.fitting.gaussian_psf import GaussianPsfModel
 from tandemmp.fitting.psf_interface import PsfInterface
 from tandemmp.pipeline.pca import Experiment
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
@@ -61,7 +60,7 @@ def process_movie(
     safe to call repeatedly against a persistent, possibly-reused worker
     process (see :func:`batch_process`).
 
-    *peak_model* is the PSF model to use; defaults to the Bessel ``PsfModel``.
+    *peak_model* is the PSF model to use; defaults to the bundled Rust spline.
     """
     set_calibration(calibration)
 
@@ -198,8 +197,9 @@ if __name__ == "__main__":
     )
 
     # PSF model for this run: any PsfInterface implementation, e.g.
-    # ``GaussianPsfModel(sigma=1.5)`` or your own class. ``None`` = Bessel.
-    PEAK_MODEL: PsfInterface | None = GaussianPsfModel()
+    # ``GaussianPsfModel(sigma=1.5)`` or your own class. ``None`` = bundled
+    # Rust spline (``SplinePsfModel``).
+    PEAK_MODEL: PsfInterface | None = None
 
     calibration_file = choose_file(mp_file=False)
     if not isinstance(calibration_file, str):
