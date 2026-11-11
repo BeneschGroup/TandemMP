@@ -33,7 +33,7 @@ from tandemmp.core.classifications import (
     classify_mass_change,
 )
 from tandemmp.core.conversions import c_to_mass, mass_to_c
-from tandemmp.core.functions import get_overlap_probability, normalise
+from tandemmp.core.functions import get_overlap_probability, nan_normalise
 from tandemmp.core.parallel import dispatch_kwargs
 from tandemmp.core.parameters import FullAnalysisParams
 from tandemmp.events import (
@@ -1797,7 +1797,7 @@ class Investigator(GhostInvestigator):
 
         norm_func: Callable[[npt.NDArray[np.floating]], npt.NDArray[np.floating]]
         if len(results) > 1:
-            norm_func = normalise
+            norm_func = nan_normalise
         else:
             norm_func = lambda i: i  # noqa: E731
 
