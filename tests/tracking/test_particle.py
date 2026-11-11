@@ -421,6 +421,16 @@ class TestTrajectory:
         assert len(frames) == 1
         assert frames[0] == 50
 
+    def test_fallback_with_3d_fitted_binding_event(self, spline_model):
+        ev = _make_binding_ratiometric(spline_model, frame=50)
+        p = Particle(ev)
+        ev.x = np.array([1.0, 1.5, 2.0])  # type: ignore[assignment]
+        ev.y = np.array([3.0, 3.5, 4.0])  # type: ignore[assignment]
+        (xs, ys), frames = p.trajectory
+        np.testing.assert_array_equal(frames, [50])
+        np.testing.assert_array_equal(xs, [2.0])
+        np.testing.assert_array_equal(ys, [4.0])
+
     def test_uses_fixed_events_when_available(self, spline_model):
         p = Particle(_make_binding_ratiometric(spline_model, frame=10))
         e = _make_subtraction(spline_model, frame=20, subtracted_i=15)
