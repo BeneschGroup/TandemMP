@@ -12,6 +12,8 @@ from typing import Any
 
 from tandemmp.core.conversions import Calibration, set_calibration
 from tandemmp.core.parallel import dispatch_kwargs
+from tandemmp.fitting.gaussian_psf import GaussianPsfModel
+from tandemmp.fitting.psf_interface import PsfInterface
 from tandemmp.pipeline.pca import Experiment
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
 
@@ -38,6 +40,7 @@ def process_movie(
     pipeline_runner: PipelineRunner | None = None,
     calibration: Calibration | None = None,
     save_movie: bool = False,
+    peak_model: PsfInterface | None = None,
 ) -> BatchResult:
     """Run a full :class:`~tandemmp.pipeline.pca.Experiment` analysis on one movie.
 
@@ -57,13 +60,18 @@ def process_movie(
     explicitly (including resetting to the default when ``None``) so this is
     safe to call repeatedly against a persistent, possibly-reused worker
     process (see :func:`batch_process`).
+
+    *peak_model* is the PSF model to use; defaults to the Bessel ``PsfModel``.
     """
     set_calibration(calibration)
 
     filepath = Path(filepath)
     start = time.monotonic()
     experiment = Experiment(
-        filepath, pipeline_runner=pipeline_runner, **(parameters or {})
+        filepath,
+        pipeline_runner=pipeline_runner,
+        peak_model=peak_model,
+        **(parameters or {}),
     )
     n_events = len(experiment.events)
 
@@ -110,6 +118,7 @@ def batch_process(
     n_jobs: int | None = None,
     pipeline_runner: PipelineRunner | None = None,
     calibration: Calibration | None = None,
+    peak_model: PsfInterface | None = None,
 ) -> list[BatchResult]:
     """Run :func:`process_movie` over *filepaths*, in parallel by default.
 
@@ -150,6 +159,9 @@ def batch_process(
     :mod:`tandemmp.core.conversions`) for every movie in this batch; it is
     forwarded to each :func:`process_movie` call the same way as
     *pipeline_runner*, so it is applied per-call and survives worker reuse.
+
+    *peak_model* is forwarded to each :func:`process_movie` call; it must be
+    picklable (a top-level class) when *parallel* is ``True``.
     """
     args_list: list[dict[str, Any]] = [
         {
@@ -158,6 +170,7 @@ def batch_process(
             "max_events": max_events,
             "pipeline_runner": pipeline_runner,
             "calibration": calibration,
+            "peak_model": peak_model,
         }
         for fp in filepaths
     ]
@@ -184,6 +197,10 @@ if __name__ == "__main__":
         save_calibration,
     )
 
+    # PSF model for this run: any PsfInterface implementation, e.g.
+    # ``GaussianPsfModel(sigma=1.5)`` or your own class. ``None`` = Bessel.
+    PEAK_MODEL: PsfInterface | None = GaussianPsfModel()
+
     calibration_file = choose_file(mp_file=False)
     if not isinstance(calibration_file, str):
         raise TypeError("Select a single calibration movie or calibration file.")
@@ -203,5 +220,8 @@ if __name__ == "__main__":
     )
 
     results = batch_process(
-        movie_filepaths, calibration=calibration_result.calibration, parallel=False
+        movie_filepaths,
+        calibration=calibration_result.calibration,
+        parallel=False,
+        peak_model=PEAK_MODEL,
     )

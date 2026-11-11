@@ -71,13 +71,20 @@ class TestProcessMovie:
         assert len(fake_experiment.instances) == 1
         exp = fake_experiment.instances[0]
         assert exp.mp_filepath == movie
-        assert exp.kwargs == {"minimum_mass": 30, "pipeline_runner": None}
+        assert exp.kwargs == {
+            "minimum_mass": 30,
+            "pipeline_runner": None,
+            "peak_model": None,
+        }
 
     def test_no_parameters_passes_no_kwargs(
         self, fake_experiment: type[_FakeExperiment], tmp_path: Path
     ) -> None:
         batch.process_movie(tmp_path / "movie.mp")
-        assert fake_experiment.instances[0].kwargs == {"pipeline_runner": None}
+        assert fake_experiment.instances[0].kwargs == {
+            "pipeline_runner": None,
+            "peak_model": None,
+        }
 
     def test_passes_pipeline_runner_through_to_experiment(
         self, fake_experiment: type[_FakeExperiment], tmp_path: Path
@@ -85,6 +92,13 @@ class TestProcessMovie:
         sentinel_runner = object()
         batch.process_movie(tmp_path / "movie.mp", pipeline_runner=sentinel_runner)
         assert fake_experiment.instances[0].kwargs["pipeline_runner"] is sentinel_runner
+
+    def test_passes_peak_model_through_to_experiment(
+        self, fake_experiment: type[_FakeExperiment], tmp_path: Path
+    ) -> None:
+        sentinel_model = object()
+        batch.process_movie(tmp_path / "movie.mp", peak_model=sentinel_model)  # type: ignore[arg-type]
+        assert fake_experiment.instances[0].kwargs["peak_model"] is sentinel_model
 
     def test_no_calibration_uses_default(
         self, fake_experiment: type[_FakeExperiment], tmp_path: Path
@@ -194,7 +208,8 @@ class TestBatchProcess:
         )
 
         assert all(
-            exp.kwargs == {"minimum_mass": 25, "pipeline_runner": None}
+            exp.kwargs
+            == {"minimum_mass": 25, "pipeline_runner": None, "peak_model": None}
             for exp in fake_experiment.instances
         )
         assert all(r.skipped is False for r in results)

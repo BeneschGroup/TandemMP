@@ -204,6 +204,7 @@ def correct_movements(
     l_thum: int,
     navg: int,
     nanopore: bool = False,
+    peak_model: PsfInterface | None = None,
 ) -> Events:
     """Merge events that fire on the same particle across adjacent frames.
 
@@ -247,7 +248,9 @@ def correct_movements(
             image = get_peak(
                 ratiometric, group_x, group_y, group_i, l_thum, nanopore=nanopore
             )
-            new_event = RatiometricEvent(peak=image, fit=True, navg=navg)
+            new_event = RatiometricEvent(
+                peak=image, fit=True, navg=navg, peak_model=peak_model
+            )
 
             for other_index in sel.nonzero()[0]:
                 merged_events.append(int(other_index))
@@ -550,6 +553,7 @@ class Loader:
             :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`.
             A different backend can be dropped in here without any other
             changes to :class:`Loader`.
+        peak_model: PSF model to use. Defaults to the Bessel ``PsfModel``.
     """
 
     def __init__(  # noqa: PLR0913
@@ -564,9 +568,14 @@ class Loader:
         frame_end: int | None = None,
         seed: int | np.random.Generator | np.random.RandomState | None = None,
         pipeline_runner: PipelineRunner | None = None,
+        peak_model: PsfInterface | None = None,
     ) -> None:
         self.parameters = parameters if parameters is not None else FullAnalysisParams()
-        self.peak_model: PsfInterface = get_psf_model(use_rust=self.parameters.use_rust)
+        self.peak_model: PsfInterface = (
+            peak_model
+            if peak_model is not None
+            else get_psf_model(use_rust=self.parameters.use_rust)
+        )
         self.pipeline_runner: PipelineRunner = (
             pipeline_runner if pipeline_runner is not None else OpenIscatPipeline()
         )
@@ -652,6 +661,7 @@ class Loader:
             l_thum=self.parameters.first_analysis.l_thum,
             navg=navg,
             nanopore=self.parameters.nanopore,
+            peak_model=self.peak_model,
         )
 
         n_before = len(events)

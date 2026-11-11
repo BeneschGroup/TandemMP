@@ -22,6 +22,7 @@ from tandemmp.core.conversions import get_calibration
 from tandemmp.core.parameters import FullAnalysisParams, get_parameters
 from tandemmp.core.types import FloatArray, UInt16Array
 from tandemmp.events import RatiometricEvent
+from tandemmp.fitting.psf_interface import PsfInterface
 from tandemmp.io.save import (
     ResultsFile,
     build_event_records,
@@ -54,7 +55,8 @@ class Experiment:
     *pipeline_runner* selects the event-finding backend (see
     :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); defaults
     to :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline` via
-    :class:`~tandemmp.pipeline.loader.Loader`.
+    :class:`~tandemmp.pipeline.loader.Loader`. *peak_model* sets the PSF
+    model (default Bessel ``PsfModel``).
     """
 
     def __init__(
@@ -64,6 +66,7 @@ class Experiment:
         just_movie: bool = False,
         special_bypass: UInt16Array | None = None,
         pipeline_runner: PipelineRunner | None = None,
+        peak_model: PsfInterface | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> None:
         self.parameters: FullAnalysisParams = get_parameters(**kwargs)
@@ -73,6 +76,7 @@ class Experiment:
             just_movie=just_movie,
             special_bypass=special_bypass,
             pipeline_runner=pipeline_runner,
+            peak_model=peak_model,
         )
         self.folder = self.loader.folder
         self.movie = self.loader.movie

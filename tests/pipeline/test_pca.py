@@ -181,12 +181,14 @@ class _FakeLoader:
         just_movie: bool,
         special_bypass: Any,
         pipeline_runner: Any = None,
+        peak_model: Any = None,
     ) -> None:
         self.mp_filepath = mp_filepath
         self.parameters = parameters
         self.just_movie = just_movie
         self.special_bypass = special_bypass
         self.pipeline_runner = pipeline_runner
+        self.injected_peak_model = peak_model
         self.folder = Path("fake_folder")
         self.movie = np.zeros((3, 4, 4))
         self.params: Info | None = (
@@ -269,6 +271,16 @@ class TestInit:
         assert isinstance(exp.particles, ParticleManager)
         assert exp._index == 0
         assert exp.interesting == []
+
+    def test_forwards_peak_model_to_loader(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setattr(pca, "Loader", _FakeLoader)
+        sentinel = object()
+        exp = pca.Experiment(
+            tmp_path / "movie.mp", just_movie=True, peak_model=sentinel
+        )
+        assert exp.loader.injected_peak_model is sentinel
 
 
 # events / clean_events

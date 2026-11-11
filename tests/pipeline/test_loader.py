@@ -598,6 +598,18 @@ class TestLoader:
         )
         assert isinstance(loader.pipeline_runner, OpenIscatPipeline)
 
+    def test_uses_injected_peak_model(self):
+        movie = np.zeros((5, 8, 8), dtype=np.uint16)
+        model = GaussianPsfModel(sigma=2.0)
+        loader = Loader(
+            "fake/path.mp",
+            special_bypass=movie,
+            parameters=get_parameters(drift_correction=False),
+            just_movie=True,
+            peak_model=model,
+        )
+        assert loader.peak_model is model
+
     def test_full_analysis_uses_injected_pipeline_runner(self):
         movie = np.zeros((5, 8, 8), dtype=np.uint16)
         fake_runner = _FakePipelineRunner(movie.astype(float))
