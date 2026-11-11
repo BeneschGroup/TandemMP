@@ -40,7 +40,13 @@ def get_ghost_model() -> Any:  # noqa: ANN401
     cached for the lifetime of the process.
     """
     import importlib.resources
+    import os
 
+    # Hide TF/tf_keras start-up and deprecation noise unless already configured.
+    os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+    tf_logger = logging.getLogger("tensorflow")
+    if tf_logger.level == logging.NOTSET:
+        tf_logger.setLevel(logging.ERROR)
     import tensorflow as tf
 
     ref = importlib.resources.files("tandemmp.resources").joinpath("GP_model.h5")
