@@ -56,6 +56,8 @@ class ExperimentalPsfParams:
     spatial_expansion: int = 2
     #: Display a report of the model after it has been constructed.
     report: bool = True
+    #: Refit the PSF model's shape parameters to the experimental spline.
+    attempt_parametric_refit: bool = True
 
     def __post_init__(self) -> None:
         _validate_percentile(self.selection_percentile, "selection_percentile")

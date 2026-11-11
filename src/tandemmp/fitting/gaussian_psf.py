@@ -17,6 +17,7 @@ import numpy.typing as npt
 
 from tandemmp.fitting.psf_interface import (
     PeakFitResult,
+    _check_param_names,
     fit_peak_exclusion_generic,
     fit_peak_generic,
     square_mesh,
@@ -48,6 +49,16 @@ class GaussianPsfModel:
     def psf_params(self) -> dict[str, float]:
         """Return the Gaussian's shape parameter."""
         return {"sigma": self.sigma}
+
+    @property
+    def param_bounds(self) -> dict[str, tuple[float | None, float | None]]:
+        """No bounds."""
+        return {}
+
+    def with_params(self, **params: float) -> GaussianPsfModel:
+        """Return a copy with *params* replaced."""
+        _check_param_names(params, self.psf_params)
+        return GaussianPsfModel(**{**self.psf_params, **params})
 
     # PSF generation
 

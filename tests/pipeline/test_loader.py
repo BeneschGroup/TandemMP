@@ -22,6 +22,7 @@ from tandemmp.core.parameters import (
     get_parameters,
 )
 from tandemmp.events import PeakImage, RatiometricEvent
+from tandemmp.fitting.gaussian_psf import GaussianPsfModel
 from tandemmp.fitting.psf import PsfModel
 from tandemmp.pipeline.loader import (
     Loader,
@@ -400,7 +401,7 @@ class TestDetermineExperimentalPsfModel:
     def test_no_events_returns_none_model(self):
         params = get_parameters()
         peak_model = PsfModel()
-        result_model, exp_model = determine_experimental_psf_model(
+        result_model, exp_model, refit_model = determine_experimental_psf_model(
             movie=np.zeros((3, 10, 10)),
             ratiometric=np.zeros((3, 10, 10)),
             events=[],
@@ -409,11 +410,12 @@ class TestDetermineExperimentalPsfModel:
         )
         assert result_model is peak_model
         assert exp_model is None
+        assert refit_model is None
 
     def test_disabled_experimental_psf_model_returns_none(self):
         params = get_parameters(experimental_psf_model=False)
         peak_model = PsfModel()
-        result_model, exp_model = determine_experimental_psf_model(
+        result_model, exp_model, refit_model = determine_experimental_psf_model(
             movie=np.zeros((3, 10, 10)),
             ratiometric=np.zeros((3, 10, 10)),
             events=[SimpleNamespace()],
@@ -422,53 +424,60 @@ class TestDetermineExperimentalPsfModel:
         )
         assert result_model is peak_model
         assert exp_model is None
+        assert refit_model is None
 
-    def test_use_rust_true_builds_exp_model_but_skips_refit(self):
-        narrow_model = PsfModel()
-        narrow_model.set_spline_model(_make_gaussian_spline(sigma=1.0, grid_size=41))
+    @staticmethod
+    def _run(peak_model, use_rust=False, **exp_overrides):
         l_thum = 9
         event, ratiometric = _build_mismatched_event(
-            l_thum, (20, 20), 2, true_sigma=4.0, narrow_model=narrow_model
+            l_thum, (20, 20), 2, true_sigma=4.0, narrow_model=peak_model
         )
         params = get_parameters(
             l_thum=l_thum,
-            experimental_psf_model=_small_exp_psf_params(),
-            use_rust=True,
+            experimental_psf_model=_small_exp_psf_params(**exp_overrides),
+            use_rust=use_rust,
         )
-        result_model, exp_model = determine_experimental_psf_model(
+        out = determine_experimental_psf_model(
             movie=ratiometric,
             ratiometric=ratiometric,
             events=[event],
             parameters=params,
-            peak_model=narrow_model,
+            peak_model=peak_model,
         )
-        assert result_model is narrow_model
-        assert exp_model is not None
-        assert exp_model.has_spline_model
+        return event, out
 
-    def test_improves_and_adopts_spline_model_when_mismatched(self):
-        narrow_model = PsfModel()
-        narrow_model.set_spline_model(_make_gaussian_spline(sigma=1.0, grid_size=41))
-        l_thum = 9
-        event, ratiometric = _build_mismatched_event(
-            l_thum, (20, 20), 2, true_sigma=4.0, narrow_model=narrow_model
-        )
-        params = get_parameters(
-            l_thum=l_thum,
-            experimental_psf_model=_small_exp_psf_params(),
-            use_rust=False,
-        )
-        result_model, exp_model = determine_experimental_psf_model(
-            movie=ratiometric,
-            ratiometric=ratiometric,
-            events=[event],
-            parameters=params,
-            peak_model=narrow_model,
-        )
+    @pytest.mark.parametrize("use_rust", [False, True])
+    def test_adopts_refit_model_when_mismatched(self, use_rust):
+        narrow = GaussianPsfModel(sigma=1.0)
+        event, (result, exp_model, refit) = self._run(narrow, use_rust=use_rust)
         assert exp_model is not None
         assert exp_model.has_spline_model
-        assert result_model is not narrow_model
-        assert event.peak_model is result_model
+        assert result is refit
+        assert result is not exp_model
+        assert result.psf_params["sigma"] == pytest.approx(4.0, rel=0.05)
+        assert event.peak_model is result
+
+    def test_keeps_old_model_when_refit_is_worse(self, monkeypatch):
+        import tandemmp.pipeline.loader as loader_mod
+
+        bad = GaussianPsfModel(sigma=0.3)
+        monkeypatch.setattr(
+            loader_mod, "refit_psf_parameters", lambda *a, **k: (bad, None, 0.0)
+        )
+        narrow = GaussianPsfModel(sigma=1.0)
+        event, (result, exp_model, refit) = self._run(narrow)
+        assert result is narrow
+        assert refit is bad
+        assert event.peak_model is narrow
+
+    def test_refit_disabled(self):
+        narrow = GaussianPsfModel(sigma=1.0)
+        _, (result, exp_model, refit) = self._run(
+            narrow, attempt_parametric_refit=False
+        )
+        assert result is narrow
+        assert exp_model is not None
+        assert refit is None
 
 
 # Loader

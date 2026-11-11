@@ -9,8 +9,8 @@ peak, and then merges/filters/marks-overlaps on those events ready for
 :class:`tandemmp.pipeline.investigator.Investigator`.
 
 Parallel work uses :func:`tandemmp.core.parallel.dispatch_kwargs`.
-``determine_experimental_psf_model`` supports the spline-based experimental
-PSF model; parametric a12/w/s refitting is not implemented.
+``determine_experimental_psf_model`` refits the PSF model's shape
+parameters to an experimental spline PSF.
 """
 
 from __future__ import annotations
@@ -35,6 +35,7 @@ from tandemmp.drift.corrector import DriftVector, get_corrected_movie
 from tandemmp.events import PeakImage, RatiometricEvent
 from tandemmp.fitting.psf import PsfModel, get_psf_model
 from tandemmp.fitting.psf_interface import PsfInterface
+from tandemmp.fitting.psf_refit import refit_psf_parameters
 from tandemmp.io.movie import final_polish_fix
 from tandemmp.pipeline.open_iscat_pipeline import Info, OpenIscatPipeline, load_mp_file
 from tandemmp.pipeline.parallel import make_ratiometric_event_from_peak, median_frame
@@ -388,27 +389,22 @@ def determine_experimental_psf_model(
     ratiometric: FloatArray,
     events: Events,
     parameters: FullAnalysisParams,
-    peak_model: PsfModel,
+    peak_model: PsfInterface,
     *,
     nanopore: bool = False,
-) -> tuple[PsfModel, PsfModel | None]:
-    """Derive an experimental PSF spline from well-fit events and adopt it if it helps.
+) -> tuple[PsfInterface, PsfModel | None, PsfInterface | None]:
+    """Build a spline PSF from high-SNR events and refit *peak_model* to it.
 
-    Returns ``(new_peak_model, exp_model)``. ``exp_model`` is the raw spline
-    :class:`PsfModel` built from the data (or ``None`` if there are no events
-    to build one from); ``new_peak_model`` is *peak_model* unchanged unless a
-    switch to the spline model measurably reduces total fit error.
-
-    Only the spline-based model is adopted here — see the module docstring
-    for why the parametric a12/w/s refit branch (the default when
-    ``parameters.use_rust`` is ``True``) is not yet ported.
+    Returns ``(peak_model, exp_model, refit_model)``. The refit model is
+    adopted (and all events refitted) only if it lowers the summed fit error
+    of the selected events.
     """
     if not events:
-        return peak_model, None
+        return peak_model, None, None
 
     model_params = parameters.first_analysis.experimental_psf_model
     if not model_params:
-        return peak_model, None
+        return peak_model, None, None
 
     hw = parameters.first_analysis.l_thum // 2
     n = model_params.spatial_expansion  # type: ignore[union-attr]
@@ -480,44 +476,45 @@ def determine_experimental_psf_model(
     exp_model = PsfModel(use_rust=parameters.use_rust)
     exp_model.set_spline_model(spline_model)
 
-    if parameters.use_rust:
-        logger.info(
-            "use_rust is set; skipping spline-based PSF model refit "
-            "(parametric a12/w/s refit onto PsfInterface not yet ported)"
-        )
-        return peak_model, exp_model
+    if not model_params.attempt_parametric_refit:  # type: ignore[union-attr]
+        return peak_model, exp_model, None
 
-    new_error = float(
-        np.sum(
-            [
-                exp_model.fit_peak(ev.peak.image, method="BFGS").error
-                for ev in np.array(events)[good]
-            ]
+    refit_model, _, _ = refit_psf_parameters(peak_model, model, new_dim)
+    logger.info("Refit PSF parameters: %s", refit_model.psf_params)
+
+    good_events = np.array(events)[good]
+    try:
+        new_error = float(
+            np.sum(
+                [
+                    refit_model.fit_peak(ev.peak.image, method="BFGS").error
+                    for ev in good_events
+                ]
+            )
         )
-    )
+    except Exception:  # noqa: BLE001 - old code fell back to a sentinel
+        logger.exception("Refit PSF model failed to fit events")
+        new_error = 100000.0
     old_error = float(np.sum(errs[good]))
     improvement = old_error - new_error
 
     logger.info(
-        "Experimental PSF model: combined error before=%.6g after=%.6g "
-        "improvement=%.2f%%",
+        "Refit PSF model: error before=%.6g after=%.6g improvement=%.2f%%",
         old_error,
         new_error,
         (improvement / old_error) * 100 if old_error else float("nan"),
     )
 
     if improvement <= 0:
-        logger.info("Experimental PSF model did not improve fit; keeping default")
-        return peak_model, exp_model
+        logger.info("Refit PSF model did not improve fit; keeping default")
+        return peak_model, exp_model, refit_model
 
-    logger.info("Applying experimental PSF model")
-    new_model = PsfModel(use_rust=parameters.use_rust)
-    new_model.set_spline_model(spline_model)
+    logger.info("Applying refit PSF model")
     for ev in tqdm.tqdm(events, desc="Refitting events..."):
-        ev.peak_model = new_model
+        ev.peak_model = refit_model
         ev.basic_fit()
 
-    return new_model, exp_model
+    return refit_model, exp_model, refit_model
 
 
 # Loader
@@ -569,7 +566,7 @@ class Loader:
         pipeline_runner: PipelineRunner | None = None,
     ) -> None:
         self.parameters = parameters if parameters is not None else FullAnalysisParams()
-        self.peak_model = get_psf_model(use_rust=self.parameters.use_rust)
+        self.peak_model: PsfInterface = get_psf_model(use_rust=self.parameters.use_rust)
         self.pipeline_runner: PipelineRunner = (
             pipeline_runner if pipeline_runner is not None else OpenIscatPipeline()
         )
@@ -577,6 +574,7 @@ class Loader:
         self.folder = self.mp_filepath.parent
         self.vector: DriftVector | None = None
         self.exp_model: PsfModel | None = None
+        self.refit_model: PsfInterface | None = None
         self.movie: npt.NDArray[Any]
 
         if special_bypass is not None:
@@ -679,7 +677,11 @@ class Loader:
 
         if special_bypass is None and not skip_exp_model:
             logger.info("Optimising PSF model...")
-            self.peak_model, self.exp_model = determine_experimental_psf_model(
+            (
+                self.peak_model,
+                self.exp_model,
+                self.refit_model,
+            ) = determine_experimental_psf_model(
                 self.movie,
                 self.ratiometric,
                 self.events,

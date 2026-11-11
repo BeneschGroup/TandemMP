@@ -31,6 +31,7 @@ from tandemmp.fitting.minimize import minimize_model
 from tandemmp.fitting.psf_interface import (
     PeakFitResult,
     PsfInterface,
+    _check_param_names,
     _initial_position_guess,
     dynamic_mesh,
     error_metric,
@@ -122,6 +123,16 @@ class PsfModel:
     def psf_params(self) -> dict[str, float]:
         """Return the three analytical PSF parameters."""
         return {"a12": self.a12, "w": self.w, "s": self.s}
+
+    @property
+    def param_bounds(self) -> dict[str, tuple[float | None, float | None]]:
+        """Unbounded, as in the pre-refactor refit."""
+        return {}
+
+    def with_params(self, **params: float) -> PsfModel:
+        """Return an analytic copy with *params* replaced (spline not copied)."""
+        _check_param_names(params, self.psf_params)
+        return PsfModel(**{**self.psf_params, **params}, use_rust=self.use_rust)
 
     def set_spline_model(self, spline: RectBivariateSpline) -> None:
         """Attach an empirical spline-based PSF model."""

@@ -90,6 +90,14 @@ def error_metric(
     return float(np.sum((fit - peak) ** 2))
 
 
+def _check_param_names(params: dict[str, float], known: dict[str, float]) -> None:
+    """Raise if *params* has names not in *known*."""
+    unknown = set(params) - set(known)
+    if unknown:
+        msg = f"Unknown PSF parameter(s): {sorted(unknown)}"
+        raise ValueError(msg)
+
+
 # Optional dependency loader
 
 
@@ -134,6 +142,15 @@ class PsfInterface(Protocol):
     @property
     def psf_params(self) -> dict[str, float]:
         """Return the model's shape parameters as a plain dict."""
+        ...
+
+    @property
+    def param_bounds(self) -> dict[str, tuple[float | None, float | None]]:
+        """Optional ``(lo, hi)`` bounds per shape parameter; missing = unbounded."""
+        ...
+
+    def with_params(self, **params: float) -> PsfInterface:
+        """Return a new model with the given shape parameters replaced."""
         ...
 
     def get_psf_function(self) -> Callable[..., npt.NDArray[np.floating]]:

@@ -199,6 +199,17 @@ class TestPsfModel:
         assert len(d) == 2
         assert hash(m1) == hash(m1)
 
+    def test_with_params_drops_spline_keeps_use_rust(self, spline_model):
+        spline_model.use_rust = True
+        new = spline_model.with_params(w=3.0)
+        assert not new.has_spline_model
+        assert new.use_rust
+        assert new.psf_params == {
+            "a12": spline_model.a12,
+            "w": 3.0,
+            "s": spline_model.s,
+        }
+
 
 # PsfModel.fit_peak
 

@@ -38,6 +38,9 @@ class TestDefaults:
             ContinuationParams,
         )
 
+    def test_experimental_psf_refit_enabled_by_default(self) -> None:
+        assert ExperimentalPsfParams().attempt_parametric_refit is True
+
     def test_drift_correction_defaults(self) -> None:
         dc = DriftCorrectionParams()
         assert dc.frame_gap == 25

@@ -63,6 +63,29 @@ class TestPsfParams:
         assert all(isinstance(v, float) for v in params.values())
 
 
+# with_params / param_bounds
+
+
+class TestWithParams:
+    def test_returns_new_model_with_replaced_param(
+        self, psf_model: PsfInterface
+    ) -> None:
+        name, value = next(iter(psf_model.psf_params.items()))
+        new = psf_model.with_params(**{name: value + 1.0})
+        assert new is not psf_model
+        assert isinstance(new, PsfInterface)
+        assert new.psf_params[name] == pytest.approx(value + 1.0)
+        others = {k: v for k, v in psf_model.psf_params.items() if k != name}
+        assert {k: new.psf_params[k] for k in others} == others
+
+    def test_unknown_param_raises(self, psf_model: PsfInterface) -> None:
+        with pytest.raises(ValueError, match="Unknown PSF parameter"):
+            psf_model.with_params(not_a_param=1.0)
+
+    def test_param_bounds_is_dict(self, psf_model: PsfInterface) -> None:
+        assert isinstance(psf_model.param_bounds, dict)
+
+
 # get_psf_function
 
 
