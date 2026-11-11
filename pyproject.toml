@@ -30,7 +30,10 @@ package-dir = {"" = "src"}
 [tool.setuptools.package-data]
 tandemmp = ["resources/*.h5"]
 # Include the type stub and any extension built separately with maturin.
-"tandemmp._rust" = ["drift_correction*.so", "drift_correction*.pyd", "drift_correction.pyi"]
+"tandemmp._rust" = [
+    "drift_correction*.so", "drift_correction*.pyd", "drift_correction.pyi",
+    "spline_psf*.so", "spline_psf*.pyd", "spline_psf.pyi",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -4,6 +4,8 @@ __pycache__/
 # Ship the prebuilt Rust extension so installs don't need a Rust toolchain.
 !src/tandemmp/_rust/drift_correction*.pyd
 !src/tandemmp/_rust/drift_correction*.so
+!src/tandemmp/_rust/spline_psf*.pyd
+!src/tandemmp/_rust/spline_psf*.so
 *.egg-info/
 *.egg
 dist/

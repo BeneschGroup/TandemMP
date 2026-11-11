@@ -1,0 +1,25 @@
+# Build this extension separately from the main setuptools package:
+#   maturin develop --release  # install into src/tandemmp/_rust/
+#   maturin build --release    # build a wheel
+
+[build-system]
+requires = ["maturin>=1.10,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "tandemmp-spline-psf"
+version = "0.1.0"
+description = "Bundled experimental spline PSF for tandemmp (tandemmp._rust.spline_psf), built with PyO3/maturin."
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+
+[tool.maturin]
+module-name = "tandemmp._rust.spline_psf"
+# Use the main package's src/ directory.
+python-source = "../../.."
+features = ["pyo3/extension-module"]
+# Keep Rust sources, data and build output out of the Python wheel.
+exclude = ["tandemmp/_rust/spline_psf/**"]

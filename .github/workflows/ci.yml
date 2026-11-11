@@ -11,8 +11,12 @@ on:
 
 jobs:
   rust:
-    name: Rust CI (drift_correction)
+    name: Rust CI (${{ matrix.crate }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        crate: [drift_correction, spline_psf]
 
     steps:
       - uses: actions/checkout@v4
@@ -25,18 +29,18 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src/tandemmp/_rust/drift_correction
+          workspaces: src/tandemmp/_rust/${{ matrix.crate }}
 
       - name: cargo fmt --check
-        working-directory: src/tandemmp/_rust/drift_correction
+        working-directory: src/tandemmp/_rust/${{ matrix.crate }}
         run: cargo fmt --check
 
       - name: cargo clippy
-        working-directory: src/tandemmp/_rust/drift_correction
+        working-directory: src/tandemmp/_rust/${{ matrix.crate }}
         run: cargo clippy --all-targets -- -D warnings
 
       - name: cargo test
-        working-directory: src/tandemmp/_rust/drift_correction
+        working-directory: src/tandemmp/_rust/${{ matrix.crate }}
         run: cargo test --release
 
   test:
@@ -65,29 +69,33 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src/tandemmp/_rust/drift_correction
+          workspaces: |
+            src/tandemmp/_rust/drift_correction
+            src/tandemmp/_rust/spline_psf
           # Keep build caches separate for each Python version.
           key: ${{ matrix.python-version }}
 
-      - name: Build & install tandemmp._rust.drift_correction (maturin)
-        working-directory: src/tandemmp/_rust/drift_correction
+      - name: Build & install Rust extensions (maturin)
+        working-directory: src/tandemmp/_rust
         run: |
           pip install maturin
-          # Build a wheel because setup-python does not create a virtualenv.
-          maturin build --release --out dist
-          pip install dist/*.whl
-          # Pytest imports from src/, so copy the extension into that package.
-          python -c "
-          import glob, zipfile, shutil
-          wheel = glob.glob('dist/*.whl')[0]
+          for crate in drift_correction spline_psf; do
+            # Build a wheel because setup-python does not create a virtualenv.
+            (cd "$crate" && maturin build --release --out dist && pip install dist/*.whl)
+            # Pytest imports from src/, so copy the extension into that package.
+            python -c "
+          import glob, sys, zipfile, shutil
+          crate = sys.argv[1]
+          wheel = glob.glob(f'{crate}/dist/*.whl')[0]
           with zipfile.ZipFile(wheel) as zf:
               for name in zf.namelist():
-                  if name.startswith('tandemmp/_rust/drift_correction.') and not name.endswith('/'):
-                      dest = '../' + name.rsplit('/', 1)[-1]
+                  if name.startswith(f'tandemmp/_rust/{crate}.') and not name.endswith('/'):
+                      dest = name.rsplit('/', 1)[-1]
                       with zf.open(name) as src, open(dest, 'wb') as out:
                           shutil.copyfileobj(src, out)
-                      print(f'Copied {name} -> src/tandemmp/_rust/{name.rsplit(\"/\", 1)[-1]}')
-          "
+                      print(f'Copied {name} -> src/tandemmp/_rust/{dest}')
+          " "$crate"
+          done
 
       - name: Run tests
         run: pytest
