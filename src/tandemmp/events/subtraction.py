@@ -205,7 +205,7 @@ class SubtractionSeries(Connectable):
     )
 
     def __init__(self, events: list[SubtractionEvent]) -> None:
-        if not events:
+        if len(events) == 0:
             msg = "SubtractionSeries requires at least one event"
             raise ValueError(msg)
 

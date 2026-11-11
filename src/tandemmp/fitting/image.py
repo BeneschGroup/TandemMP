@@ -124,10 +124,11 @@ def correct_ghost(
     *series* can be a list of :class:`PeakImage` objects, or a list of
     objects with a ``.peak`` attribute (e.g. events).
     """
-    if isinstance(series, list) and series and hasattr(series[0], "peak"):
-        peaks: list[PeakImage] = [item.peak for item in series]  # type: ignore[union-attr]
+    items = list(series)
+    if items and hasattr(items[0], "peak"):
+        peaks: list[PeakImage] = [item.peak for item in items]
     else:
-        peaks = series
+        peaks = items
 
     images = [p.image for p in peaks]
     l_thum = images[0].shape[0]
