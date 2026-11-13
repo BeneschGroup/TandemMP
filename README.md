@@ -10,7 +10,7 @@ pip install -e /path_to_repo/.
 
 ## Requirements
 `open_iscat`, `numpy`, `scipy`, `matplotlib`, `scikit-learn`, `tqdm`, `opencv-python`, `tensorflow`.
-`open_iscat` is a private codebase.
+`open_iscat` is an internal dependency; we are working on an alternative.
 
 ## Entry points
 
