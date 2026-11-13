@@ -8,6 +8,21 @@ Pair matching and particle tracking analysis for Mass Photometry data.
 pip install -e /path_to_repo/.
 ```
 
+TandemMP includes two native extensions written in Rust (`drift_correction`
+and `spline_psf`, under `src/tandemmp/_rust/`). They are compiled when you
+install from source, so you need a [Rust toolchain](https://rustup.rs). Release
+wheels (Windows, Linux, macOS; Python >= 3.10) ship them prebuilt, so
+`pip install <wheel>` needs no compiler. Compiled binaries are never committed
+to git; CI builds them (see `.github/workflows/wheels.yml`).
+
+Release builds embed the builder's absolute source paths. If you build a wheel
+on your own machine to share, strip them and check the result:
+
+```bash
+RUSTFLAGS="--remap-path-prefix=$HOME=/home/user" pip wheel . --no-deps -w dist
+python scripts/check_wheel_paths.py dist/*.whl
+```
+
 ## Requirements
 `open_iscat`, `numpy`, `scipy`, `matplotlib`, `scikit-learn`, `tqdm`, `opencv-python`, `tensorflow`.
 `open_iscat` is an internal dependency; we are working on an alternative.

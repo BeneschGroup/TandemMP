@@ -10,6 +10,21 @@ on:
 
 jobs:
   claude-review:
+    # Gate: only run for the allowlisted maintainers (alexross-o, joshualiambishop).
+    # For PRs, both the person triggering the event and the PR author must be on the
+    # list, and the PR author must be OWNER / MEMBER / COLLABORATOR. Manual
+    # workflow_dispatch runs only need the triggering user on the list. PRs from anyone
+    # else are skipped; a maintainer can still ask for a review with '@claude' on the PR
+    # (see claude.yml). To add a maintainer, append their login to both lists below.
+    if: |
+      contains(fromJSON('["alexross-o","joshualiambishop"]'), github.event.sender.login) &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          contains(fromJSON('["alexross-o","joshualiambishop"]'), github.event.pull_request.user.login)
+          && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+        )
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: read

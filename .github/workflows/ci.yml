@@ -60,9 +60,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install project + test dependencies
-        run: pip install ".[dev]"
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -75,27 +72,10 @@ jobs:
           # Keep build caches separate for each Python version.
           key: ${{ matrix.python-version }}
 
-      - name: Build & install Rust extensions (maturin)
-        working-directory: src/tandemmp/_rust
-        run: |
-          pip install maturin
-          for crate in drift_correction spline_psf; do
-            # Build a wheel because setup-python does not create a virtualenv.
-            (cd "$crate" && maturin build --release --out dist && pip install dist/*.whl)
-            # Pytest imports from src/, so copy the extension into that package.
-            python -c "
-          import glob, sys, zipfile, shutil
-          crate = sys.argv[1]
-          wheel = glob.glob(f'{crate}/dist/*.whl')[0]
-          with zipfile.ZipFile(wheel) as zf:
-              for name in zf.namelist():
-                  if name.startswith(f'tandemmp/_rust/{crate}.') and not name.endswith('/'):
-                      dest = name.rsplit('/', 1)[-1]
-                      with zf.open(name) as src, open(dest, 'wb') as out:
-                          shutil.copyfileobj(src, out)
-                      print(f'Copied {name} -> src/tandemmp/_rust/{dest}')
-          " "$crate"
-          done
+      # setuptools-rust compiles both Rust extensions in place (src/tandemmp/_rust/),
+      # so no separate maturin step is needed.
+      - name: Install project + test dependencies
+        run: pip install -e ".[dev]"
 
       - name: Run tests
         run: pytest

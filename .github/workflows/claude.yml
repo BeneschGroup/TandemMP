@@ -12,11 +12,28 @@ on:
 
 jobs:
   claude:
+    # Gate: only run for the allowlisted maintainers (alexross-o, joshualiambishop),
+    # AND only when the content that triggered the run was written by someone with
+    # OWNER / MEMBER / COLLABORATOR association. The first check restricts *who* can
+    # trigger it; the association check stops a run being driven by text an outsider
+    # wrote (e.g. a maintainer assigning an outsider's issue that contains '@claude').
+    # To add a maintainer, append their login to the list below.
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      contains(fromJSON('["alexross-o","joshualiambishop"]'), github.event.sender.login) &&
+      (
+        (github.event_name == 'issue_comment'
+          && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+          && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment'
+          && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+          && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review'
+          && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)
+          && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues'
+          && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
+          && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: read

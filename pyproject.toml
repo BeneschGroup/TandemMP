@@ -1,5 +1,8 @@
 [build-system]
-requires = ["setuptools>=68", "wheel>=0.41"]
+# setuptools-rust compiles the two PyO3 crates under src/tandemmp/_rust/ as part
+# of the normal build, so one wheel per platform carries the pure-Python package
+# *and* both native extensions. Building from source needs a Rust toolchain.
+requires = ["setuptools>=68", "wheel>=0.41", "setuptools-rust>=1.10"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -29,14 +32,58 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
 tandemmp = ["resources/*.h5"]
-# Include the type stub and any extension built separately with maturin.
-"tandemmp._rust" = [
-    "drift_correction*.so", "drift_correction*.pyd", "drift_correction.pyi",
-    "spline_psf*.so", "spline_psf*.pyd", "spline_psf.pyi",
-]
+# Type stubs only: the compiled extensions are added by setuptools-rust below
+# and are no longer committed to git.
+"tandemmp._rust" = ["*.pyi"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# ---------------------------------------------------------------------------
+# Native extensions (Rust / PyO3), built by setuptools-rust
+# ---------------------------------------------------------------------------
+# Both crates use PyO3's stable ABI (abi3-py310), so a single wheel per
+# OS/architecture works for every Python >= 3.10.
+
+[[tool.setuptools-rust.ext-modules]]
+target = "tandemmp._rust.drift_correction"
+path = "src/tandemmp/_rust/drift_correction/Cargo.toml"
+binding = "PyO3"
+py-limited-api = true
+# Always optimise: the numerical hot paths are unusably slow as debug builds.
+debug = false
+
+[[tool.setuptools-rust.ext-modules]]
+target = "tandemmp._rust.spline_psf"
+path = "src/tandemmp/_rust/spline_psf/Cargo.toml"
+binding = "PyO3"
+py-limited-api = true
+# Always optimise: the numerical hot paths are unusably slow as debug builds.
+debug = false
+
+[tool.distutils.bdist_wheel]
+# Tag wheels cp310-abi3-<platform> instead of one wheel per Python version.
+py-limited-api = "cp310"
+
+# ---------------------------------------------------------------------------
+# cibuildwheel (used by .github/workflows/wheels.yml)
+# ---------------------------------------------------------------------------
+
+[tool.cibuildwheel]
+# abi3: build once against the oldest supported Python.
+build = "cp310-*"
+# TensorFlow publishes no musllinux wheels, so skip them.
+skip = "*-musllinux_*"
+# Don't pull TensorFlow & co. into the throwaway test env: the smoke test only
+# needs the two extension modules to import and the tandemmp package to load.
+test-requires = "numpy"
+test-environment = { PIP_NO_DEPS = "1" }
+test-command = "python -c \"import tandemmp._rust.drift_correction, tandemmp._rust.spline_psf\""
+
+[tool.cibuildwheel.linux]
+# manylinux images ship no Rust; install it for the build.
+before-all = "curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal"
+environment = { PATH = "$HOME/.cargo/bin:$PATH" }
 
 # ---------------------------------------------------------------------------
 # pytest
