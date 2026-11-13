@@ -2,8 +2,13 @@ name: Wheels
 
 # Builds one wheel per OS/architecture (Windows x86_64, Linux x86_64 and
 # aarch64). macOS is not supported. The Rust extensions use PyO3's stable ABI,
-# so each wheel works for every Python >= 3.10. Tag a release with `vX.Y.Z` to also attach the wheels
-# to a GitHub Release.
+# so each wheel works for every Python >= 3.10.
+#
+# Tag a release with `vX.Y.Z` (matching the package version) to also attach the
+# wheels and sdist to a GitHub Release.
+#
+# Third-party actions are pinned to commit SHAs because the `release` job holds a
+# write token. The trailing comment is the tag each SHA was resolved from.
 
 on:
   push:
@@ -11,8 +16,11 @@ on:
   pull_request:
     paths:
       - "pyproject.toml"
+      - "MANIFEST.in"
       - "src/tandemmp/_rust/**"
       - "scripts/check_wheel_paths.py"
+      - "scripts/check_release_version.py"
+      - "scripts/smoke_test_extensions.py"
       - ".github/workflows/wheels.yml"
   workflow_dispatch:
 
@@ -32,10 +40,10 @@ jobs:
           - windows-latest     # Windows x86_64
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v4.3.5
+        uses: pypa/cibuildwheel@f9b966cfadf4109556cadc5bb39ddb72d0ce664e # v4.3.5
         with:
           output-dir: wheelhouse
 
@@ -43,31 +51,67 @@ jobs:
         run: python scripts/check_wheel_paths.py wheelhouse/*.whl
         shell: bash
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: wheels-${{ matrix.os }}
           path: wheelhouse/*.whl
           if-no-files-found: error
 
+  # abi3 promises one wheel works on every newer Python, but cibuildwheel only
+  # tests it on the build interpreter (3.10). Install the built wheels on newer
+  # Pythons and call into both extensions.
+  smoke:
+    name: Smoke test (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    needs: build_wheels
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest]
+        python-version: ["3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse
+
+      - name: Install the wheel (numpy only; no TensorFlow needed)
+        run: |
+          pip install numpy
+          pip install --no-deps wheelhouse/*.whl
+        shell: bash
+
+      # Run from outside the checkout so the installed wheel is what gets imported.
+      - name: Call both extensions
+        run: cd "$RUNNER_TEMP" && python "$GITHUB_WORKSPACE/scripts/smoke_test_extensions.py"
+        shell: bash
+
   sdist:
     name: Source distribution
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
 
       - name: Build sdist
         run: |
-          pip install build
+          pip install "build==1.2.2"
           python -m build --sdist --outdir dist
 
       - name: Check sdist for personal paths
         run: python scripts/check_wheel_paths.py dist/*.tar.gz
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: sdist
           path: dist/*.tar.gz
@@ -75,25 +119,48 @@ jobs:
 
   release:
     name: Attach to GitHub Release
-    # Only for pushed `v*` tags, and only when pushed by an allowlisted maintainer.
+    # Only for pushed `v*` tags. `triggering_actor` is whoever started this run (it
+    # differs from `actor` on a re-run), and it must be an allowlisted maintainer.
+    # For stronger protection, also add a tag protection rule / ruleset for `v*`
+    # in the repository settings: anyone with write access can otherwise push one.
     if: |
       startsWith(github.ref, 'refs/tags/v') &&
-      contains(fromJSON('["alexross-o","joshualiambishop"]'), github.actor)
-    needs: [build_wheels, sdist]
+      contains(fromJSON('["alexross-o","joshualiambishop"]'), github.triggering_actor)
+    needs: [build_wheels, smoke, sdist]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: dist
           merge-multiple: true
 
+      # v1.2.3 must not be able to publish a 0.8.0.dev0 wheel. Also decides whether
+      # this is a pre-release (.devN / aN / bN / rcN).
+      - name: Check the tag matches the built version
+        id: version
+        run: |
+          pip install "packaging==24.2"
+          python scripts/check_release_version.py "$GITHUB_REF_NAME" dist/*.whl dist/*.tar.gz
+
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
         run: |
+          args=()
+          if [ "$PRERELEASE" = "true" ]; then args+=(--prerelease); fi
           gh release create "$GITHUB_REF_NAME" dist/* \
             --repo "$GITHUB_REPOSITORY" \
             --title "$GITHUB_REF_NAME" \
-            --generate-notes
+            --generate-notes \
+            "${args[@]}"
