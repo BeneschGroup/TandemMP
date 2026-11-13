@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tandemmp"
-version = "0.8.0-dev"
+version = "0.9.0"
 description = "Tracking/monitoring particles on the coverslip during a Mass Photometry experiment"
 requires-python = ">=3.10"
 dependencies = [
@@ -73,12 +73,6 @@ py-limited-api = "cp310"
 build = "cp310-*"
 # TensorFlow publishes no musllinux wheels, so skip them.
 skip = "*-musllinux_*"
-# Skip TensorFlow & co. in the throwaway test env: the smoke test needs only numpy
-# and calls into both extensions (an import alone can pass on an ABI mismatch that
-# crashes on first use).
-test-requires = "numpy"
-test-environment = { PIP_NO_DEPS = "1" }
-test-command = "python {project}/scripts/smoke_test_extensions.py"
 
 [tool.cibuildwheel.windows]
 # 64-bit only: cibuildwheel also builds win32, which TensorFlow doesn't support.

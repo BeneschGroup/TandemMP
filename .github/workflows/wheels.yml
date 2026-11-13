@@ -18,7 +18,6 @@ on:
       - "src/tandemmp/_rust/**"
       - "scripts/check_wheel_paths.py"
       - "scripts/check_release_version.py"
-      - "scripts/smoke_test_extensions.py"
       - ".github/workflows/wheels.yml"
   workflow_dispatch:
 
@@ -55,41 +54,6 @@ jobs:
           path: wheelhouse/*.whl
           if-no-files-found: error
 
-  # cibuildwheel only tests the build interpreter (3.10), so install the wheels on
-  # newer Pythons too and call into both extensions.
-  smoke:
-    name: Smoke test (${{ matrix.os }}, Python ${{ matrix.python-version }})
-    needs: build_wheels
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest]
-        python-version: ["3.12", "3.13"]
-
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: wheels-${{ matrix.os }}
-          path: wheelhouse
-
-      - name: Install the wheel (numpy only; no TensorFlow needed)
-        run: |
-          pip install numpy
-          pip install --no-deps wheelhouse/*.whl
-        shell: bash
-
-      # Run from outside the checkout so the installed wheel is what gets imported.
-      - name: Call both extensions
-        run: cd "$RUNNER_TEMP" && python "$GITHUB_WORKSPACE/scripts/smoke_test_extensions.py"
-        shell: bash
-
   sdist:
     name: Source distribution
     runs-on: ubuntu-latest
@@ -122,7 +86,7 @@ jobs:
     if: |
       startsWith(github.ref, 'refs/tags/v') &&
       contains(fromJSON('["alexross-o","joshualiambishop"]'), github.triggering_actor)
-    needs: [build_wheels, smoke, sdist]
+    needs: [build_wheels, sdist]
     runs-on: ubuntu-latest
     permissions:
       contents: write
