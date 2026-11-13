@@ -80,11 +80,7 @@ def gaussian_2d(
 def choose_file(
     mp_file: bool = True,
 ) -> str | tuple[str, ...]:
-    """Open a tkinter file dialog and return the selected path(s).
-
-    Returns a single path string if one file is selected, or a tuple of
-    paths if multiple files are selected.
-    """
+    """Open a tkinter file dialog; return one path, or a tuple if several are chosen."""
     root = tk.Tk()
 
     if mp_file:

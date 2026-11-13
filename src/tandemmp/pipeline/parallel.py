@@ -1,8 +1,8 @@
 """Picklable helpers for parallel event processing.
 
-All public functions are module-level (not closures or methods) so they can
-be serialised by :mod:`multiprocessing`.  They wrap event construction and
-fitting operations that would otherwise be defined inline in the pipeline.
+Public functions are module-level (not closures or methods) so
+:mod:`multiprocessing` can serialise them; they wrap event construction and
+fitting that would otherwise be inline in the pipeline.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ def fit_peak(
     peak_model: PsfInterface,
     **kwargs: Any,  # noqa: ANN401
 ) -> Any:  # noqa: ANN401
-    """Call ``peak_model.fit_peak(peak, **kwargs)`` — picklable wrapper."""
+    """Call ``peak_model.fit_peak(peak, **kwargs)`` (picklable wrapper)."""
     return peak_model.fit_peak(peak, **kwargs)
 
 
@@ -59,7 +59,7 @@ def median_frame(
     frame: npt.NDArray[np.floating],
     size: int,
 ) -> npt.NDArray[np.floating]:
-    """Apply a median filter to *frame* — picklable wrapper."""
+    """Apply a median filter to *frame* (picklable wrapper)."""
     return median_filter(frame, size)  # type: ignore[no-any-return]
 
 
@@ -84,8 +84,7 @@ def make_subtraction_event(
 ) -> SubtractionEvent:
     """Build a :class:`SubtractionEvent` from raw image data.
 
-    Constructs a :class:`PeakImage` internally and passes it to
-    :class:`SubtractionEvent`.  Best used to create a
+    Wraps the data in a :class:`PeakImage` first; best used to create a
     :class:`SubtractionSeries`.
     """
     peak = PeakImage(image, ProcessingMethod.subtraction, midpoint, cutout, index)
@@ -118,25 +117,25 @@ def parallel_find_classification(  # noqa: PLR0912, PLR0913
     """Find the best classification for a ratiometric event.
 
     Applies 3-D fitting across candidate classifications (binding, movement,
-    unbinding) and selects the one with the lowest combined error and penalty.
+    unbinding) and selects the one with the lowest fit error (penalties are added
+    afterwards).
 
     Args:
         peak: Ratiometric peak image.
-        series: A :class:`SubtractionSeries` providing positional information.
-        minimum_mass: Mass threshold below which a signal is treated as zero.
-        peak_model: PSF model for generating synthetic impressions.
-        ghost_unbind_series: If *True*, only consider unbinding classification.
-        particle_c: Known contrast of the tracked particle. ``None`` for new
-            particles.
+        series: A :class:`SubtractionSeries` giving positional information.
+        minimum_mass: Mass below which a signal is treated as zero.
+        peak_model: PSF model for synthetic impressions.
+        ghost_unbind_series: If *True*, consider only the unbinding classification.
+        particle_c: Known contrast of the tracked particle; ``None`` for new particles.
         lock: Lock the before-contrast to ``particle_c`` during fitting.
-        method: Optimisation method for :func:`scipy.optimize.minimize`.
+        method: :func:`scipy.optimize.minimize` method.
         allow_native: Also evaluate native (non-minimised) fits.
-        partial_fit: Use bad-frame mask from the series.
+        partial_fit: Use the series' bad-frame mask.
         particle_desc: Identifier for logging/output.
 
     Returns:
-        Dict with keys ``series``, ``classification``, ``fit``, ``fit_type``,
-        ``c``, ``particle``, ``penalty``, and ``fit_image``.
+        Dict with keys ``series``, ``classification``, ``fit``, ``fit_type``, ``c``,
+        ``particle``, ``penalty`` and ``fit_image``.
     """
     # Determine candidate classifications
     if particle_c is None:
@@ -231,8 +230,7 @@ def parallel_find_classification(  # noqa: PLR0912, PLR0913
         penalties.append(penalty)
 
     # TODO: confirm whether penalties should affect classification selection.
-    # Selection uses raw fit error because penalties are added afterwards,
-    # contrary to the docstring's "lowest combined error and penalty".
+    # Selection uses raw fit error; penalties are added afterwards.
     lowest_error_index = int(np.argmin([r.fun for r in results]))
 
     for r, p in zip(results, penalties, strict=True):

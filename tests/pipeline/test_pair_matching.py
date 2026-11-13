@@ -1,7 +1,7 @@
-"""Tests for tandemmp.pipeline.pair_matching — target API.
+"""Tests for tandemmp.pipeline.pair_matching.
 
-``run_pair_matching`` is exercised with ``Loader``/``match_pairs_sigma``
-monkeypatched, avoiding a real ``.mp``/``open_iscat`` dependency.
+``run_pair_matching`` runs with ``Loader``/``match_pairs_sigma`` monkeypatched,
+avoiding a real ``.mp``/``open_iscat`` dependency.
 """
 
 from __future__ import annotations

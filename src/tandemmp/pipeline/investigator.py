@@ -1,14 +1,12 @@
-"""Per-event decision-making for the TandemMP pipeline.
+"""Per-event decisions for the TandemMP pipeline.
 
-Given a detected event, an :class:`Investigator` decides whether it represents
-a new particle, an update to a tracked one, a ghost, or noise. The class
-hierarchy is:
+An :class:`Investigator` decides whether a detected event is a new particle, an
+update to a tracked one, a ghost, or noise. Hierarchy:
 
-- :class:`BaseInvestigator` — series generation, classification, and correction
-  primitives shared by all decision paths.
-- :class:`GhostInvestigator` — ghost fitting, matching, and double-checking.
-- :class:`Investigator` — top-level ``find_and_fit`` / ``multi_continuation``
-  driver that combines the above.
+- :class:`BaseInvestigator`: series generation, classification and correction.
+- :class:`GhostInvestigator`: ghost fitting, matching and double-checking.
+- :class:`Investigator`: the top-level ``find_and_fit`` / ``multi_continuation``
+  driver.
 
 Parallel work uses :func:`tandemmp.core.parallel.dispatch_kwargs`.
 """
@@ -80,11 +78,10 @@ class TrailingOffException(Exception):  # noqa: N818 — name preserved for API 
 
 @dataclass
 class MultiFitResult:
-    """Container for a candidate 3-D ratiometric fit of a single event.
+    """Candidate 3-D ratiometric fit of one event.
 
-    ``particle`` can be a real :class:`Particle`, a descriptive string
-    (e.g. ``"No correction"``, ``"Initial ghost attempt"``), or ``None``
-    when the fit has no associated particle context.
+    ``particle`` is a :class:`Particle`, a label string (e.g. ``"No correction"``),
+    or ``None`` when there is no particle context.
     """
 
     series: SubtractionSeries
@@ -199,12 +196,10 @@ class Decision(NamedTuple):
 def _distance_array(
     results: list[MultiFitResult],
 ) -> npt.NDArray[np.floating]:
-    """Extract distances from *results*, replacing ``None`` with a value
-    strictly larger than the maximum known distance.
+    """Distances from *results*, with unbound (``None``) candidates ranked last.
 
-    :meth:`Particle.distance_to` returns ``None`` for unbound candidates.
-    These receive ``max_known * 2`` (or ``1.0`` when all are unbound), so
-    they rank behind candidates with a known positive distance.
+    :meth:`Particle.distance_to` returns ``None`` for unbound candidates; they get
+    ``2 * max_known`` (``1.0`` if all are unbound), behind any known distance.
     """
     raw = [r.distance for r in results]
     known = [d for d in raw if d is not None]
@@ -257,8 +252,7 @@ class BaseInvestigator:
             psf_radius=self.parameters.tandemmp_analysis.psf_radius,
         )
 
-        # Movie inversion — nanopore movies bypass the destructive-interference
-        # marker, which is unreliable on that pipeline.
+        # Nanopore movies bypass the destructive-interference marker (unreliable there).
         if (
             not movie_params.scatter_interference_destructive
             or self.parameters.nanopore
@@ -279,8 +273,9 @@ class BaseInvestigator:
         custom_frames: list[int] | None = None,
         fit: bool = True,
     ) -> SubtractionSeries:
-        """Build a :class:`SubtractionSeries` of frames responsible for
-        *event*, sharing *event*'s cutout.
+        """Build a :class:`SubtractionSeries` of the frames responsible for *event*.
+
+        The series shares *event*'s cutout.
         """
         if start_frame < 0:
             start_frame = 0
@@ -359,9 +354,7 @@ class BaseInvestigator:
         particle_desc: Particle | str | None = None,
         as_fit: bool = False,
     ) -> MultiFitResult | tuple[Any, list[Classification]]:
-        """Run 3-D ratiometric fits for candidate classifications and return
-        the best one.
-        """
+        """Run 3-D ratiometric fits for candidate classifications; return the best."""
         if particle_c is None:
             classifications = [EvClassification.Binding]
         elif np.isnan(particle_c):
@@ -533,10 +526,8 @@ class BaseInvestigator:
                 distance=distance,
             )
 
-        # All classifications were dissociation-vetoed. The old code fell off
-        # the end of the loop here and returned None implicitly, which every
-        # caller then dereferenced as a MultiFitResult anyway; raise
-        # explicitly instead so the failure is self-describing.
+        # Every classification was dissociation-vetoed; raise rather than return None,
+        # which callers would dereference as a MultiFitResult.
         raise RuntimeError("find_classification produced no viable candidate")
 
     # Series correction
@@ -631,7 +622,7 @@ class GhostInvestigator(BaseInvestigator):
         best_error: float | None = None,
         preferred_background: int | None = None,
     ) -> Decision:
-        """Fit *event* as a ghost — either as new, or matched to existing."""
+        """Fit *event* as a ghost, either new or matched to an existing one."""
         initial_attempt: bool | GhostParticle = self.attempt_initial_ghost(
             event=event,
             close_particles=close_particles,
@@ -1308,9 +1299,8 @@ class GhostInvestigator(BaseInvestigator):
     ) -> bool | GhostParticle:
         """Confirm or reject a match to *original_ghost_particle*.
 
-        TODO: add success-path coverage for correction, pseudo-event creation,
-        classification, and particle removal. ``TestDoubleCheckGhostGuards``
-        covers only guard and exception paths.
+        TODO: cover the success path (correction, pseudo-event creation, classification,
+        particle removal); ``TestDoubleCheckGhostGuards`` covers only guards and errors.
         """
         pc = self.parameters.tandemmp_analysis.particle_continuation
         init_event: RatiometricEvent
@@ -1551,7 +1541,7 @@ class GhostInvestigator(BaseInvestigator):
 
 @dataclass
 class _CandidateContext:
-    """Bundles per-candidate scoring state during ``find_and_fit``."""
+    """Per-candidate scoring state during ``find_and_fit``."""
 
     expected_cs: list[float | None] = field(default_factory=list)
     series_args: list[dict[str, Any]] = field(default_factory=list)
@@ -1559,7 +1549,7 @@ class _CandidateContext:
 
 
 class Investigator(GhostInvestigator):
-    """Top-level analysis class combining classification + ghost handling."""
+    """Top-level analysis: classification plus ghost handling."""
 
     def __init__(  # noqa: PLR0913
         self,
@@ -1589,10 +1579,10 @@ class Investigator(GhostInvestigator):
         self,
         event: RatiometricEvent,
     ) -> Decision:
-        """Decide what to do with *event* — the main pipeline entry point.
+        """Decide what to do with *event*: the main pipeline entry point.
 
-        TODO: test matching against ``close_particles`` and ``all_particles``.
-        ``TestFindAndFitNoParticles`` covers the no-particles-found branch.
+        TODO: test matching against ``close_particles`` and ``all_particles``
+        (``TestFindAndFitNoParticles`` covers only the no-particles branch).
         """
         self.doubles_checked = set()
 
@@ -2044,9 +2034,9 @@ class Investigator(GhostInvestigator):
         self,
         latest_event: RatiometricEvent,
     ) -> None:
-        """Continue subtraction-event tracking for particles already on slide.
+        """Continue subtraction-event tracking for particles already on the slide.
 
-        TODO: add direct test coverage for subtraction-event continuation.
+        TODO: add direct test coverage.
         """
         logger.info("Beginning multi continuation")
 

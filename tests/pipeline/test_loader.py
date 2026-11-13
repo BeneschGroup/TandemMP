@@ -1,8 +1,7 @@
 """Tests for tandemmp.pipeline.loader.
 
-Pure helper functions are exercised directly with synthetic data; ``load_mp_file``
-and pipeline-backed event finding are tested via bypasses/fakes to avoid a real
-``open_iscat`` dependency.
+Pure helpers run directly on synthetic data; ``load_mp_file`` and pipeline-backed
+event finding use bypasses/fakes to avoid a real ``open_iscat`` dependency.
 """
 
 from __future__ import annotations
@@ -102,8 +101,8 @@ def _build_mismatched_event(
 ) -> tuple[RatiometricEvent, np.ndarray]:
     """Build an event whose data (wide gaussian) mismatches *narrow_model*.
 
-    Used to force a large ``basic_fit_error`` so
-    ``determine_experimental_psf_model`` has room to improve on it.
+    Forces a large ``basic_fit_error`` so ``determine_experimental_psf_model`` has
+    room to improve.
     """
     coords = np.arange(size)
     yy, xx = np.meshgrid(coords, coords, indexing="ij")

@@ -1,14 +1,13 @@
-"""Stub classes for unpickling pre-refactor TandemMP result files.
+"""Stub classes for unpickling legacy TandemMP result files.
 
-These types mirror the field layout of the legacy containers that lived in
-``tandemmp.io.save``. They carry no behaviour —
-:func:`tandemmp.io.save._LegacyUnpickler` remaps the legacy class paths onto
-these stubs so :mod:`pickle` can reconstruct old payloads, and
-:func:`tandemmp.io.save._migrate` converts the result into a current
+They mirror the field layout of the old containers from ``tandemmp.io.save`` and
+carry no behaviour: :func:`tandemmp.io.save._LegacyUnpickler` remaps legacy class
+paths onto them so :mod:`pickle` can rebuild old payloads, and
+:func:`tandemmp.io.save._migrate` converts the result to a current
 :class:`~tandemmp.io.save.ResultsFile`.
 
-The stubs are deliberately permissive — they do not validate fields, do not
-re-run interpolation, and accept arbitrary state via ``__dict__``.
+The stubs are deliberately permissive: no field validation, no
+re-interpolation, and arbitrary state via ``__dict__``.
 """
 
 from __future__ import annotations
@@ -74,10 +73,10 @@ class LegacyParticleData(NamedTuple):
 class LegacyPartData:
     """Stub for the old ``PartData`` frozen dataclass.
 
-    The original ran linear interpolation in ``__post_init__``; we deliberately
-    skip that. Pickle bypasses ``__init__`` entirely and restores state through
-    ``__dict__``, so this empty class is sufficient for the unpickler to land
-    the saved attributes (``particle``, ``contrasts``, ``frames``, …).
+    The original interpolated in ``__post_init__``; the stub deliberately does not.
+    Pickle bypasses ``__init__`` and restores state through ``__dict__``, so an empty
+    class lets the unpickler land the saved attributes (``particle``, ``contrasts``,
+    ``frames``, …).
     """
 
 
@@ -94,14 +93,11 @@ class LegacySaveFile(NamedTuple):
 
 # Legacy `tandemmp.parameters` NamedTuples
 #
-# Pre-refactor `SaveFile.parameters` payloads reference these classes by
-# their old module path (`tandemmp.parameters`, deleted wholesale in Layer
-# 0g's move to `core.parameters` — no forwarding shim was left behind). The
-# field layout below is copied verbatim from the pre-refactor module so
-# positional unpickling lands correctly; these stubs are not migrated onto
-# the current `core.parameters` dataclasses; `ResultsFile.parameters` is
-# typed `Any`, so passing the legacy value through unmigrated is sufficient
-# to unblock loading.
+# Old `SaveFile.parameters` payloads reference these classes by their old module path
+# (`tandemmp.parameters`, deleted with no forwarding shim when it moved to
+# `core.parameters`). Field layouts are copied verbatim so positional unpickling lands
+# correctly. They are not migrated to the current dataclasses: `ResultsFile.parameters`
+# is typed `Any`, so passing the legacy value through unmigrated is enough to load.
 
 
 class LegacyContinuationParams(NamedTuple):
@@ -184,8 +180,7 @@ class LegacyFullAnalysisParams(NamedTuple):
 class LegacyVector:
     """Stub for the old ``tandemmp.DriftCorrector.Vector`` plain class.
 
-    The original stored ``x``/``y``/``_index`` via ``__init__``. Pickle
-    bypasses ``__init__`` and restores state through ``__dict__``, so this
-    empty class is sufficient to land the saved attributes — same pattern as
-    :class:`LegacyPartData`.
+    The original set ``x``/``y``/``_index`` in ``__init__``; as with
+    :class:`LegacyPartData`, pickle restores them through ``__dict__``, so an empty
+    class suffices.
     """

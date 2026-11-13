@@ -26,9 +26,8 @@ from tandemmp.drift.corrector import (
     stabilise,
 )
 
-# `differential_evolution` is stochastic in real usage (see `_solve`'s `seed`
-# parameter), so every call in this file pins it to a fixed seed to keep the
-# test suite deterministic.
+# `differential_evolution` is stochastic by default (see `_solve`'s `seed`), so every
+# call here pins a fixed seed to keep the suite deterministic.
 _DE_SEED = 42
 
 # Helpers
@@ -234,9 +233,11 @@ class TestSolve:
         assert y == pytest.approx(0.0, abs=0.3)
 
     def test_seed_gives_reproducible_result(self):
-        """Same seed -> identical result; this is what keeps the rest of the
-        suite deterministic despite `differential_evolution` being stochastic
-        by default (`seed=None`, the production default)."""
+        """Same seed gives an identical result.
+
+        This keeps the suite deterministic despite `differential_evolution` being
+        stochastic by default (`seed=None`, the production default).
+        """
         rng = np.random.default_rng(7)
         base = rng.normal(0, 1, size=(31, 31))
         shifted = shift(base, (-1.0, 2.0))
@@ -454,11 +455,10 @@ class TestGetVectorSegmented:
         assert all(isinstance(v, DriftVector) for v in vectors)
 
     def test_each_tile_recovers_drift(self):
-        # Tiles are size//2 per side; smaller frames give the cross-correlation
-        # too few pixels to converge reliably and the test becomes flaky.
-        # 100 px frames → 50 px tiles is the empirically stable size. `seed`
-        # pins `differential_evolution` so this doesn't also flake on the
-        # optimiser occasionally landing on the wrong local minimum.
+        # Tiles are size//2 per side; smaller frames give the cross-correlation too few pixels
+        # to converge reliably (flaky). 100 px frames -> 50 px tiles is empirically stable.
+        # `seed` also pins `differential_evolution` so the optimiser can't flake into the
+        # wrong local minimum.
         movie, dxs, dys = _make_drifting_movie(n_frames=4, size=100)
         vectors = get_vector_segmented(
             movie, x_grid=2, y_grid=2, frame_gap=1, parallel=False, seed=_DE_SEED

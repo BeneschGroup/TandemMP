@@ -1,23 +1,19 @@
-//! A self-contained differential-evolution global optimiser plus a
-//! Nelder-Mead local "polish" pass — a from-scratch replacement for
-//! `scipy.optimize.differential_evolution(..., strategy='best1bin',
-//! polish=True)`.
+//! A self-contained differential-evolution global optimiser plus a Nelder-Mead
+//! local "polish" pass, replacing `scipy.optimize.differential_evolution(...,
+//! strategy='best1bin', polish=True)`.
 //!
-//! This deliberately does **not** try to reproduce SciPy's exact RNG
-//! stream or search trajectory (SciPy's own algorithm details, e.g. its
-//! Latin Hypercube initialisation and internal random-index draws, aren't
-//! part of the public contract we need to match). It only needs to:
+//! It deliberately does **not** reproduce SciPy's exact RNG stream or search
+//! trajectory (e.g. its Latin Hypercube initialisation and random-index draws are not
+//! part of the contract we need). It only has to:
 //!
 //! - reliably minimise a cheap, mildly non-convex 2-D objective (the
-//!   RMSE-of-shifted-frames landscape from `solve.rs`) to within the
-//!   tolerances `tests/drift/test_corrector.py` pins (0.2-0.3 px), and
-//! - be *deterministic* for a given `u64` seed, so
-//!   `test_seed_gives_reproducible_result` holds.
+//!   RMSE-of-shifted-frames landscape from `solve.rs`) to within the tolerances
+//!   `tests/drift/test_corrector.py` pins (0.2-0.3 px), and
+//! - be *deterministic* for a given `u64` seed, so `test_seed_gives_reproducible_result`
+//!   holds.
 //!
-//! `polish=True` in SciPy hands the DE result to L-BFGS-B for a gradient
-//! based local refinement; we don't have (or want) analytic gradients
-//! here, so the polish step is a small derivative-free Nelder-Mead
-//! simplex instead, per the porting brief.
+//! SciPy's `polish=True` runs L-BFGS-B on the DE result; without analytic gradients
+//! here, the polish is a small derivative-free Nelder-Mead simplex instead.
 
 use rand::Rng;
 use rand::SeedableRng;
@@ -46,11 +42,10 @@ impl Bound {
 }
 
 /// Tuning knobs for [`differential_evolution`]. Defaults mirror SciPy's
-/// (`popsize=15`, `mutation=(0.5, 1.0)` dithering, `recombination=0.7`,
-/// `tol=0.01`), except `maxiter`, which is capped much lower than SciPy's
-/// default of 1000 — this objective is cheap and low-dimensional (2-D)
-/// enough that convergence happens in tens of generations, and keeping the
-/// cap modest bounds worst-case per-frame runtime.
+/// (`popsize=15`, `mutation=(0.5, 1.0)` dithering, `recombination=0.7`, `tol=0.01`),
+/// except `maxiter`, capped far below SciPy's 1000: this 2-D objective is cheap and
+/// converges in tens of generations, and a modest cap bounds worst-case per-frame
+/// runtime.
 #[derive(Debug, Clone, Copy)]
 pub struct DeConfig {
     pub popsize_multiplier: usize,
@@ -109,8 +104,8 @@ where
 
     for _gen in 0..config.maxiter {
         for i in 0..popsize {
-            // Pick 3 distinct helper indices, none equal to i, for the
-            // classic DE/best/1 mutant: best + F * (r1 - r2).
+            // Pick two distinct indices, neither equal to i, for the classic DE/best/1
+            // mutant: best + F * (r1 - r2).
             let (r1, r2) = distinct_pair(&mut rng, popsize, i);
             let f_scale = rng.gen_range(config.mutation.0..=config.mutation.1);
 
@@ -168,21 +163,15 @@ where
 
 /// Total order over fitness values that never panics on `NaN`.
 ///
-/// `objective` (ultimately [`solve.rs`](crate::solve)'s `shift_compare`) can
-/// return `NaN` for a candidate `(x, y)` that crops the frame to zero
-/// pixels — reachable on small frames with the default `(-6, 6)` search
-/// bounds. Every *direct* comparison elsewhere in this module (`<`, `<=`)
-/// already handles that gracefully: IEEE 754 makes any comparison against
-/// `NaN` evaluate to `false`, so a `NaN`-fitness candidate already never
-/// *wins* a `trial_fitness < fitness[i]`-style check, exactly mirroring
-/// how `scipy.optimize.differential_evolution`'s own such comparisons
-/// silently reject `NaN`-scored trials in the Python implementation this
-/// ports. But `argmin` and sorting the simplex need a *total* order, which
-/// bare `f64` doesn't provide when `NaN` is involved — `partial_cmp`
-/// returns `None`. This makes that total order explicit instead of calling
-/// `.unwrap()`/`.expect()` on it: `NaN` sorts as worse than any real
-/// number, so it behaves like `+inf` and simply never gets picked as the
-/// best value, same as every other comparison here already treats it.
+/// `objective` (ultimately [`solve.rs`](crate::solve)'s `shift_compare`) returns `NaN`
+/// for a candidate `(x, y)` that crops the frame to zero pixels, which small frames
+/// reach with the default `(-6, 6)` bounds. Direct comparisons (`<`, `<=`) already
+/// reject NaN gracefully, since every IEEE 754 comparison with `NaN` is `false`, so a
+/// NaN candidate never wins a `trial_fitness < fitness[i]` check, as in the SciPy
+/// implementation this ports. But `argmin` and simplex sorting need a *total* order,
+/// and `partial_cmp` returns `None` with `NaN`. This makes it explicit instead of
+/// `.unwrap()`ing: `NaN` sorts worse than any real number (like `+inf`), so it is
+/// never picked as best.
 fn cmp_fitness(a: &f64, b: &f64) -> std::cmp::Ordering {
     match (a.is_nan(), b.is_nan()) {
         (true, true) => std::cmp::Ordering::Equal,
@@ -201,9 +190,8 @@ fn argmin(values: &[f64]) -> usize {
         .expect("argmin: empty slice")
 }
 
-/// Draw two indices in `0..n`, both distinct from each other and from
-/// `exclude`. Panics if `n < 3` (the caller enforces a minimum population
-/// size well above that).
+/// Draw two indices in `0..n`, distinct from each other and from `exclude`. Panics
+/// if `n < 3` (callers enforce a much larger population).
 fn distinct_pair(rng: &mut impl Rng, n: usize, exclude: usize) -> (usize, usize) {
     let mut r1 = exclude;
     while r1 == exclude {
@@ -375,13 +363,11 @@ mod tests {
 
     #[test]
     fn nan_fitness_candidates_never_win_and_never_panic() {
-        // Regression test for a real panic: an objective that returns NaN
-        // for part of the search space (mirrors `solve.rs::shift_compare`
-        // returning NaN when a candidate (x, y) crops a small frame to zero
-        // pixels) used to panic in `argmin`/the Nelder-Mead sort via
-        // `.expect()`/`.unwrap()` on `partial_cmp`. It should instead just
-        // never let a NaN-scored candidate win, and converge on the finite
-        // minimum in the region that isn't NaN.
+        // Regression test for a real panic: an objective returning NaN for part of the
+        // search space (like `solve.rs::shift_compare` when a candidate (x, y) crops a small
+        // frame to zero pixels) used to panic in `argmin`/the Nelder-Mead sort via
+        // `.expect()`/`.unwrap()` on `partial_cmp`. A NaN-scored candidate should never win,
+        // and the run should converge on the finite minimum in the non-NaN region.
         let objective = |v: &[f64]| {
             if v[0].abs() > 3.0 || v[1].abs() > 3.0 {
                 return f64::NAN;
@@ -398,10 +384,9 @@ mod tests {
 
     #[test]
     fn all_nan_fitness_does_not_panic() {
-        // Degenerate case: every candidate in bounds is NaN (mirrors a
-        // frame so small that no shift within the default bounds leaves
-        // any pixels after cropping). Must not panic, even though there's
-        // no meaningful finite result to converge on.
+        // Degenerate case: every candidate in bounds is NaN (a frame so small that no shift
+        // within the default bounds leaves any pixels after cropping). Must not panic,
+        // though there is no finite result to converge on.
         let objective = |_: &[f64]| f64::NAN;
         let bounds = [Bound::new(-6.0, 6.0), Bound::new(-6.0, 6.0)];
         let config = DeConfig::default();
@@ -411,8 +396,8 @@ mod tests {
 
     #[test]
     fn different_seed_can_differ() {
-        // Not a strict requirement, but sanity-checks that the seed is
-        // actually being used rather than silently ignored.
+        // Sanity check that the seed is actually used, not silently ignored (not a strict
+        // requirement).
         let objective = |v: &[f64]| (v[0] - 1.3).powi(2) + (v[1] + 2.1).powi(2);
         let bounds = [Bound::new(-6.0, 6.0), Bound::new(-6.0, 6.0)];
         let config = DeConfig::default();

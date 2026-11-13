@@ -21,10 +21,10 @@ def nice_repr(
     """Return a human-readable multi-line summary of *obj*'s attributes.
 
     Args:
-        obj: Any object whose ``__dict__`` should be formatted.
-        remove_underscores: Replace underscores with spaces in the output.
-        exclude: Attribute names to omit. Defaults to an empty list.
-        decimals: Number of decimal places for float values.
+        obj: Object whose ``__dict__`` is formatted.
+        remove_underscores: Replace underscores with spaces.
+        exclude: Attribute names to omit (default none).
+        decimals: Decimal places for floats.
     """
     if exclude is None:
         exclude = []
@@ -52,10 +52,9 @@ def movie_random_generator(
 ) -> Callable[[int], npt.NDArray[np.floating[Any]]]:
     """Return a closure that extracts a random crop from *movie*.
 
-    *movie* has shape ``(frames, height, width)``.  The returned callable
-    accepts an integer *l_thum* (thumbnail side length) and returns a 2-D
-    crop of size ``(2*(l_thum//2)+1, 2*(l_thum//2)+1)`` from a randomly
-    chosen frame and position, clamped to the movie boundaries.
+    *movie* has shape ``(frames, height, width)``. The callable takes an integer
+    *l_thum* (thumbnail side length) and returns a ``2*(l_thum//2)+1``-square crop
+    from a random frame and position, clamped to the movie boundaries.
     """
     n_frames, height, width = movie.shape
 

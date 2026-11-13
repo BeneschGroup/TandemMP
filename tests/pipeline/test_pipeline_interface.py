@@ -1,8 +1,7 @@
 """Contract tests for :mod:`tandemmp.pipeline.pipeline_interface`.
 
-Checks structural conformance of ``OpenIscatPipeline`` and verifies the
-``PipelineRunner`` protocol is satisfiable via a minimal fake, without needing
-``open_iscat``.
+Checks ``OpenIscatPipeline`` conforms structurally and that the ``PipelineRunner``
+protocol is satisfiable by a minimal fake, without ``open_iscat``.
 """
 
 from __future__ import annotations
@@ -72,10 +71,9 @@ class TestFakePipelineRunnerRun:
         assert result.frames.shape == (2, 3, 3)
 
     def test_ignores_backend_specific_kwargs_meant_for_other_runners(self) -> None:
-        # navg/l_thum are open_iscat-specific tuning, not part of the
-        # PipelineRunner protocol itself — a generic caller may still pass
-        # them, and any conforming implementation must tolerate that via
-        # **kwargs rather than erroring.
+        # navg/l_thum are open_iscat-specific tuning, not part of the PipelineRunner
+        # protocol; a generic caller may still pass them, and any conforming
+        # implementation must tolerate that via **kwargs.
         runner = _FakePipelineRunner()
         result = runner.run(
             "dummy.mp", navg=99, l_thum=1, some_other_backends_kwarg="x"

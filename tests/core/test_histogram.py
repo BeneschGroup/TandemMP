@@ -62,9 +62,10 @@ class TestFitGaussianToHistogram:
         assert mean == pytest.approx(0.0, abs=0.5)
 
     def test_recovers_positive_amplitude(self) -> None:
-        """Histogram counts are non-negative, so the fitted amplitude should
-        land in the positive basin of the ``abs(a0)``-symmetric model even
-        though a negative-amplitude optimum is now also mathematically valid.
+        """Fitted amplitude lands in the positive basin of the ``abs(a0)`` model.
+
+        Counts are non-negative, though a negative-amplitude optimum is also
+        mathematically valid.
         """
         rng = np.random.default_rng(3)
         data = rng.normal(20.0, 4.0, 10_000)

@@ -284,10 +284,9 @@ class TestBuildEventRecords:
             build_event_records(events, old_masses=[1.0])
 
     def test_old_error_mirrors_basic_fit_error(self) -> None:
-        """`old_error` duplicates `basic_fit_error`, mirroring the pre-refactor
+        """`old_error` duplicates `basic_fit_error`, as legacy ``old_errors`` always did.
 
-        `RatiometricData.old_errors` field, which was always populated
-        independently of whether `old_masses` was supplied.
+        That held whether or not `old_masses` was supplied.
         """
         ev = _make_event(basic_fit_error=3.3e-4)
         [rec] = build_event_records([ev])
@@ -295,11 +294,10 @@ class TestBuildEventRecords:
         assert rec.old_error == pytest.approx(rec.basic_fit_error)
 
     def test_array_contrast_preserved(self) -> None:
-        """3D-fit events store array contrast/mass; the record passes them through.
+        """3-D-fit events store array contrast/mass; the record passes them through.
 
-        Mirrors pre-refactor behaviour: ``RatiometricData.contrasts`` was
-        ``[e.c for e in events]``, so an ``e.c`` array landed on disk as an
-        array — no scalar collapse.
+        Like legacy ``RatiometricData.contrasts`` (``[e.c for e in events]``), an array
+        ``e.c`` lands on disk as an array, with no scalar collapse.
         """
         arr = np.array([-1e-4, -2e-4, -3e-4])
         ev = _make_event(c=arr)
@@ -422,10 +420,10 @@ class TestSaveLoadRoundTrip:
 
 
 def _write_legacy_pickle(path, *, n_events: int, n_particles: int) -> None:
-    """Write a pickle that mimics the pre-refactor ``tandemmp.io.save`` format.
+    """Write a pickle mimicking the legacy ``tandemmp.io.save`` format.
 
-    Recreate ``SaveFile``, ``RatiometricData``, and ``PartData`` under their
-    legacy module paths, write the pickle, then remove the temporary classes.
+    Recreates ``SaveFile``, ``RatiometricData`` and ``PartData`` under their legacy
+    module paths, pickles, then removes the temporary classes.
     """
     import pickle as _pickle
     import sys
@@ -530,17 +528,13 @@ def _write_legacy_pickle(path, *, n_events: int, n_particles: int) -> None:
 
 
 def _write_legacy_pickle_with_params(path) -> None:
-    """Write a legacy ``SaveFile`` pickle whose ``parameters``/``vector``
-    fields reference the legacy ``tandemmp.parameters`` and
-    ``tandemmp.DriftCorrector`` module paths.
+    """Write a legacy ``SaveFile`` pickle referencing the removed parameter modules.
 
-    Both modules were deleted/moved with no forwarding shim, so a real
-    pre-refactor result file's ``SaveFile.parameters``/``.vector`` payload
-    fails to unpickle with ``ModuleNotFoundError`` unless remapped. Reuses
-    the real ``Legacy*`` stub classes (rather than redefining lookalikes) so
-    the fields pickled here are guaranteed to match those stubs' field
-    count/order exactly — required since NamedTuple unpickling reconstructs
-    positionally.
+    Its ``parameters``/``vector`` fields use the legacy ``tandemmp.parameters`` and
+    ``tandemmp.DriftCorrector`` module paths. Both were removed with no forwarding
+    shim, so a real legacy file fails to unpickle (``ModuleNotFoundError``) unless
+    remapped. Uses the real ``Legacy*`` stubs so the pickled fields match their count
+    and order exactly, as NamedTuple unpickling is positional.
     """
     import pickle as _pickle
     import sys
@@ -759,10 +753,10 @@ class TestLegacyParametersAndVectorLoad:
 
 
 def _write_bare_particle_pickle(path, *, n_particles: int) -> None:
-    """Write a pickle mimicking a pre-refactor bare ``[PartData, ...]`` dump.
+    """Write a pickle mimicking a legacy bare ``[PartData, ...]`` dump.
 
-    Some pre-refactor scripts pickled a particle list directly, with no
-    enclosing ``SaveFile`` — e.g. ``pickle.dump([p for p in particles], f)``.
+    Some old scripts pickled a particle list directly, with no enclosing ``SaveFile``
+    (e.g. ``pickle.dump([p for p in particles], f)``).
     """
     import pickle as _pickle
     import sys
@@ -860,13 +854,12 @@ class TestBareParticleListLoad:
 
 
 class TestLegacyPickleLoad:
-    """``legacy_pickle_load`` is a drop-in ``pickle.load`` replacement used
+    """``legacy_pickle_load`` is a drop-in ``pickle.load`` replacement.
 
-    by callers (e.g. ``utils.load_from_pickle``) that unpickle
-    arbitrary objects which may reference legacy TandemMP classes anywhere
-    in their object graph — not just as the top-level payload. Unlike
-    :func:`load_results`, it makes no assumptions about the pickled shape
-    and returns whatever was pickled, unmigrated.
+    For callers (e.g. ``utils.load_from_pickle``) that unpickle arbitrary objects
+    which may reference legacy TandemMP classes anywhere in their graph. Unlike
+    :func:`load_results` it assumes nothing about the pickled shape and returns the
+    unmigrated object.
     """
 
     def test_load_returns_plain_object_unmigrated(self, tmp_path) -> None:
@@ -882,10 +875,10 @@ class TestLegacyPickleLoad:
     def test_load_remaps_legacy_class_nested_in_arbitrary_container(
         self, tmp_path
     ) -> None:
-        """A legacy ``PartData`` reference nested inside an unrelated
+        """A legacy ``PartData`` nested in an unrelated container still resolves.
 
-        container (not a bare particle list or a SaveFile, so
-        ``load_results`` would reject it) should still be resolved.
+        The container is neither a bare particle list nor a ``SaveFile``, so
+        ``load_results`` would reject it.
         """
         import pickle as _pickle
         import sys

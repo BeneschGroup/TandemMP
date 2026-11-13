@@ -31,8 +31,8 @@ class DriftCorrectionParams:
 
     #: Number of frames between drift vector sample points.
     frame_gap: int = 25
-    #: Check against immediately preceding frames rather than the initial;
-    #: useful when z-drift changes images between the start and current frame.
+    #: Compare against preceding frames, not the first; useful when z-drift changes
+    #: the image between the start and current frame.
     z_drift: bool = False
     #: Show each error landscape for calculating the drift vector.
     debug: bool = False
@@ -49,8 +49,7 @@ class ExperimentalPsfParams:
 
     #: Grid spacing for the experimental PSF model (pixels).
     sampling_points: float = 0.1
-    #: Percentile for event selection criteria using a combination of
-    #: mass and error.
+    #: Percentile for event selection, combining mass and error.
     selection_percentile: float = 95.0
     #: Number of pixels to expand thumbnails if possible.
     spatial_expansion: int = 2
@@ -69,13 +68,11 @@ class ExperimentalPsfParams:
 class ContinuationParams:
     """Parameters for particle continuation tracking."""
 
-    #: Distance (pixels) between a new and previous particle position
-    #: above which the fit is marked as bad.
+    #: Position jump (pixels) from the previous fit above which the fit is marked bad.
     spatial_threshold: float = 4.0
     #: Tolerance for relative mass fluctuation.
     mass_fluctuation: float = 0.15
-    #: Running tally of bad fits before a particle is removed.
-    #: Good fits reduce the tally back down.
+    #: Running tally of bad fits before a particle is removed; good fits reduce it.
     max_strikes: int = 10
 
     def __post_init__(self) -> None:
@@ -90,9 +87,8 @@ class FirstAnalysisParams:
 
     #: Number of averaged frames used to make and find ratiometric events.
     navg: int = 5
-    #: Minimum navg size for events during attempted resizing for
-    #: complexity minimisation. Events that overlap with less than double
-    #: this temporally will be reduced down.
+    #: Minimum navg for events resized to minimise complexity; events overlapping
+    #: by less than double this temporally are reduced to it.
     minimum_navg: int = 3
     #: Event thumbnail size — side length in pixels.
     l_thum: int = 13
@@ -115,16 +111,13 @@ class TandemMPAnalysisParams:
     particle_continuation: ContinuationParams | bool = dataclasses.field(
         default_factory=ContinuationParams,
     )
-    #: Size of the defined PSF radius (pixels); used to detect when
-    #: particles are interfering with one another.
+    #: PSF radius (pixels), used to detect particles interfering with each other.
     psf_radius: float = 6.5
-    #: Minimum overlap of two normalised Gaussian distributions
-    #: representing location for a particle/event(s) to be matched.
+    #: Minimum overlap of the normalised Gaussians for a particle/event match.
     minimum_matching_probability: float = 0.05
     #: Minimum signal strength to check for ghosts.
     ghost_signal_check: float = 0.45
-    #: Use images as particle correction rather than reconstructed fits.
-    #: NOT RECOMMENDED.
+    #: Use images, not reconstructed fits, as particle correction. NOT RECOMMENDED.
     correct_with_images: bool = False
     #: Allows the complex fit error to be worse than the basic by this
     #: multiplier and still be considered an improvement.
@@ -132,8 +125,8 @@ class TandemMPAnalysisParams:
     #: If the complex mass and basic mass are similar, there is an extra
     #: 2x multiplier to the tolerance.
     mass_similarity_flexibility: float = 1.01
-    #: Keep the background estimate low during tracking — never move it
-    #: up. Makes more sense off but seems to give better results on.
+    #: Never move the background estimate up during tracking. Makes more sense off,
+    #: but gives better results on.
     keep_background_low: bool = True
     #: NOT IMPLEMENTED.
     correct_mass_shifts_on_binding: bool = False
@@ -171,13 +164,11 @@ class FullAnalysisParams:
     )
     #: Arbitrary photon-count threshold that indicates the lid opening.
     lid_open_threshold: float = 1.0
-    #: Number of frames before and after lid opening to subsample the
-    #: drift vector.
+    #: Frames before and after lid opening used to subsample the drift vector.
     lid_open_margin: int = 100
     #: Apply median filter to every frame first.
     illumination_correction: bool = False
-    #: Minimum expected mass to be tracked; helps define a noise floor to
-    #: decide whether a detection is viable.
+    #: Minimum expected mass to be tracked; sets a noise floor for viable detections.
     minimum_mass: float = 40.0
     snr_limit: float = 0.5
     #: Skip marking overlapping particles.
@@ -238,10 +229,9 @@ def _recursive_replace(obj: Any, **kwargs: Any) -> Any:  # noqa: ANN401
 def get_parameters(**overrides: Any) -> FullAnalysisParams:  # noqa: ANN401
     """Create a :class:`FullAnalysisParams` with keyword overrides.
 
-    Overrides are applied recursively — a keyword matching a nested
-    dataclass field (e.g. ``navg=10``) will update the correct sub-object.
-
-    Raises :class:`ValueError` for unknown parameter names.
+    Overrides apply recursively: a keyword matching a nested dataclass field (e.g.
+    ``navg=10``) updates the right sub-object. Raises :class:`ValueError` for unknown
+    names.
     """
     params: FullAnalysisParams = FullAnalysisParams()
     for key, value in overrides.items():

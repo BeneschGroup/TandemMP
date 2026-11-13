@@ -1,22 +1,18 @@
-//! The drift-correction hot loop: fused shift + RMSE + differential
-//! evolution, replacing `tandemmp.drift.corrector._shift_compare` and
-//! `._solve`.
+//! The drift-correction hot loop: fused shift + RMSE + differential evolution,
+//! replacing `tandemmp.drift.corrector._shift_compare` and `._solve`.
 //!
-//! The whole point of porting this instead of just wrapping
-//! `scipy.ndimage.shift` is that `_solve`'s Python version recomputes the
-//! baseline frame's cubic-spline prefilter *from scratch on every DE
-//! candidate evaluation*, even though the baseline is constant for the
-//! whole `_solve` call. [`BaselineFrame`] computes it exactly once and
-//! reuses it for every candidate `(x, y)` the optimiser tries.
+//! Porting this, instead of wrapping `scipy.ndimage.shift`, pays off because the
+//! Python `_solve` recomputes the baseline frame's cubic-spline prefilter *from
+//! scratch on every DE candidate*, though the baseline is constant for the whole call.
+//! [`BaselineFrame`] computes it once and reuses it for every candidate `(x, y)`.
 
 use crate::optimize::{differential_evolution, Bound, DeConfig};
 use crate::scalar::float_to_slice;
 use crate::spline::{cubic_weights, SplineCoefficients2D};
 
-/// A baseline frame with its cubic B-spline coefficients precomputed once,
-/// ready to be repeatedly shifted and compared against candidate `(x, y)`
-/// offsets — the piece that makes the differential-evolution inner loop
-/// cheap.
+/// A baseline frame with its cubic B-spline coefficients precomputed once, ready to
+/// be shifted and compared against many candidate `(x, y)` offsets; this is what makes
+/// the differential-evolution inner loop cheap.
 pub struct BaselineFrame {
     coeffs: SplineCoefficients2D,
 }
@@ -37,13 +33,12 @@ impl BaselineFrame {
         self.coeffs.cols()
     }
 
-    /// RMSE between `input_frame` and this baseline shifted by `(x, y)`,
-    /// both cropped via `_float_to_slice(x)` / `_float_to_slice(y)` to
-    /// discard edge artefacts introduced by the shift.
+    /// RMSE between `input_frame` and this baseline shifted by `(x, y)`, both cropped
+    /// via `_float_to_slice(x)` / `_float_to_slice(y)` to discard edge artefacts from the
+    /// shift.
     ///
-    /// Direct port of `_shift_compare`, except the baseline's spline
-    /// coefficients are reused from construction time instead of being
-    /// recomputed here.
+    /// Port of `_shift_compare`, except the baseline's spline coefficients are reused from
+    /// construction time instead of recomputed here.
     pub fn shift_compare(&self, x: f64, y: f64, input_frame: &[f64]) -> f64 {
         let rows = self.coeffs.rows();
         let cols = self.coeffs.cols();
@@ -62,18 +57,14 @@ impl BaselineFrame {
             return f64::NAN;
         }
 
-        // Precompute each cropped column's (weights, base) once — still
-        // O(rows + cols) work rather than O(rows * cols) — but always
-        // derived from the exact same `cubic_weights(x_coord)` call as the
-        // per-pixel `base`, so the two can never desynchronise at floating-
-        // point precision the way a single call-wide cached array can (see
-        // `SplineCoefficients2D::sample_with_weights`'s docs: this bit us
-        // for real for near-zero-but-not-exactly-zero shifts, which a DE
-        // polish step converging on a true-zero optimum produces easily).
-        // `float_to_slice`'s cropping already guarantees every
-        // `(row_start..row_stop, col_start..col_stop)` coordinate is
-        // in-domain, so no boundary short-circuit is needed here (unlike
-        // `shift2d`, which scans the full uncropped frame).
+        // Precompute each cropped column's (weights, base) once (O(rows + cols), not
+        // O(rows * cols)), always from the same `cubic_weights(x_coord)` call as the
+        // per-pixel `base`, so the two cannot desynchronise at floating-point precision as a
+        // single call-wide cached array can (see `SplineCoefficients2D::sample_with_weights`;
+        // this bit us for near-zero-but-nonzero shifts, which a DE polish converging on a
+        // true-zero optimum produces easily). `float_to_slice`'s cropping guarantees every
+        // coordinate is in-domain, so no boundary short-circuit is needed (unlike
+        // `shift2d`, which scans the uncropped frame).
         let col_taps: Vec<([f64; 4], i64)> = (col_start..col_stop)
             .map(|c| cubic_weights(c as f64 - x))
             .collect();
@@ -94,11 +85,10 @@ impl BaselineFrame {
     }
 }
 
-/// Standalone equivalent of `_shift_compare((x, y), input_frame,
-/// baseline_frame)`. Prefer [`BaselineFrame`] directly when comparing the
-/// same baseline against many candidate shifts (e.g. inside an
-/// optimiser), since this convenience wrapper reprefilters the baseline
-/// on every call.
+/// Standalone equivalent of `_shift_compare((x, y), input_frame, baseline_frame)`.
+/// Prefer [`BaselineFrame`] when comparing one baseline against many candidate shifts
+/// (e.g. in an optimiser), since this wrapper reprefilters the baseline on every
+/// call.
 pub fn shift_compare(
     x: f64,
     y: f64,
@@ -130,14 +120,12 @@ impl Default for SolveBounds {
 /// Find the `(x, y)` shift minimising RMSE between `input_frame` and
 /// `baseline_frame`, via differential evolution + Nelder-Mead polish.
 ///
-/// Direct port of `_solve`: `baseline_frame`'s spline prefilter is
-/// computed exactly once (via [`BaselineFrame::new`]) and reused for
-/// every candidate the optimiser evaluates — the fix for the Python
-/// version's per-candidate `scipy.ndimage.shift` prefilter recomputation.
+/// Port of `_solve`, with `baseline_frame`'s spline prefilter computed once (via
+/// [`BaselineFrame::new`]) and reused for every candidate: the fix for the Python
+/// version's per-candidate `scipy.ndimage.shift` prefilter.
 ///
-/// `seed` drives the optimiser's internal RNG for reproducibility; pass
-/// `None` to seed from OS entropy (genuinely stochastic, matching `_solve`
-/// left at its `seed=None` default).
+/// `seed` drives the optimiser's internal RNG for reproducibility; `None` seeds from
+/// OS entropy (stochastic, like `_solve` at its `seed=None` default).
 pub fn solve(
     input_frame: &[f64],
     baseline_frame: &[f64],
@@ -175,9 +163,8 @@ mod tests {
     use super::*;
     use crate::spline::shift2d;
 
-    /// A synthetic frame with a few sharp Gaussian-ish bumps, giving the
-    /// RMSE landscape a clear minimum — mirrors
-    /// `tests/drift/test_corrector.py::_make_drifting_movie`'s base frame.
+    /// A synthetic frame with a few sharp Gaussian-ish bumps, giving the RMSE landscape
+    /// a clear minimum (mirrors `tests/drift/test_corrector.py::_make_drifting_movie`).
     fn textured_frame(size: usize) -> Vec<f64> {
         let mut base = vec![0.0; size * size];
         for r in 0..size {
@@ -256,11 +243,10 @@ mod tests {
 
     #[test]
     fn solve_on_small_frame_with_default_bounds_does_not_panic() {
-        // Regression test: a frame small enough that most of the default
-        // `(-6, 6)` search bounds crop it to zero pixels (`shift_compare`
-        // returns NaN there, see the `count == 0` branch above). This used
-        // to panic inside the optimiser's `argmin`/simplex sort; it should
-        // instead just complete and return *some* finite-ish result.
+        // Regression test: a frame so small that most of the default `(-6, 6)` bounds crop
+        // it to zero pixels (`shift_compare` returns NaN there; see the `count == 0` branch).
+        // This used to panic in the optimiser's `argmin`/simplex sort; it should complete and
+        // return some finite-ish result.
         let base = textured_frame(5);
         let (x, y) = solve(&base, &base, 5, 5, SolveBounds::default(), Some(7));
         assert!(x.is_finite(), "x={x}");
@@ -277,12 +263,11 @@ mod tests {
         assert_eq!(first, second);
     }
 
-    /// Regression test for a real bug (see `spline.rs`'s matching test for
-    /// the full explanation): on a wide (150-column) frame, `shift_compare`
-    /// at a shift below the ULP at that coordinate magnitude (e.g. `1e-14`)
-    /// used to blow up to a huge RMSE instead of staying close to the
-    /// zero-shift RMSE, because the DE polish step can converge on exactly
-    /// such a near-zero-but-not-exactly-zero shift for a true-zero optimum.
+    /// Regression test for a real bug (see the matching test in `spline.rs`): on a wide
+    /// (150-column) frame, `shift_compare` at a shift below the ULP at that coordinate
+    /// magnitude (e.g. `1e-14`) used to blow up to a huge RMSE instead of staying close to
+    /// the zero-shift RMSE, since a DE polish can converge on exactly such a near-zero
+    /// shift for a true-zero optimum.
     #[test]
     fn shift_compare_sub_ulp_shift_stays_near_zero_shift_rmse() {
         let rows = 59;

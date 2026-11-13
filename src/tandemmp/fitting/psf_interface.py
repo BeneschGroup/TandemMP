@@ -1,16 +1,13 @@
 """Generic PSF-fitting interface and algorithm.
 
-Defines :class:`PsfInterface`, a :class:`typing.Protocol` describing the
-minimal surface a PSF model must expose (PSF rendering + peak fitting), and
-the backend-agnostic peak-fitting algorithm (:func:`fit_peak_generic`,
-:func:`fit_peak_exclusion_generic`) that operates on any conforming model.
-
-This module is intentionally self-contained (no imports from
-:mod:`tandemmp.fitting.psf`) so that every implementation
+:class:`PsfInterface` is a :class:`typing.Protocol` for the minimal surface of a
+PSF model (rendering + peak fitting); :func:`fit_peak_generic` and
+:func:`fit_peak_exclusion_generic` fit any conforming model. The module imports
+nothing from :mod:`tandemmp.fitting.psf`, so every implementation
 (:class:`~tandemmp.fitting.psf.PsfModel`,
 :class:`~tandemmp.fitting.spline_psf.SplinePsfModel`,
-:class:`~tandemmp.fitting.gaussian_psf.GaussianPsfModel`) can depend on it
-without an import cycle.
+:class:`~tandemmp.fitting.gaussian_psf.GaussianPsfModel`) can use it without an
+import cycle.
 """
 
 from __future__ import annotations
@@ -101,23 +98,19 @@ def _check_param_names(params: dict[str, float], known: dict[str, float]) -> Non
 
 @runtime_checkable
 class PsfInterface(Protocol):
-    """Structural interface a PSF model must satisfy to use the generic
-    peak-fitting algorithm (:func:`fit_peak_generic`,
-    :func:`fit_peak_exclusion_generic`).
+    """Structural interface a PSF model must satisfy for the generic peak fitting.
 
-    Concrete implementations: :class:`tandemmp.fitting.spline_psf.SplinePsfModel`
-    (bundled Rust spline, default), :class:`tandemmp.fitting.psf.PsfModel`
-    (scipy spline, e.g. the per-movie experimental PSF) and
-    :class:`tandemmp.fitting.gaussian_psf.GaussianPsfModel` (analytic 2-D
-    Gaussian).
+    Implementations: :class:`tandemmp.fitting.spline_psf.SplinePsfModel` (bundled
+    Rust spline, default), :class:`tandemmp.fitting.psf.PsfModel` (scipy spline, e.g.
+    the per-movie experimental PSF) and
+    :class:`tandemmp.fitting.gaussian_psf.GaussianPsfModel` (analytic 2-D Gaussian).
     """
 
     def __hash__(self) -> int:
-        """Declared so implementations are usable as ``functools.lru_cache``
-        keys (e.g. :func:`tandemmp.fitting.psf._psf_unit_cached`) — every
-        concrete implementation gets this for free from :func:`object`'s
-        default identity-based hash, since neither defines a custom
-        ``__eq__``.
+        """Declared so implementations work as ``functools.lru_cache`` keys.
+
+        E.g. :func:`tandemmp.fitting.psf._psf_unit_cached`. The default identity hash
+        suffices, as no implementation defines ``__eq__``.
         """
         ...
 
@@ -219,27 +212,22 @@ def fit_peak_generic(  # noqa: PLR0913
 ) -> PeakFitResult:
     """Fit any :class:`PsfInterface` model to a 2-D peak thumbnail.
 
-    This is the backend-agnostic fitting algorithm — it only calls
-    ``psf_model.get_psf_function()``, so it works identically for
-    :class:`~tandemmp.fitting.psf.PsfModel` and
-    :class:`~tandemmp.fitting.gaussian_psf.GaussianPsfModel` alike. Returned
-    results always report ``backend="python"`` (or ``"none"`` for an
-    all-zero image); callers that have a more specific backend to report
-    (e.g. :class:`~tandemmp.fitting.psf.PsfModel`'s spline backend) should
-    override ``.backend`` on the returned :class:`PeakFitResult` themselves.
+    Backend-agnostic: it only calls ``psf_model.get_psf_function()``. Results report
+    ``backend="python"`` (``"none"`` for an all-zero image); callers with a more
+    specific backend should override ``.backend`` on the returned
+    :class:`PeakFitResult`.
 
     Args:
-        psf_model: Any object satisfying :class:`PsfInterface`.
         peak: Square 2-D image (odd edge length expected).
-        c_guess: Initial contrast guess. Computed from central pixels if *None*.
-        dx_guess: Initial x position offset. Estimated automatically if *None*.
-        dy_guess: Initial y position offset. Estimated automatically if *None*.
-        method: Optimisation method for :func:`scipy.optimize.minimize`.
+        c_guess: Initial contrast; computed from central pixels if *None*.
+        dx_guess: Initial x offset; estimated if *None*.
+        dy_guess: Initial y offset; estimated if *None*.
+        method: :func:`scipy.optimize.minimize` method.
         gtol: Gradient tolerance (BFGS).
-        allow_offset: Allow a constant-offset parameter in the fit. Forced to
-            *True* regardless of this argument when the contrast guess is large.
+        allow_offset: Allow a constant-offset parameter; forced *True* when the
+            contrast guess is large.
         **kwargs: Ignored, so implementations can forward their own
-            ``fit_peak(**kwargs)`` here and tolerate unused keywords (e.g. ``rust=``).
+            ``fit_peak(**kwargs)`` (e.g. ``rust=``).
     """
     if peak.ndim != 2 or peak.shape[0] != peak.shape[1]:
         msg = "Peak image must be a square 2D array"
@@ -316,13 +304,11 @@ def fit_peak_exclusion_generic(
     gtol: float = 1e-6,
     **kwargs: Any,  # noqa: ANN401
 ) -> PeakFitResult:
-    """Fit any :class:`PsfInterface` model to *peak*, ignoring pixels where
-    *exclusion* is True.
+    """Fit any :class:`PsfInterface` model to *peak*, ignoring *exclusion* pixels.
 
-    Two initial guesses (centre of mass and argmin) are tried; the one
-    with lower error is returned. Always reports ``backend="python"`` —
-    see :func:`fit_peak_generic` for the override convention. ``**kwargs``
-    is ignored, for the same reason documented on :func:`fit_peak_generic`.
+    Tries two initial guesses (centre of mass and argmin) and returns the lower-error
+    fit. Reports ``backend="python"`` (see :func:`fit_peak_generic`); ``**kwargs``
+    are ignored.
     """
     if peak.shape != exclusion.shape:
         msg = "Exclusion mask must match peak shape"

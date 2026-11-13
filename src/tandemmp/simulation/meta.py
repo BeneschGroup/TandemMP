@@ -1,8 +1,8 @@
 """Metadata definitions for the TandemMP simulation engine.
 
-Provides the :class:`Structure` hierarchy used to describe simulated
-particles and their binding reactions, along with the :class:`Reaction`,
-:class:`Stage` and :class:`Behaviour` enums consumed by the simulator.
+The :class:`Structure` hierarchy describes simulated particles and their binding
+reactions; :class:`Reaction`, :class:`Stage` and :class:`Behaviour` are the enums
+the simulator consumes.
 """
 
 from __future__ import annotations
@@ -99,10 +99,8 @@ class Reaction:
 class Structure:
     """Recursive simulation particle description.
 
-    A :class:`Structure` is either a leaf (carrying *mass*) or a
-    composite that *contains* other structures.  Composites sum the
-    mass and subunit count of their children and declare their own
-    forward and backward binding reactions.
+    A leaf carries *mass*; a composite *contains* other structures, sums their mass
+    and subunit counts, and declares its own forward and backward binding reactions.
     """
 
     mass: float
@@ -231,15 +229,14 @@ class Structure:
 def create_oligomer(monomer: Structure, n: int) -> Structure:
     """Build an *n*-mer by recursively binding *monomer* to itself.
 
-    ``n=1`` returns the monomer unchanged.  Higher values produce a
-    nested composite with unit forward/backward reaction rates.
+    ``n=1`` returns the monomer unchanged; higher values give a nested composite with
+    unit forward/backward rates.
 
-    Note: each intermediate assembly's forward reaction is registered on
-    *monomer* via :meth:`Structure.add_reactions`.  After
-    ``create_oligomer(m, n)``, ``m.available_reactions`` will contain
-    ``n - 1`` forward reactions (one per intermediate level).  This is
-    intentional — the simulator uses ``available_reactions`` to determine
-    which reactions a monomer can participate in at each stage.
+    Each intermediate assembly's forward reaction is registered on *monomer* via
+    :meth:`Structure.add_reactions`, so after ``create_oligomer(m, n)``,
+    ``m.available_reactions`` holds ``n - 1`` forward reactions (one per level). This
+    is intentional: the simulator uses it to decide which reactions a monomer can
+    join at each stage.
     """
     if n < 1:
         raise ValueError(f"n must be >= 1, got {n}")

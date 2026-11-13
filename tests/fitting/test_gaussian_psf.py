@@ -114,9 +114,9 @@ class TestFitPeak:
             model.fit_peak(peak)
 
     def test_ignores_backend_specific_kwarg(self) -> None:
-        """`rust=` is a real `PsfModel.fit_peak` keyword with no analogue
-        here — any `PsfInterface`-typed caller must be able to pass it to
-        either backend without a `TypeError`.
+        """`rust=` has no analogue here, but `PsfInterface` callers may pass it.
+
+        Either backend must accept it without a `TypeError`.
         """
         model = GaussianPsfModel(sigma=2.0)
         peak = model.psf_2d_offset(13, 0.0, 0.0, -0.05)

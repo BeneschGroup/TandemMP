@@ -40,11 +40,10 @@ def _reset_simple_event_ids() -> None:
 
 @dataclass(frozen=True)
 class SimpleEvent:
-    """A single point-event loaded directly from a CSV export.
+    """A point-event loaded directly from a CSV export.
 
-    Unlike :class:`~tandemmp.events.ratiometric.RatiometricEvent`, this
-    carries no peak image or PSF fit — just the position, contrast, mass and
-    frame index already present in the source data.
+    Unlike :class:`~tandemmp.events.ratiometric.RatiometricEvent`, it has no peak
+    image or PSF fit, only position, contrast, mass and frame index.
     """
 
     c: float
@@ -56,15 +55,15 @@ class SimpleEvent:
 
 
 def build_simple_events(events: Sequence[RatiometricEvent]) -> list[SimpleEvent]:
-    """Convert first-pass :class:`~tandemmp.events.RatiometricEvent`\\ s into :class:`SimpleEvent`\\ s.
+    """Turn first-pass RatiometricEvents into :class:`SimpleEvent` objects.
 
     Uses each event's ``particle_c``/``particle_m``/``particle_x``/``particle_y``
-    (basic-fit values, available immediately after
-    :class:`~tandemmp.pipeline.loader.Loader` finds/fits first-pass events,
-    with no PSF-fit-based tracking pass required). Shared by
+    (basic-fit values available right after
+    :class:`~tandemmp.pipeline.loader.Loader` finds first-pass events, with no
+    PSF-fit tracking pass). Shared by
     :meth:`tandemmp.pipeline.pca.Experiment.simple_analysis` and
     :func:`tandemmp.pipeline.pair_matching.run_pair_matching`.
-    """  # noqa: E501
+    """
     return [
         SimpleEvent(
             c=e.particle_c,
@@ -88,15 +87,14 @@ def load_events(
 ) -> list[SimpleEvent]:
     """Load point-events from a CSV export.
 
-    *events_filepath* must have a header row followed by
-    ``frame, x, y, contrast, mass`` columns (extra trailing columns are
-    ignored). If the mass column is entirely ``NaN``, mass is derived from
-    contrast via :func:`~tandemmp.core.conversions.c_to_mass`.
+    *events_filepath* needs a header row then ``frame, x, y, contrast, mass`` columns
+    (extra trailing columns are ignored). If the mass column is all ``NaN``, mass is
+    derived from contrast with :func:`~tandemmp.core.conversions.c_to_mass`.
 
-    If *movie_filepath* is given, the companion movie is loaded (without
-    running the full pipeline) purely to estimate a drift vector via
-    :func:`~tandemmp.drift.corrector.get_vector`, which is then subtracted
-    from every event's position.
+    If *movie_filepath* is given, the movie is loaded (without the full pipeline)
+    only to estimate a drift vector with
+    :func:`~tandemmp.drift.corrector.get_vector`, which is subtracted from every
+    event's position.
     """
     vector = None
     if movie_filepath is not None:
@@ -162,7 +160,7 @@ class NewPair(NamedTuple):
 
 
 def _mass_to_sigma_px(mass: float) -> float:
-    """Convert positional precision from nanometres to pixels for overlap scoring."""
+    """Convert positional precision from nm to pixels for overlap scoring."""
     return mass_to_sigma(mass) / NM_PER_PIXEL
 
 
@@ -177,14 +175,12 @@ def match_pairs_sigma(
 ) -> list[Pair]:
     """Match each "unbinding" event to its most-overlapping "binding" event.
 
-    Events with negative contrast are "binding", positive contrast are
-    "unbinding" (or vice versa if *match_binding* is set, pairing binding
-    events to other binding events instead). A candidate binding event must
-    be within *analyse_distance* pixels, precede the unbinding event in
-    time, and have a Gaussian overlap coefficient (using
-    ``mass_to_sigma(mass) * sigma_multiplier`` as each event's width) above
-    *minimum_overlap*; the highest-overlap candidate is chosen. Each binding
-    event may be reused up to *max_pairs* times.
+    Negative contrast is "binding", positive "unbinding" (or, with *match_binding*,
+    binding events are paired to other binding events). A candidate binding event
+    must be within *analyse_distance* pixels, precede the unbinding event, and have a
+    Gaussian overlap coefficient above *minimum_overlap* (each event's width is
+    ``mass_to_sigma(mass) * sigma_multiplier``); the highest-overlap candidate wins.
+    Each binding event can be reused up to *max_pairs* times.
     """
     events_arr: npt.NDArray[np.object_] = np.array(events, dtype=object)
     contrast: FloatArray = np.array([e.c for e in events])
@@ -266,10 +262,9 @@ def match_pairs_tally(
 ) -> list[NewPair]:
     """Chain each "binding" event onto its up-to-*max_pairs* closest later events.
 
-    Unlike :func:`match_pairs_sigma` (which reports raw binding/unbinding
-    event pairs), this accumulates a running mass total across the ordered
-    chain of matches, reporting ``precursor``/``product`` mass for each
-    step.
+    Unlike :func:`match_pairs_sigma` (raw binding/unbinding pairs), this accumulates a
+    running mass total along the ordered chain, reporting ``precursor``/``product``
+    mass per step.
     """
     events_arr: npt.NDArray[np.object_] = np.array(events, dtype=object)
     contrast: FloatArray = np.array([e.c for e in events])
@@ -332,12 +327,11 @@ def match_pairs_tally(
 
 
 def convert_to_product_precursor(pairs: Sequence[Pair]) -> list[Pair]:
-    """Rewrite raw binding/unbinding :class:`Pair`\\ s as a running mass chain.
+    """Rewrite raw binding/unbinding :class:`Pair` objects as a running mass chain.
 
-    Pairs sharing the same ``binding`` event are grouped and sorted by
-    ``order``; each step's precursor mass is the previous step's product
-    mass (starting from the original binding event's mass), mirroring the
-    accumulation :func:`match_pairs_tally` performs directly.
+    Pairs sharing a ``binding`` event are grouped and sorted by ``order``; each step's
+    precursor mass is the previous step's product mass (starting from the binding
+    event's mass), as :func:`match_pairs_tally` accumulates directly.
     """
     binding_events = np.array([p.binding for p in pairs], dtype=object)
     parents = set(binding_events)
@@ -395,9 +389,9 @@ def area_of_ring_in_box(
 ) -> float:
     """Numerically estimate the area of an annulus clipped to a box.
 
-    *origin* and *box_size* share the box's coordinate system (box spans
+    *origin* and *box_size* share the box's coordinates (the box spans
     ``[0, box_size[0]] x [0, box_size[1]]``); the annulus is sampled on a
-    *resolution* x *resolution* grid.
+    *resolution* × *resolution* grid.
     """
     x = np.linspace(0, box_size[0], resolution)
     y = np.linspace(0, box_size[1], resolution)
@@ -419,10 +413,10 @@ def calculate_rdf(
 ) -> tuple[FloatArray, FloatArray]:
     """Compute a radial distribution function g(r) over ``bins``.
 
-    For every point selected by *sel_first*, counts later-or-same-frame
-    points (optionally restricted by *sel_after*) falling in each radial
-    bin, normalised by the expected count under a uniform density. Points
-    are first shifted so the bounding box starts at the origin.
+    For each point in *sel_first*, counts later-or-same-frame points (optionally
+    restricted by *sel_after*) in each radial bin, normalised by the expected count
+    at uniform density. Points are first shifted so the bounding box starts at the
+    origin.
     """
     if sel_first is None:
         sel_first = np.full_like(x, fill_value=True, dtype=bool)

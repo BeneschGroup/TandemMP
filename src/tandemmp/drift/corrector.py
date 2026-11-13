@@ -1,11 +1,8 @@
-"""Drift correction for iSCAT movies.
+"""Drift estimation and correction for iSCAT movies.
 
-Provides :class:`DriftVector` (a 2-D drift trajectory) and the functions used
-to estimate it from a movie and apply it as a per-frame stabilising shift.
-
-Callers handle file I/O and plotting. Parallel work uses
-:func:`tandemmp.core.parallel.dispatch_kwargs`. The optional Rust extension
-accelerates drift estimation and frame shifting, with a SciPy fallback.
+:class:`DriftVector` holds a 2-D drift trajectory, estimated from a movie and
+applied as a per-frame shift. The optional Rust extension speeds this up, with a
+SciPy fallback. Parallel work uses :func:`tandemmp.core.parallel.dispatch_kwargs`.
 """
 
 from __future__ import annotations
@@ -32,8 +29,7 @@ logger = logging.getLogger(__name__)
 class DriftVector:
     """A 2-D drift trajectory: per-frame ``(x, y)`` shifts in pixels.
 
-    Replaces the old ``Vector`` class.  ``x`` and ``y`` must be 1-D arrays of
-    equal length.
+    ``x`` and ``y`` must be 1-D arrays of equal length.
     """
 
     x: FloatArray
@@ -104,9 +100,8 @@ def stabilise(
 ) -> FloatArray:
     """Shift *frame* by ``(-y, -x)`` to undo a drift of ``(x, y)``.
 
-    ``use_rust=True`` (the default) prefers the compiled
-    ``tandemmp._rust.drift_correction`` extension when available, with a
-    fallback to :func:`scipy.ndimage.shift`.
+    With ``use_rust`` (default) the Rust extension is preferred, falling back to
+    :func:`scipy.ndimage.shift`.
     """
     if use_rust:
         try:
@@ -123,7 +118,7 @@ def stabilise(
 
 
 def _stabilise_rust(frame: FloatArray, x: float, y: float) -> FloatArray:
-    """Rust-backed :func:`stabilise`, via ``tandemmp._rust.drift_correction``."""
+    """Rust-backed :func:`stabilise`."""
     from tandemmp._rust import drift_correction as _dc
 
     out = _dc.stabilise(np.asarray(frame, dtype=np.float64), float(x), float(y))
@@ -137,7 +132,7 @@ def _shift_compare(
 ) -> float:
     """RMSE between *input_frame* and *baseline_frame* shifted by ``xy``.
 
-    Both frames are sliced to discard edge artefacts introduced by the shift.
+    Both frames are cropped to discard edge artefacts from the shift.
     """
     x, y = xy
     x_slice, y_slice = _float_to_slice(x), _float_to_slice(y)
@@ -158,17 +153,10 @@ def _solve(
 ) -> FloatArray:
     """Find the ``(x, y)`` shift minimising RMSE between two frames.
 
-    ``seed`` is forwarded to :func:`scipy.optimize.differential_evolution`.
-    The default, ``None``, leaves the search stochastic. Pass an explicit
-    seed for reproducible runs.
-
-    ``use_rust=True`` (the default) prefers the fused Rust ``solve`` entry
-    point (a single differential-evolution + shift + RMSE call) when the compiled
-    ``tandemmp._rust.drift_correction`` extension is available; otherwise
-    falls back transparently to :func:`scipy.optimize.differential_evolution`
-    below. Only plain ``int`` (or ``None``) seeds are supported by the Rust
-    path — an :class:`~numpy.random.Generator`/:class:`~numpy.random.RandomState`
-    ``seed`` also falls back to Python.
+    ``seed`` goes to :func:`scipy.optimize.differential_evolution`; ``None`` (the
+    default) is stochastic, so pass an int for reproducible runs. With ``use_rust``
+    (default) the fused Rust ``solve`` is tried first, falling back to SciPy if the
+    extension is missing or *seed* is not a plain ``int``/``None``.
     """
     if use_rust:
         try:
@@ -197,11 +185,10 @@ def _solve_rust(
     bounds: tuple[float, float],
     seed: int | np.random.Generator | np.random.RandomState | None,
 ) -> FloatArray:
-    """Rust-backed :func:`_solve`, via ``tandemmp._rust.drift_correction``.
+    """Rust-backed :func:`_solve`.
 
-    Raises :class:`ImportError` if the extension hasn't been built, or
-    :class:`TypeError` if *seed* isn't a plain ``int``/``None`` — both are
-    caught by :func:`_solve`'s fallback.
+    Raises :class:`ImportError` if the extension isn't built, or :class:`TypeError`
+    if *seed* isn't an ``int``/``None``; :func:`_solve` catches both and falls back.
     """
     from tandemmp._rust import drift_correction as _dc
 
@@ -228,15 +215,10 @@ def _get_initial_vector(
     *,
     use_rust: bool = True,
 ) -> DriftVector:
-    """Estimate per-index ``(x, y)`` shifts for *movie* against a baseline.
+    """Estimate per-index ``(x, y)`` shifts of *movie* against a baseline.
 
-    If ``rolling_baseline`` is *True*, the baseline for each frame is the
-    previous sampled frame and per-step shifts are accumulated into the
-    returned trajectory.
-
-    ``seed`` is forwarded to :func:`_solve` for each frame — see its
-    docstring for why it defaults to ``None``. ``use_rust`` is likewise
-    forwarded to each :func:`_solve` call — see its docstring.
+    With ``rolling_baseline`` the baseline is the previous sampled frame and the
+    per-step shifts are accumulated. ``seed`` and ``use_rust`` go to :func:`_solve`.
     """
     frames = np.asarray([movie[i] for i in indexes], dtype=float)
 
@@ -274,24 +256,19 @@ def get_vector(
     """Estimate a drift vector for an entire movie.
 
     Args:
-        movie: A 3-D array of shape ``(frames, y, x)``.
-        frame_gap: Sample every *frame_gap*-th frame when building the initial vector.
-        rolling_baseline: If *True*, use the previous sampled frame as the baseline
-            (use this when z-drift is suspected).
-        threshold: Per-frame intensity sum below which a frame is considered "lid
-            open" and skipped from the initial sample. Set to ``0`` to disable.
-        threshold_margin: Number of extra frames around each lid-open region to
-            re-check at full sampling density.
+        movie: Array of shape ``(frames, y, x)``.
+        frame_gap: Sample every *frame_gap*-th frame for the initial vector.
+        rolling_baseline: Use the previous sampled frame as baseline (for suspected
+            z-drift).
+        threshold: Per-frame intensity sum below which a frame counts as "lid open"
+            and is skipped; ``0`` disables.
+        threshold_margin: Extra frames around each lid-open region to re-check at
+            full density.
         parallel: Run the per-frame minimisation across processes.
-        n_jobs: Worker count for parallel mode. ``None`` lets ``multiprocessing``
-            pick a default (typically ``os.cpu_count()``).
-        seed: Forwarded to the underlying :func:`scipy.optimize.differential_evolution`
-            call for each frame. Left as ``None`` (the default), the search is
-            genuinely stochastic — appropriate for real usage. Pass an explicit
-            seed for reproducible results, e.g. in tests.
-        use_rust: Forwarded to :func:`_solve` for each frame — prefer the compiled
-            Rust extension when available, falling back to Python transparently
-            otherwise. Defaults to ``True``.
+        n_jobs: Worker count; ``None`` lets ``multiprocessing`` choose.
+        seed: For :func:`scipy.optimize.differential_evolution`; ``None`` is
+            stochastic, pass an int for reproducible results (e.g. in tests).
+        use_rust: Prefer the Rust extension, falling back to Python (default ``True``).
     """
     all_frames_to_check: IntArray = np.arange(0, len(movie), frame_gap, dtype=int)
 
@@ -339,9 +316,8 @@ def get_vector(
 
     vmean, vstd = float(np.mean(velocity)), float(np.std(velocity))
 
-    # First step is baseline→first sampled frame (both measured against frames[0]),
-    # so its velocity is meaningless noise; replace with the mean to avoid it
-    # tripping the 3σ outlier filter below.
+    # First step (baseline→first sample, both vs frames[0]) has meaningless velocity;
+    # use the mean so it doesn't trip the 3σ outlier filter below.
     velocity[0] = vmean
 
     too_fast = velocity > vmean + vstd * 3
@@ -368,11 +344,10 @@ def get_vector_segmented(
     y_grid: int | None = None,
     **kwargs: Any,  # noqa: ANN401
 ) -> list[DriftVector]:
-    """Estimate per-tile drift vectors for a spatially segmented *movie*.
+    """Estimate per-tile drift vectors by running :func:`get_vector` per tile.
 
-    Splits the movie into a ``y_grid`` × ``x_grid`` grid of tiles and runs
-    :func:`get_vector` on each tile.  When neither grid size is supplied,
-    each tile is roughly 30 pixels per side (with a minimum of 2 rows).
+    The tiling is ``y_grid`` × ``x_grid``; without sizes, tiles are about 30 px per
+    side (at least 2 rows).
     """
     _, y_dim, x_dim = movie.shape
 
@@ -412,16 +387,10 @@ def get_corrected_movie(
     use_rust: bool = True,
     **kwargs: Any,  # noqa: ANN401
 ) -> tuple[FloatArray, DriftVector] | tuple[FloatArray, DriftVector, tuple[slice, ...]]:
-    """Apply drift correction to *movie*.
+    """Apply drift correction to *movie*, cropped to the region in view in every frame.
 
-    If *vector* is *None*, one is estimated by calling :func:`get_vector` with
-    any extra ``kwargs``.  The returned movie is cropped to the region that
-    remains in view across every frame.
-
-    ``use_rust`` is forwarded both to :func:`get_vector` (when *vector* is
-    estimated here) and to each :func:`stabilise` call below — prefer the
-    compiled Rust extension when available, falling back to Python
-    transparently otherwise. Defaults to ``True``.
+    Without *vector*, one is estimated with :func:`get_vector` (extra ``kwargs`` are
+    passed on). ``use_rust`` is forwarded to it and to each :func:`stabilise` call.
     """
     if vector is None:
         vector = get_vector(
@@ -460,15 +429,13 @@ def illumination_correction(
 ) -> FloatArray:
     """Correct illumination non-uniformity and per-frame intensity drift.
 
-    Estimates a spatial illumination profile from the median of per-frame
-    log-Gaussian-smoothed images, normalises by a smoothed proxy for laser
-    power derived from *dc_movie*, and divides each frame of *movie* through.
+    Divides each frame of *movie* by a spatial profile (median of per-frame
+    log-Gaussian-smoothed images) normalised by a smoothed laser-power proxy from
+    *dc_movie*.
 
-    Both *movie* and *dc_movie* must be strictly positive — the spatial profile
-    is computed via ``log10``, which returns ``-inf``/``nan`` (with only a
-    ``RuntimeWarning``) for non-positive pixels.  Raw iSCAT frames meet this
-    precondition, but ratiometric or subtraction pre-processing can produce
-    negative values and should not be passed in directly.
+    Both inputs must be strictly positive: the profile uses ``log10``, which gives
+    ``-inf``/``nan`` for non-positive pixels. Raw iSCAT frames qualify; ratiometric
+    or subtraction output may not.
     """
     if np.any(movie <= 0) or np.any(dc_movie <= 0):
         raise ValueError(

@@ -1,6 +1,6 @@
-"""Tests for tandemmp.pipeline.drift_correction — target API.
+"""Tests for tandemmp.pipeline.drift_correction.
 
-``run_drift_correction`` is exercised with ``Loader``/``get_vector`` monkeypatched,
+``run_drift_correction`` runs with ``Loader``/``get_vector`` monkeypatched,
 avoiding a real ``.mp``/``open_iscat`` dependency.
 """
 
@@ -121,9 +121,8 @@ class TestCorrectMovie:
         corrected = correct.correct_movie(movie, parallel=False)
 
         assert corrected.shape[0] == len(movie)
-        # Correction should shrink the frame (cropped to the always-visible
-        # region) and make the frames agree with each other far better than
-        # the raw (drifting) input did.
+        # Correction should shrink the frame (cropped to the always-visible region) and
+        # make the frames agree far better than the raw (drifting) input.
         assert (
             corrected.shape[1] < movie.shape[1] or corrected.shape[2] < movie.shape[2]
         )
@@ -141,10 +140,9 @@ class TestCorrectMovie:
             correct.correct_movie(movie, i=np.array([0.0, 1.0]), parallel=False)
 
     def test_rejects_default_i_when_movie_length_differs_from_vector(self):
-        # Vector has 5 frames; movie only has 3 and no explicit i is given —
-        # this is very likely a caller mistake (movie is a different slice
-        # than the one the vector was estimated from), so it should raise
-        # rather than silently clamping via np.interp.
+        # Vector has 5 frames, movie 3, no explicit i: very likely a caller mistake
+        # (a different slice than the vector was estimated from), so raise rather than
+        # silently clamp via np.interp.
         vector = DriftVector(np.zeros(5), np.zeros(5))
         correct = DriftCorrectionFunction(vector=vector)
         movie = np.zeros((3, 10, 10))

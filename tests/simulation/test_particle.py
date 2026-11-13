@@ -45,12 +45,11 @@ def _dimer(mass_a: float = 60.0, mass_b: float = 40.0) -> Structure:
 
 
 def _multi_reaction_structure() -> Structure:
-    """Return a monomer that participates as a reactant in two separate reactions.
+    """A monomer that is a reactant in two separate reactions.
 
-    Two composites (AB at rate 1.0, AC at rate 0.7) are created from the same
-    monomer A, which causes two forward reactions to be registered on A.  At
-    chance=0.6 both reactions are eligible, exercising the RNG branch in
-    ``choose_reaction``.
+    Two composites (AB at rate 1.0, AC at 0.7) are built from monomer A, registering
+    two forward reactions on it. At chance=0.6 both are eligible, exercising the RNG
+    branch in ``choose_reaction``.
     """
     a = Structure(mass=60.0, label="A")
     b = Structure(mass=40.0, label="B")
@@ -248,9 +247,8 @@ class TestChooseReaction:
         assert reaction.rate >= 0.4
 
     def test_deterministic_with_rng(self) -> None:
-        # _multi_reaction_structure() gives a monomer A with two eligible
-        # reactions at chance=0.6 (AB-formation at 1.0, AC-formation at 0.7),
-        # so the RNG branch in choose_reaction is actually exercised here.
+        # _multi_reaction_structure() gives monomer A two eligible reactions at chance=0.6
+        # (AB at 1.0, AC at 0.7), so the RNG branch in choose_reaction is exercised.
         a = _multi_reaction_structure()
         p = SimulatedParticle(structure=a)
         r1 = p.choose_reaction(0.6, rng=np.random.default_rng(0))

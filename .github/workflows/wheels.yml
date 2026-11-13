@@ -1,14 +1,12 @@
 name: Wheels
 
-# Builds one wheel per OS/architecture (Windows x86_64, Linux x86_64 and
-# aarch64). macOS is not supported. The Rust extensions use PyO3's stable ABI,
-# so each wheel works for every Python >= 3.10.
+# One wheel per OS/arch (Windows x86_64, Linux x86_64/aarch64; no macOS). PyO3's
+# stable ABI makes each wheel work for every Python >= 3.10. A `vX.Y.Z` tag
+# (matching the package version) also attaches the wheels and sdist to a GitHub
+# Release.
 #
-# Tag a release with `vX.Y.Z` (matching the package version) to also attach the
-# wheels and sdist to a GitHub Release.
-#
-# Third-party actions are pinned to commit SHAs because the `release` job holds a
-# write token. The trailing comment is the tag each SHA was resolved from.
+# Third-party actions are pinned to commit SHAs (the `release` job holds a write
+# token); the trailing comment is the tag each SHA came from.
 
 on:
   push:
@@ -57,9 +55,8 @@ jobs:
           path: wheelhouse/*.whl
           if-no-files-found: error
 
-  # abi3 promises one wheel works on every newer Python, but cibuildwheel only
-  # tests it on the build interpreter (3.10). Install the built wheels on newer
-  # Pythons and call into both extensions.
+  # cibuildwheel only tests the build interpreter (3.10), so install the wheels on
+  # newer Pythons too and call into both extensions.
   smoke:
     name: Smoke test (${{ matrix.os }}, Python ${{ matrix.python-version }})
     needs: build_wheels
@@ -119,10 +116,9 @@ jobs:
 
   release:
     name: Attach to GitHub Release
-    # Only for pushed `v*` tags. `triggering_actor` is whoever started this run (it
-    # differs from `actor` on a re-run), and it must be an allowlisted maintainer.
-    # For stronger protection, also add a tag protection rule / ruleset for `v*`
-    # in the repository settings: anyone with write access can otherwise push one.
+    # Only for pushed `v*` tags by an allowlisted maintainer (`triggering_actor`,
+    # which differs from `actor` on re-runs). Also add a `v*` tag ruleset in the
+    # repo settings: anyone with write access can otherwise push a tag.
     if: |
       startsWith(github.ref, 'refs/tags/v') &&
       contains(fromJSON('["alexross-o","joshualiambishop"]'), github.triggering_actor)
@@ -144,8 +140,8 @@ jobs:
           path: dist
           merge-multiple: true
 
-      # v1.2.3 must not be able to publish a 0.8.0.dev0 wheel. Also decides whether
-      # this is a pre-release (.devN / aN / bN / rcN).
+      # Reject a tag that doesn't match the built version, and flag pre-releases
+      # (.devN / aN / bN / rcN).
       - name: Check the tag matches the built version
         id: version
         run: |

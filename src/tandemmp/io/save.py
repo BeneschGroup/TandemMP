@@ -1,17 +1,11 @@
 """Result serialisation for TandemMP analyses.
 
-Provides picklable dataclass containers that capture the per-event and
-per-particle outputs of an analysis, along with :func:`save_results` and
-:func:`load_results` helpers.
-
-The container types (:class:`EventRecord`, :class:`ParticleRecord`,
-:class:`ResultsFile`) are plain dataclasses with no dependency on
-higher-level pipeline objects, so they are safe to unpickle in a
-minimal environment.
-
-The builder helpers (:func:`build_event_records`,
-:func:`build_particle_records`) accept event and particle
-objects and extract the subset of fields that should persist on disk.
+Picklable dataclass containers (:class:`EventRecord`, :class:`ParticleRecord`,
+:class:`ResultsFile`) hold per-event and per-particle outputs, saved and loaded
+with :func:`save_results` / :func:`load_results`. They depend on no pipeline
+objects, so they unpickle in a minimal environment.
+:func:`build_event_records` and :func:`build_particle_records` extract the
+fields that persist.
 """
 
 from __future__ import annotations
@@ -45,13 +39,10 @@ _FloatOrArray = float | npt.NDArray[np.floating]
 
 @dataclasses.dataclass(frozen=True)
 class EventRecord:
-    """Serialisable snapshot of a single ratiometric event.
+    """Serialisable snapshot of one ratiometric event.
 
-    Position/contrast/mass fields preserve whatever shape the source
-    :class:`~tandemmp.events.RatiometricEvent` carries — scalars for
-    basic-fit events and per-frame arrays for events that went through 3D
-    ratiometric fitting. This mirrors the pre-refactor :class:`SaveFile`
-    output, which stored ``e.c``, ``e.m`` etc. directly without flattening.
+    Position/contrast/mass fields keep the source event's shape: scalars for
+    basic-fit events, per-frame arrays for 3-D-fit events.
     """
 
     contrast: _FloatOrArray
@@ -70,23 +61,19 @@ class EventRecord:
     direct_overlap: bool
     image: npt.NDArray[np.floating]
     old_mass: _FloatOrArray | None = None
-    #: Duplicates ``basic_fit_error``. Mirrors the pre-refactor
-    #: ``RatiometricData.old_errors`` field, which was always populated as
-    #: ``[e.basic_fit_error for e in events]`` regardless of whether
-    #: ``old_masses`` was supplied — kept as a separate field for schema
-    #: compatibility with the legacy format rather than being dropped.
+    #: Duplicates ``basic_fit_error``; kept for compatibility with the legacy schema
+    #: (``old_errors`` was always ``[e.basic_fit_error for e in events]``).
     old_error: float | None = None
 
 
 @dataclasses.dataclass(frozen=True)
 class ParticleRecord:
-    """Serialisable snapshot of a single tracked particle.
+    """Serialisable snapshot of one tracked particle.
 
-    Per-event fields are stored as Python lists, mirroring the pre-refactor
-    ``PartData`` container. Each list element is whatever the source event
-    held (a scalar for basic-fit events; a per-frame array for 3D-fit
-    events). Use :meth:`interpolate` to obtain a contiguous frame range and
-    linearly interpolated values for any 1-D scalar field.
+    Per-event fields are Python lists whose elements keep the source event's shape
+    (scalar for basic-fit, per-frame array for 3-D-fit). :meth:`interpolate` gives a
+    contiguous frame range with linearly interpolated values for any 1-D scalar
+    field.
     """
 
     particle: int | str
@@ -112,8 +99,7 @@ class ParticleRecord:
     ]:
         """Linearly interpolate *values* onto the continuous frame range.
 
-        NaNs in *values* are dropped before interpolation. Returns
-        ``(frames, interpolated_values)``.
+        NaNs are dropped first. Returns ``(frames, interpolated_values)``.
         """
         arr = np.asarray(values, dtype=float)
         frames = np.asarray(self.frames, dtype=int)
@@ -162,7 +148,7 @@ class ResultsFile:
 
 
 def _decision_name(decision: object) -> str | None:
-    """Extract the ``action.name`` field off a Decision, if present."""
+    """``action.name`` of a Decision, if present."""
     if decision is None:
         return None
     action = getattr(decision, "action", None)
@@ -172,7 +158,7 @@ def _decision_name(decision: object) -> str | None:
 
 
 def _classification_rep(classification: object) -> str | None:
-    """Return the ``rep`` field off a Classification, if present."""
+    """``rep`` of a Classification, if present."""
     if classification is None:
         return None
     return getattr(classification, "rep", str(classification))
@@ -183,11 +169,10 @@ def build_event_records(
     *,
     old_masses: list[_FloatOrArray] | None = None,
 ) -> list[EventRecord]:
-    """Build :class:`EventRecord` list from RatiometricEvents.
+    """Build an :class:`EventRecord` list from RatiometricEvents.
 
-    Mirrors the pre-refactor ``save_experiment`` extraction: fields are
-    pulled directly off the event without scalarisation, so 3D-fit events
-    keep their per-frame arrays in ``contrast``/``mass``/``x_pos``/etc.
+    Fields are pulled off each event without scalarisation, so 3-D-fit events keep
+    their per-frame arrays.
     """
     records: list[EventRecord] = []
     if old_masses is not None and len(old_masses) != len(events):
@@ -222,12 +207,10 @@ def build_event_records(
 def build_particle_records(
     particles: list[Particle],
 ) -> list[ParticleRecord]:
-    """Build :class:`ParticleRecord` list from Particles.
+    """Build a :class:`ParticleRecord` list from Particles.
 
-    Per-event fields (``contrasts``, ``masses``, ``x_pos`` …) are stored as
-    Python lists exactly as the pre-refactor ``PartData`` did before
-    interpolation — preserving whatever per-event shape the source events
-    carry, including 3D-fit traces.
+    Per-event fields (``contrasts``, ``masses``, ``x_pos`` …) are stored as lists
+    keeping each event's own shape, including 3-D-fit traces.
     """
     from tandemmp.tracking.particle import GhostParticle
 
@@ -316,15 +299,12 @@ _LEGACY_CLASS_REMAP: dict[tuple[str, str], tuple[str, str]] = {
 
 
 class _LegacyUnpickler(pickle.Unpickler):
-    """Unpickler that rewrites pre-refactor class paths onto stub classes.
+    """Unpickler mapping legacy class paths onto stubs in :mod:`tandemmp.io._legacy`.
 
-    Old result files reference ``tandemmp.io.save.SaveFile`` and friends, as
-    well as the legacy ``tandemmp.parameters`` and
-    ``tandemmp.DriftCorrector`` modules embedded in a
-    ``SaveFile``'s ``parameters``/``vector`` fields. Those modules/classes
-    were moved or deleted during the refactor with no forwarding shim left
-    behind; ``find_class`` reroutes them to the stubs in
-    :mod:`tandemmp.io._legacy` so unpickling succeeds.
+    Old result files reference ``tandemmp.io.save.SaveFile`` and the removed
+    ``tandemmp.parameters`` / ``tandemmp.DriftCorrector`` modules (inside a
+    ``SaveFile``'s ``parameters``/``vector`` fields); ``find_class`` reroutes them so
+    unpickling succeeds.
     """
 
     def find_class(self, module: str, name: str) -> type:
@@ -335,15 +315,12 @@ class _LegacyUnpickler(pickle.Unpickler):
 
 
 def legacy_pickle_load(fh: IO[bytes]) -> object:
-    """Unpickle *fh*, remapping pre-refactor TandemMP class paths onto stubs.
+    """Unpickle *fh*, mapping legacy TandemMP class paths onto stubs.
 
-    A drop-in replacement for ``pickle.load`` for callers that unpickle
-    arbitrary objects which may *reference* legacy TandemMP classes
-    somewhere in their object graph — e.g. a post-processing
-    result whose ``part_data`` field is a pre-refactor ``PartData`` — not
-    just top-level ``SaveFile``/``PartData`` payloads. :func:`load_results`
-    is the schema-enforcing counterpart for actual :class:`ResultsFile`
-    payloads; this is the unopinionated primitive it's built on.
+    A drop-in ``pickle.load`` for objects that may *reference* legacy classes
+    anywhere in their graph (e.g. a post-processing result holding a legacy
+    ``PartData``), not just top-level ``SaveFile``/``PartData`` payloads.
+    :func:`load_results` is the schema-enforcing version for :class:`ResultsFile`.
     """
     return _LegacyUnpickler(fh).load()
 
@@ -377,10 +354,8 @@ def _migrate_event(rdata: LegacyRatiometricData, idx: int) -> EventRecord:
             if rdata.old_masses is None or idx >= len(rdata.old_masses)
             else rdata.old_masses[idx]
         ),
-        # `rdata.old_errors` is the legacy analogue of `basic_fit_error`
-        # (`[e.basic_fit_error for e in events]` in the pre-refactor
-        # `save_experiment`); recovered here rather than discarded so it
-        # matches `build_event_records`, which always populates `old_error`.
+        # `rdata.old_errors` is the legacy `basic_fit_error`; recovered so this matches
+        # `build_event_records`, which always populates `old_error`.
         old_error=(
             None
             if rdata.old_errors is None or idx >= len(rdata.old_errors)
@@ -392,10 +367,8 @@ def _migrate_event(rdata: LegacyRatiometricData, idx: int) -> EventRecord:
 def _migrate_particle(p: object) -> ParticleRecord:
     """Build a :class:`ParticleRecord` from a legacy PartData/ParticleData.
 
-    The legacy ``hess_inv`` field (inverse Hessian from the optimizer) is
-    intentionally dropped: pre-refactor ``save_experiment`` already wrote it
-    as ``[None for e in fixed_events]`` — it was never populated with real
-    data — so there is nothing to carry forward.
+    The legacy ``hess_inv`` field is dropped: it was always written as
+    ``[None, ...]``, so there is nothing to carry forward.
     """
     return ParticleRecord(
         particle=getattr(p, "particle", 0),
@@ -442,14 +415,11 @@ def _migrate(obj: object) -> ResultsFile:
 def load_results(filepath: str | Path) -> ResultsFile | list[ParticleRecord]:
     """Unpickle a :class:`ResultsFile` from *filepath*.
 
-    Pre-refactor pickles are remapped onto stubs in :mod:`tandemmp.io._legacy`
-    and then converted to the current schema. Two legacy shapes are
-    supported: a top-level ``SaveFile`` NamedTuple (events + particles +
-    movie + parameters), and a bare ``[PartData, ...]`` list — some
-    pre-refactor scripts pickled particle lists directly with no enclosing
-    ``SaveFile``. The bare-list case returns a plain ``list[ParticleRecord]``
-    rather than a :class:`ResultsFile`, since there is no movie/parameters/
-    events context to populate.
+    Legacy pickles are remapped onto stubs in :mod:`tandemmp.io._legacy` and
+    converted to the current schema. Two legacy shapes are supported: a top-level
+    ``SaveFile`` (events + particles + movie + parameters), and a bare
+    ``[PartData, ...]`` list, which returns a plain ``list[ParticleRecord]`` since
+    there is no other context to populate a :class:`ResultsFile`.
     """
     path = Path(filepath)
     with path.open("rb") as fh:

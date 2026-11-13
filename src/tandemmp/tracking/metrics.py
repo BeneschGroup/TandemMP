@@ -1,9 +1,8 @@
 """Trajectory metrics for tracked iSCAT particles.
 
-Pure array-based helpers computing summary statistics over particle
-trajectories (step sizes, mean-squared displacement, residency time,
-etc.).  All functions operate on NumPy-compatible input sequences so
-they can be reused without coupling to any particular particle type.
+Array-based helpers for summary statistics over trajectories (step sizes,
+mean-squared displacement, residency time, ...). They take NumPy-compatible
+sequences, so they are independent of any particle type.
 """
 
 from __future__ import annotations

@@ -150,12 +150,11 @@ class TestAddGaussianFit:
         assert line.get_color() == "red"
 
     def test_recovers_positive_amplitude(self, monkeypatch) -> None:
-        """Histogram counts are non-negative, so the raw fitted amplitude
-        should land in the positive basin of the ``abs(a0)``-symmetric
-        Gaussian model even though a negative-amplitude optimum is now also
-        mathematically valid. Asserts on the raw fit result rather than the
-        plotted curve, since ``gaussian()``'s ``abs(a0)`` would make the
-        plotted curve non-negative regardless of the fit's actual sign.
+        """Raw fitted amplitude lands in the positive basin of the ``abs(a0)`` model.
+
+        Counts are non-negative, though a negative optimum is also valid. Asserts on the
+        raw fit, since ``gaussian()``'s ``abs(a0)`` would make the plotted curve
+        non-negative whatever the fit's sign.
         """
         import tandemmp.plotting.tools as tools_module
 

@@ -12,15 +12,11 @@ on:
 
 jobs:
   claude:
-    # Gate: only run for the allowlisted maintainers (alexross-o, joshualiambishop),
-    # AND only when the content that triggered the run was authored by one of them.
-    # The first check restricts *who* can trigger it; the second stops a run being
-    # driven by text an outsider wrote (e.g. a maintainer assigning an outsider's
-    # issue that contains '@claude').
-    # We match on login, not author_association: association is reported as
-    # CONTRIBUTOR for org members whose membership is private, which would lock out
-    # the very people this is meant to allow. To add a maintainer, append their
-    # login to every list below.
+    # Gate: only the allowlisted maintainers (alexross-o, joshualiambishop), and only
+    # for content they authored, so an outsider's text (e.g. an issue they assign)
+    # can't drive a run. Matched by login, not author_association, which reads
+    # CONTRIBUTOR for org members with private membership. To add a maintainer,
+    # append their login to every list below.
     if: |
       contains(fromJSON('["alexross-o","joshualiambishop"]'), github.event.sender.login) &&
       (
