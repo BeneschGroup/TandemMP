@@ -1,15 +1,11 @@
 """Wrapper around the open_iscat pipeline for TandemMP.
 
-The pipeline functions (:func:`load_mp_file`, :class:`OpenIscatPipeline`)
-require ``open_iscat``, ``h5py``, and ``nptdms`` to be installed.  The data
-containers (:class:`Info`, :class:`Movie`) have no such dependency and can be
-used standalone.
-
-:class:`OpenIscatPipeline` implements the
-:class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner` structural
-interface — see that module for the generic event-finding pipeline contract
-and rationale. :class:`EventsFound` and :class:`PipelineResults` are
-re-exported from there for backward compatibility.
+The pipeline functions (:func:`load_mp_file`, :class:`OpenIscatPipeline`) need
+``open_iscat``, ``h5py`` and ``nptdms``; the containers (:class:`Info`,
+:class:`Movie`) do not. :class:`OpenIscatPipeline` implements
+:class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner` (see that module for
+the contract); :class:`EventsFound` and :class:`PipelineResults` are re-exported
+from it for backward compatibility.
 """
 
 from __future__ import annotations
@@ -57,8 +53,8 @@ class Info:
 class Movie:
     """Movie frames with acquisition metadata.
 
-    Attribute access falls through to the underlying *frames* array,
-    so ``movie.shape`` is equivalent to ``movie.frames.shape``.
+    Attribute access falls through to *frames*, so ``movie.shape`` is
+    ``movie.frames.shape``.
     """
 
     frames: npt.NDArray[np.floating[Any]]
@@ -166,14 +162,12 @@ def load_mp_file(filepath: str | pathlib.Path) -> Movie:
 
 
 class OpenIscatPipeline:
-    """Event-finding pipeline backed by the open_iscat preprocessing and
-    peak-finding stack (``FrameReader`` -> ``Preprocessor`` ->
-    ``MaskFilterPeakFinder``/``Analyser``).
+    """Event-finding pipeline backed by the open_iscat stack.
 
-    Implements the :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`
-    structural interface. Stateless, so instances are trivially picklable
-    (needed when a :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`
-    crosses a :class:`multiprocessing.Pool` boundary, e.g. via
+    Chains ``FrameReader`` -> ``Preprocessor`` -> ``MaskFilterPeakFinder``/
+    ``Analyser`` and implements
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`. Stateless, so it
+    pickles across a :class:`multiprocessing.Pool` (e.g. via
     :func:`tandemmp.pipeline.batch.batch_process`).
     """
 
@@ -188,17 +182,17 @@ class OpenIscatPipeline:
     ) -> PipelineResults:
         """Run the open_iscat preprocessing and peak-finding pipeline.
 
-        Requires ``open_iscat``.
+        Needs ``open_iscat``.
 
         Args:
-            filepath: Path to the movie file.
-            frame_bypass: If provided, splice these (e.g. drift-corrected)
-                frames into the pipeline instead of reading from disk.
+            filepath: Movie file.
+            frame_bypass: Splice these (e.g. drift-corrected) frames in instead of
+                reading from disk.
             parallel: Use parallel processing where available.
-            navg: Number of averaged frames for ratiometric event detection.
-            **kwargs: Ignored — absorbs keywords meant for a different
+            navg: Averaged frames for ratiometric event detection.
+            **kwargs: Ignored; absorbs keywords meant for other
                 :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`
-                implementation when called generically through the interface.
+                implementations.
 
         Returns:
             :class:`~tandemmp.pipeline.pipeline_interface.PipelineResults`

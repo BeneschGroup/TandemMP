@@ -35,9 +35,8 @@ logger = logging.getLogger(__name__)
 def get_ghost_model() -> Any:  # noqa: ANN401
     """Load and cache the ghost-prediction CNN (``GP_model.h5``).
 
-    TensorFlow is imported *inside* this function so the package can be
-    imported without TensorFlow installed.  The model is loaded once and
-    cached for the lifetime of the process.
+    TensorFlow is imported inside this function so the package imports without it;
+    the model is loaded once per process.
     """
     import importlib.resources
     import os
@@ -88,8 +87,7 @@ class SubtractionEvent(AbstractEvent):
                 self.basic_fit()
                 self.exc_fit = False
 
-            # SubtractionEvent never applies a 3-D fit, so dx/dy are always
-            # plain floats here despite AbstractEvent's wider declared type.
+            # No 3-D fit here: dx/dy are plain floats (AbstractEvent's type is wider).
             self.interp_dx: float | None = float(self.dx)
             self.interp_dy: float | None = float(self.dy)
             self.test_bad()
@@ -124,8 +122,7 @@ class SubtractionEvent(AbstractEvent):
         negative_mass = self.c >= 0
         low_snr = self.snr <= 0.1
         bounds = (self.peak.image.shape[0] // 2) + 4
-        # SubtractionEvent never applies a 3-D fit, so dx/dy are always
-        # plain floats here despite AbstractEvent's wider declared type.
+        # No 3-D fit here: dx/dy are plain floats despite AbstractEvent's wider type.
         out_of_bounds = (abs(float(self.dx)) > bounds) or (abs(float(self.dy)) > bounds)
         self._is_bad = negative_mass or low_snr or out_of_bounds
 
@@ -162,13 +159,11 @@ class SubtractionEvent(AbstractEvent):
 class SubtractionSeries(Connectable):
     """Ordered collection of :class:`SubtractionEvent` instances.
 
-    Aggregates per-event attributes into arrays and provides smoothed
-    position interpolation, ghost-signal scoring, and impression generation.
+    Aggregates per-event attributes into arrays and provides smoothed position
+    interpolation, ghost-signal scoring and impression generation.
 
-    The attributes listed in ``_AGGREGATE_ATTRS`` are injected dynamically
-    in :meth:`__init__` (one array element per underlying event), which mypy
-    cannot see from a plain ``self.__dict__[attr] = ...`` loop — they are
-    declared here so downstream code can reference them without an
+    The ``_AGGREGATE_ATTRS`` attributes are injected in :meth:`__init__` (one element
+    per event); they are declared here so mypy sees them and callers need no
     ``attr-defined`` suppression.
     """
 
@@ -316,8 +311,7 @@ class SubtractionSeries(Connectable):
         navg = len(self.events)
         _is_bad = self._is_bad
         dx = self.dx
-        # If every event after the first is bad, np.interp has too few
-        # good reference points to produce a meaningful interpolation.
+        # All events after the first are bad: too few points to interpolate.
         if _is_bad[-navg + 1 :].all():
             return dx
         i = np.arange(len(self))
@@ -329,8 +323,7 @@ class SubtractionSeries(Connectable):
         navg = len(self.events)
         _is_bad = self._is_bad
         dy = self.dy
-        # If every event after the first is bad, np.interp has too few
-        # good reference points to produce a meaningful interpolation.
+        # All events after the first are bad: too few points to interpolate.
         if _is_bad[-navg + 1 :].all():
             return dy
         i = np.arange(len(self))
@@ -357,9 +350,8 @@ class SubtractionSeries(Connectable):
 
     @property
     def ghost_signal_ML(self) -> float | None:  # noqa: N802
-        """Ghost-prediction score from the CNN model.
+        """CNN ghost-prediction score in [0, 1], or ``None`` on failure.
 
-        Returns a float in [0, 1], or ``None`` on failure.
         TensorFlow is lazy-imported via :func:`get_ghost_model`.
         """
         try:
@@ -413,9 +405,9 @@ class SubtractionSeries(Connectable):
         min_mass: float,
         exclusion_zone: npt.NDArray[np.bool_] | bool = False,
     ) -> float:
-        """Heuristic ghost signal based on averaged residual images.
+        """Heuristic ghost signal from averaged residual images, in [0, 1].
 
-        Returns a value in [0, 1] — higher means more likely a ghost.
+        Higher means more likely a ghost.
         """
         masked = np.ma.array(  # type: ignore[no-untyped-call]
             [i._basic_replicate_fit()[-1] for i in self],

@@ -1,15 +1,11 @@
-//! Small scalar helpers ported from `tandemmp.drift.corrector`.
-//!
-//! These mirror `_rmse`, `_most_positive`, `_most_negative`, and
-//! `_float_to_slice` closely enough that a PyO3 binding layer can expose
-//! them 1:1 if ever useful for testing parity from the Python side.
+//! Small scalar helpers ported from `tandemmp.drift.corrector` (`_rmse`,
+//! `_most_positive`, `_most_negative`, `_float_to_slice`), mirrored closely enough that
+//! a PyO3 layer could expose them 1:1 for parity tests from Python.
 
 /// Root-mean-square error between two equal-length slices.
 ///
-/// Mirrors `_rmse(a, b) = sqrt(mean((a - b) ** 2))`. Panics if the slices
-/// have different lengths (mirrors NumPy's broadcast error for mismatched
-/// shapes, just surfaced as a Rust panic instead of a Python exception —
-/// the PyO3 layer should turn this into a `ValueError`).
+/// Mirrors `_rmse(a, b) = sqrt(mean((a - b) ** 2))`. Panics if the lengths differ
+/// (NumPy raises a broadcast error; the PyO3 layer turns this into a `ValueError`).
 pub fn rmse(a: &[f64], b: &[f64]) -> f64 {
     assert_eq!(a.len(), b.len(), "rmse: slices must have equal length");
     if a.is_empty() {
@@ -49,17 +45,14 @@ pub fn most_negative(values: &[f64]) -> f64 {
         .unwrap_or(0.0)
 }
 
-/// A Python-slice-like `(start, stop)` pair, mirroring the object returned
-/// by `_float_to_slice`, before it is resolved against a concrete axis
-/// length (Python slices are lazy about the array they'll index into —
-/// this type keeps that same two-step shape: build a [`FloatSlice`], then
-/// [`FloatSlice::resolve`] it against a length).
+/// A Python-slice-like `(start, stop)` pair mirroring the object `_float_to_slice`
+/// returns, before it is resolved against an axis length: build a [`FloatSlice`], then
+/// [`FloatSlice::resolve`] it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FloatSlice {
     /// `None` mirrors Python's `slice(None, stop)` (start defaults to 0).
     pub start: Option<i64>,
-    /// `None` mirrors Python's `slice(start, None)` (stop defaults to the
-    /// axis length).
+    /// `None` mirrors Python's `slice(start, None)` (stop defaults to the axis length).
     pub stop: Option<i64>,
 }
 
@@ -72,8 +65,8 @@ pub struct FloatSlice {
 ///     return slice(None, int(n) - 1)
 /// ```
 ///
-/// `n as i64` truncates toward zero, exactly like Python's `int()` on a
-/// float, so the two implementations agree bit-for-bit on the integer part.
+/// `n as i64` truncates toward zero like Python's `int()` on a float, so both agree
+/// bit-for-bit on the integer part.
 pub fn float_to_slice(n: f64) -> FloatSlice {
     if n >= 0.0 {
         FloatSlice {
@@ -89,10 +82,9 @@ pub fn float_to_slice(n: f64) -> FloatSlice {
 }
 
 impl FloatSlice {
-    /// Resolve this slice against an axis of length `len`, returning
-    /// `(start, stop)` indices such that `start <= stop <= len`, matching
-    /// NumPy/Python slice-indexing semantics (negative `stop` counts back
-    /// from the end; out-of-range bounds clamp rather than panic).
+    /// Resolve this slice against an axis of length `len`, returning `(start, stop)` with
+    /// `start <= stop <= len`, matching NumPy/Python slice-indexing semantics (a negative
+    /// `stop` counts back from the end; out-of-range bounds clamp).
     pub fn resolve(&self, len: usize) -> (usize, usize) {
         let len_i = len as i64;
         let start = match self.start {

@@ -661,13 +661,11 @@ class TestGetGhostModel:
             assert path.stat().st_size > 0
 
     def test_lazy_import_no_tensorflow_at_module_level(self):
-        """Importing tandemmp.events should not import tensorflow.
+        """Importing tandemmp.events must not import tensorflow.
 
-        Runs in a fresh subprocess so the check is deterministic regardless
-        of whether an earlier test in this session already imported
-        tensorflow. PYTHONPATH is set explicitly
-        since pytest's `pythonpath = ["src"]` setting (pyproject.toml)
-        doesn't propagate to a subprocess.
+        Runs in a fresh subprocess so the check is deterministic even if an earlier test
+        imported tensorflow. PYTHONPATH is set explicitly, as pytest's
+        ``pythonpath = ["src"]`` does not propagate to subprocesses.
         """
         src_dir = Path(__file__).resolve().parents[2] / "src"
         existing_pythonpath = os.environ.get("PYTHONPATH", "")

@@ -127,11 +127,10 @@ class TestMassToSigma:
         assert mass_to_sigma(100.0) == pytest.approx(9.821047344076268)
 
     def test_heavy_mass_hits_lower_floor(self):
-        """Very heavy particle: the precision estimate is floored at 1.0 nm.
+        """Very heavy particle: precision is floored at 1.0 nm.
 
-        ``sigma = a / (mass * b)`` drops below 1 nm above ~982 kDa, so every
-        heavier particle returns the 1.0 nm floor rather than continuing to
-        shrink (the physical-radius branch is currently disabled).
+        ``sigma = a / (mass * b)`` drops below 1 nm above ~982 kDa, so heavier particles
+        return the floor (the physical-radius branch is disabled).
         """
         assert mass_to_sigma(50_000.0) == 1.0
         assert mass_to_sigma(100_000.0) == 1.0

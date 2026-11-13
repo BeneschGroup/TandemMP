@@ -1,6 +1,6 @@
 """Tests for tandemmp.pipeline.investigator.
 
-Tiered by cost/value: pure unit tests for small containers/helpers, lightweight
+Tiered by cost: pure unit tests of small containers/helpers, lightweight
 ``BaseInvestigator`` methods on synthetic movies, and higher-level
 ``GhostInvestigator``/``Investigator`` scenarios wired end to end.
 """
@@ -216,14 +216,12 @@ def _make_fit_attempt(
     classification: Classification = EvClassification.Binding,
     fun: float = 1e-8,
 ) -> MultiFitResult:
-    """A real, cheaply-constructed ``MultiFitResult`` for a real *series*.
+    """A cheap, real ``MultiFitResult`` for a real *series*.
 
-    Used to stand in for the return value of ``fit_initial_ghost``/
-    ``fit_double_ghost`` in tests: the interesting behaviour in
-    ``attempt_initial_ghost``/``double_check_ghost`` is what they *do* with a
-    fit result (GhostParticle construction, threshold checks,
-    ``propose_new_event`` acceptance), not whether ``scipy.optimize.minimize``
-    converges, so the inner optimiser is replaced with a deterministic value.
+    Stands in for ``fit_initial_ghost``/``fit_double_ghost``: what matters in
+    ``attempt_initial_ghost``/``double_check_ghost`` is what they do with a fit
+    (GhostParticle construction, thresholds, ``propose_new_event`` acceptance), not
+    optimiser convergence, so the optimiser is replaced by a deterministic value.
     """
     return MultiFitResult(
         series=series,
@@ -397,9 +395,7 @@ class TestDistanceArray:
         np.testing.assert_allclose(arr, [1.0, 2.0, 3.0])
 
     def test_none_becomes_worst(self):
-        """None → 2× max known, so unbound candidates score worse than any
-        real match.
-        """
+        """None becomes 2× the max known distance, so unbound candidates rank worst."""
         arr = _distance_array([self._r(1.0), self._r(None), self._r(3.0)])
         assert arr[0] == 1.0
         assert arr[1] == 6.0  # 3.0 * 2
@@ -553,10 +549,9 @@ class TestGenerateSubtractionSeries:
 class TestFindClassification:
     """Direct coverage of ``find_classification``.
 
-    The real ``fit_3d_ratiometric`` call is replaced with a deterministic
-    stand-in keyed by classification, so the scoring/selection logic that
-    ``find_classification`` itself owns can be pinned exactly rather than
-    depending on real optimiser convergence.
+    The real ``fit_3d_ratiometric`` is replaced by a deterministic stand-in keyed by
+    classification, so the scoring/selection logic owned by ``find_classification``
+    can be pinned exactly without depending on optimiser convergence.
     """
 
     def test_single_classification_returns_best_result(
@@ -589,10 +584,10 @@ class TestFindClassification:
     def test_dissociation_veto_skips_to_next_candidate(
         self, spline_model, info, monkeypatch
     ):
-        """A >90% mass drop on the best-fitting candidate is vetoed — the
-        loop must fall through to the next-best candidate instead of
-        returning the vetoed one (the exact behaviour documented at
-        investigator.py:553-556).
+        """A >90% mass drop on the best candidate is vetoed; the next-best is used.
+
+        The loop must fall through rather than return the vetoed candidate (see
+        ``find_classification``).
         """
         b = _make_base_investigator(spline_model, info)
         event = _make_binding_ratiometric(spline_model, frame=30, navg=3)
@@ -689,9 +684,10 @@ class TestMatchGhost:
         assert inv.match_ghost(event, query) is False
 
     def test_returns_automatic_candidate_on_temporal_overlap(self, spline_model, info):
-        """A tracked ghost with a temporal-overlap link to *event* is an
-        "automatic candidate" regardless of the spatial-probability scoring —
-        this is the branch ``process_ghost``'s success path depends on.
+        """A temporal-overlap link to *event* makes a ghost an automatic candidate.
+
+        This holds regardless of spatial-probability scoring, and is the branch
+        ``process_ghost``'s success path depends on.
         """
         inv = _make_investigator(spline_model, info)
 
@@ -716,10 +712,9 @@ class TestMatchGhost:
 class TestProcessGhost:
     """Orchestration coverage for ``process_ghost``.
 
-    ``attempt_initial_ghost``/``match_ghost``/``double_check_ghost`` are
-    monkeypatched at the instance level: the decision-tree logic that stitches
-    their results together into an ``Action``/particle pair is what's under
-    test here, not the underlying fits (covered separately).
+    ``attempt_initial_ghost``/``match_ghost``/``double_check_ghost`` are monkeypatched
+    per instance: the target is the decision tree combining their results into an
+    ``Action``/particle pair, not the fits themselves (covered elsewhere).
     """
 
     def test_returns_ignore_when_initial_attempt_fails(
@@ -823,10 +818,8 @@ class TestFindAndFitNoParticles:
             spline_model, frame=30, navg=3, midpoint=(25, 25)
         )
         decision = inv.find_and_fit(event)
-        # No signal (near-zero, no ghost) → either failed (no candidate under
-        # tolerance) or create_new (if the trivial fit somehow beats the
-        # basic error).  Both are acceptable Decisions — assert it's a real
-        # Decision and doesn't crash.
+        # No signal: either failed (no candidate under tolerance) or create_new (if the
+        # trivial fit beats the basic error). Both are valid; just assert it is a Decision.
         assert isinstance(decision, Decision)
         assert decision.action in (Action.failed, Action.create_new, Action.ignore)
 
@@ -834,12 +827,11 @@ class TestFindAndFitNoParticles:
 class TestAttemptInitialGhost:
     """Real ``GhostParticle`` construction from a fit result.
 
-    ``fit_initial_ghost`` (which drives a real ``scipy.optimize.minimize``
-    call) is replaced with a deterministic result built from the *real*
-    background-corrected series passed to it — the behaviour under test is
-    everything ``attempt_initial_ghost`` does with that result: threshold
-    checks, ``GhostEvent``/``GhostParticle`` construction, and
-    ``propose_new_event`` acceptance.
+    ``fit_initial_ghost`` (a real ``scipy.optimize.minimize`` call) is replaced by a
+    deterministic result built from the real background-corrected series. The target
+    is everything ``attempt_initial_ghost`` does with it: threshold checks,
+    ``GhostEvent``/``GhostParticle`` construction and ``propose_new_event``
+    acceptance.
     """
 
     def test_returns_ghost_particle_on_successful_fit(
@@ -852,9 +844,8 @@ class TestAttemptInitialGhost:
         c_val = float(mass_to_c(1000.0))
 
         def fake_fit_initial_ghost(event, series, method="Powell"):
-            # fun=0.0: the noiseless synthetic PSF gives `event.basic_fit_error`
-            # a near-machine-epsilon value, so `attempt.error` must be smaller
-            # still to clear attempt_initial_ghost's `beats_basic` threshold.
+            # fun=0.0: the noiseless synthetic PSF gives `event.basic_fit_error` ~machine epsilon,
+            # so `attempt.error` must be smaller still to clear `beats_basic`.
             attempt = _make_fit_attempt(series, c=c_val, fun=0.0)
             res = OptimizeResult(x=np.array([0.0, 0.0, c_val]))
             return res, attempt

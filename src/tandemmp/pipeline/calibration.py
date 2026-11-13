@@ -1,28 +1,25 @@
 """Interactive contrast-to-mass calibration.
 
-Standalone from :mod:`tandemmp.pipeline.batch` so a calibration can be
-generated (:func:`run_calibration`) and persisted (:func:`save_calibration`)
-without running a full analysis. Event-finding goes directly through the
-pluggable :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`
-interface (open_iscat by default) — raw peak-finding contrasts, with no
-mass filtering, since the interactive histogram step below is itself the
-peak-selection filter.
+Standalone from :mod:`tandemmp.pipeline.batch`: :func:`run_calibration` generates
+a calibration and :func:`save_calibration` persists it, with no full analysis.
+Events come from a pluggable
+:class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner` (open_iscat by
+default) as raw peak-finding contrasts with no mass filter, since the
+interactive histogram step does the peak selection.
 
-The workflow is interactive: a histogram of calibration-movie contrasts is
-shown, the user drag-selects each peak (fitted live via
-:func:`~tandemmp.core.histogram.fit_gaussian_to_histogram`), then enters the
-known mass for each peak in a small tkinter window, and a final straight-line
-fit (:func:`~tandemmp.fitting.minimize.curve_fit_model`) of contrast vs. mass
-produces the :class:`~tandemmp.core.conversions.Calibration`. Apply the result
-process-wide via :func:`tandemmp.core.conversions.set_calibration`.
+Workflow: a histogram of the calibration movie's contrasts is shown; the user
+drag-selects each peak (fitted live by
+:func:`~tandemmp.core.histogram.fit_gaussian_to_histogram`) and enters its known
+mass in a small tkinter window; a straight-line fit
+(:func:`~tandemmp.fitting.minimize.curve_fit_model`) of contrast vs mass gives
+the :class:`~tandemmp.core.conversions.Calibration`. Apply it process-wide with
+:func:`tandemmp.core.conversions.set_calibration`.
 
-:func:`save_calibration` writes plain JSON so a calibration file can be
-opened and hand-edited in a text editor; the field names (``c2kDa``,
-``intercept``, ``raw_error``, ``calibrant_masses``, ``fitted_contrast_peaks``)
-mirror the pre-refactor ``alex_area.calibration`` pickled-dict format.
-:func:`load_calibration` reads that new JSON format and also transparently
-falls back to unpickling an old legacy pickled dict, so old calibration
-files keep working.
+:func:`save_calibration` writes hand-editable JSON with fields ``c2kDa``,
+``intercept``, ``raw_error``, ``calibrant_masses`` and ``fitted_contrast_peaks``
+(the legacy ``alex_area.calibration`` pickled-dict format).
+:func:`load_calibration` reads that JSON and also falls back to unpickling a
+legacy dict.
 """
 
 from __future__ import annotations
@@ -99,10 +96,7 @@ class _ClickAndDrag:
 
 
 class _DragAndFitPeaks(_ClickAndDrag):
-    """Drag-select a histogram region; fit a Gaussian to the data in range.
-
-    Fits the underlying data filtered to the selected range.
-    """
+    """Drag-select a histogram region and fit a Gaussian to the data in range."""
 
     def __init__(
         self,
@@ -291,8 +285,8 @@ def calibrate(
 ) -> CalibrationResult:
     """Run the interactive peak-selection / mass-entry calibration workflow.
 
-    *contrasts* is filtered to ``(lower_c_bound, higher_c_bound)`` before
-    display. Blocks on matplotlib/tkinter windows until the user finishes.
+    *contrasts* is filtered to ``(lower_c_bound, higher_c_bound)`` before display.
+    Blocks on matplotlib/tkinter windows until the user finishes.
     """
     contrasts = np.asarray(contrasts, dtype=float)
     sel = (contrasts > lower_c_bound) & (contrasts < higher_c_bound)
@@ -391,12 +385,10 @@ def run_calibration(
 ) -> CalibrationResult:
     """Find events in a calibration movie, then run the interactive fit.
 
-    Event-finding goes through *pipeline_runner* (open_iscat by default; see
-    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`) — raw
-    peak-finding contrasts, unfiltered by mass, since the interactive
-    histogram/drag-select step is itself the peak-selection filter.
-    **pipeline_kwargs* is forwarded to the runner (e.g. ``navg``, ``l_thum``
-    for the open_iscat backend).
+    Events come from *pipeline_runner* (open_iscat by default; see
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`) as raw contrasts
+    with no mass filter. ``**pipeline_kwargs`` go to the runner (e.g. ``navg``,
+    ``l_thum`` for open_iscat).
     """
     pipeline = pipeline_runner if pipeline_runner is not None else OpenIscatPipeline()
 
@@ -413,14 +405,10 @@ def run_calibration(
     )
 
 
-# Persistence
-#
-# On disk, a calibration is plain JSON so it can be opened and hand-edited in
-# a text editor. Field names mirror the pre-refactor
-# ``alex_area.calibration`` pickled-dict format (``c2kDa``, ``intercept``,
-# ``raw_error``, ``calibrant_masses``, ``fitted_contrast_peaks``), plus
-# ``source_filepath`` for provenance. load_calibration() also accepts that
-# legacy pickled dict directly, since the field names line up.
+# Persistence: plain JSON, hand-editable. Field names mirror the legacy
+# ``alex_area.calibration`` pickled dict (``c2kDa``, ``intercept``, ``raw_error``,
+# ``calibrant_masses``, ``fitted_contrast_peaks``) plus ``source_filepath`` for
+# provenance, so load_calibration() also accepts the legacy dict directly.
 
 
 def _calibration_to_mapping(result: CalibrationResult) -> dict[str, Any]:
@@ -455,10 +443,9 @@ def _calibration_from_mapping(
 
 
 def save_calibration(filepath: str | Path, result: CalibrationResult) -> Path:
-    """Write *result* to *filepath* as human-editable JSON.
+    """Write *result* to *filepath* as human-editable JSON, creating parent directories.
 
-    Creates parent directories as needed. See the module docstring for the
-    on-disk field names.
+    See the module docstring for the field names.
     """
     if not isinstance(result, CalibrationResult):
         msg = f"result must be a CalibrationResult, got {type(result).__name__}"
@@ -474,9 +461,8 @@ def save_calibration(filepath: str | Path, result: CalibrationResult) -> Path:
 def load_calibration(filepath: str | Path) -> CalibrationResult:
     """Load a :class:`CalibrationResult` from *filepath*.
 
-    Reads the JSON format written by :func:`save_calibration`. Also accepts
-    a legacy pickled dict (the pre-refactor ``alex_area.calibration`` save
-    format) for backward compatibility.
+    Reads the JSON written by :func:`save_calibration`, or a legacy pickled dict (the
+    old ``alex_area.calibration`` format).
     """
     path = Path(filepath)
     raw = path.read_bytes()

@@ -1,8 +1,8 @@
 """Shared base classes and containers for the events subpackage.
 
-Provides :class:`Correction`, :class:`PeakImage`, :class:`Connectable`,
-and :class:`AbstractEvent` — the building blocks from which concrete event
-types (ratiometric, subtraction, ghost) are derived.
+:class:`Correction`, :class:`PeakImage`, :class:`Connectable` and
+:class:`AbstractEvent` are the building blocks of the concrete event types
+(ratiometric, subtraction, ghost).
 """
 
 from __future__ import annotations
@@ -80,9 +80,7 @@ class PeakImage:
 
 
 class Connectable:
-    """Mixin that links events to show they correspond to the same entity
-    across different post-processing methods.
-    """
+    """Mixin linking events that are the same entity across post-processing methods."""
 
     def __init__(self) -> None:
         self.connected_events: list[Any] = []
@@ -116,8 +114,8 @@ class Connectable:
 class AbstractEvent(Connectable):
     """Base class for all event types.
 
-    Holds a peak image, optional PSF model, and basic 2-D fit results.
-    Concrete event types (ratiometric, subtraction, ghost) inherit from this.
+    Holds a peak image, an optional PSF model and basic 2-D fit results; the concrete
+    event types (ratiometric, subtraction, ghost) inherit from it.
     """
 
     def __init__(

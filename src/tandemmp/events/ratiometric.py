@@ -114,9 +114,8 @@ class RatiometricEvent(AbstractEvent):
         for ev in fit_result.series[list(bad)]:
             ev._is_bad = True
 
-        # fit_result.fit_image is only None if MultiFitResult is constructed
-        # without a resolved fit; find_and_fit (the only real constructor)
-        # always supplies best_image, so this is never None in practice.
+        # fit_image is None only if a MultiFitResult is built without a resolved fit;
+        # find_and_fit (the only real constructor) always supplies best_image.
         self.fit_image: npt.NDArray[np.floating] = fit_result.fit_image  # type: ignore[assignment]
 
     # Disconnect

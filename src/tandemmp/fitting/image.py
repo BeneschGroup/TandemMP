@@ -1,9 +1,9 @@
 """Image correction utilities for iSCAT peak analysis.
 
-Provides ghost-prediction transforms, cutout overlap calculations, and
-PSF-based image corrections for subtraction events.
+Ghost-prediction transforms, cutout overlap calculations and PSF-based
+corrections for subtraction events.
 
-Functions that accept ``particles`` require objects with these attributes:
+Functions taking ``particles`` need objects with:
 
 - ``p.ID: int``
 - ``p[frame] -> event_data | None``  (with ``.x``, ``.y``, ``.c``, ``.data_from``)
@@ -35,10 +35,10 @@ logger = logging.getLogger(__name__)
 def ghost_prediction_transform(
     peak: npt.NDArray[np.floating],
 ) -> npt.NDArray[np.floating]:
-    """Apply a distance-based transform to a peak image for ghost prediction.
+    """Distance-based transform of a peak image for ghost prediction.
 
-    For each pixel, compute the minimum distance to the negated image and
-    scale the original peak by a factor derived from those distances.
+    Each pixel of the original peak is scaled by a factor derived from its minimum
+    distance to the negated image.
     """
     flat_neg = np.ravel(-peak)
     distances = np.min(np.abs(flat_neg - peak[:, :, np.newaxis]), axis=-1)
@@ -55,10 +55,10 @@ def calculate_overlapping_slice(
     cutout1: tuple[slice, slice],
     cutout2: tuple[slice, slice],
 ) -> list[slice] | None:
-    """Compute the relative overlap of *cutout2* within the frame of *cutout1*.
+    """Relative overlap of *cutout2* within the frame of *cutout1*.
 
-    Returns a ``[y_slice, x_slice]`` pair in *cutout1*'s local coordinates,
-    or ``None`` if there is no spatial intersection.
+    Returns a ``[y_slice, x_slice]`` pair in *cutout1*'s local coordinates, or
+    ``None`` if they do not intersect.
     """
     ys1, xs1 = cutout1
     ys2, xs2 = cutout2
@@ -92,8 +92,8 @@ def calculate_overlapping_slice(
 def remove_artefacts(peak: PeakImage) -> npt.NDArray[np.floating]:
     """Subtract corrections from the original image, skipping paired entries.
 
-    When a particle has *two* corrections in the peak (foreground + background),
-    both are excluded from the subtraction.
+    A particle with *two* corrections in the peak (foreground + background) has both
+    excluded.
     """
     pids = [c.particle for c in peak.corrections]  # type: ignore[union-attr]
     unique = np.array(list(set(pids)))
@@ -121,8 +121,8 @@ def correct_ghost(
 ) -> list[PeakImage]:
     """Subtract a ghost PSF impression from each peak in *series*.
 
-    *series* can be a list of :class:`PeakImage` objects, or a list of
-    objects with a ``.peak`` attribute (e.g. events).
+    *series* is a list of :class:`PeakImage` or of objects with a ``.peak``
+    attribute (e.g. events).
     """
     items = list(series)
     if items and hasattr(items[0], "peak"):
@@ -186,18 +186,17 @@ def correct_subtraction_fit(  # noqa: PLR0913
 ) -> PeakImage:
     """Correct a subtraction event by subtracting modelled PSF impressions.
 
-    For each particle, a foreground and/or background PSF is generated from
-    the particle's fitted position and subtracted from the event image.
-    The ``focus`` particle's foreground contribution is skipped (it is the
-    particle being measured).
+    A foreground and/or background PSF is generated from each particle's fitted
+    position and subtracted from the event image; the ``focus`` particle's foreground
+    is skipped (it is the one being measured).
 
     Args:
-        event: Subtraction event (needs ``.peak``, ``.i``, ``.subtracted_i``, ``.navg``)
-        particles: List of particle objects. If *None*, returns the original peak.
-        focus: The particle being measured — its foreground is not subtracted.
-        gdb: Ghost Double Bypass — if *True*, skip the focus particle's background.
+        event: Subtraction event with ``.peak``, ``.i``, ``.subtracted_i``, ``.navg``.
+        particles: Particle objects; if *None*, the original peak is returned.
+        focus: Particle being measured; its foreground is not subtracted.
+        gdb: Ghost Double Bypass: skip the focus particle's background.
         save: Store correction metadata on the returned :class:`PeakImage`.
-        psf_model: PSF model for generating synthetic impressions.
+        psf_model: PSF model for the synthetic impressions.
     """
     if particles is None:
         return event.peak  # type: ignore[no-any-return]
@@ -300,18 +299,17 @@ def correct_subtraction_image(
 ) -> PeakImage:
     """Correct a subtraction event using overlapping image data.
 
-    Unlike :func:`correct_subtraction_fit`, this function uses actual peak
-    images from neighbouring particles rather than PSF models, computing
-    spatial overlaps between cutouts.  Correction metadata (``original``,
-    ``background``, ``corrections``) is always attached to the returned
-    :class:`PeakImage`.
+    Unlike :func:`correct_subtraction_fit`, this uses the actual peak images of
+    neighbouring particles, not PSF models, and computes the spatial overlaps between
+    cutouts. Correction metadata (``original``, ``background``, ``corrections``) is
+    always attached to the returned :class:`PeakImage`.
 
     Args:
         event: Subtraction event.
-        particles: List of particle objects.
-        focus: The particle being measured.
-        gdb: Ghost Double Bypass. Not yet implemented for the image-based
-            correction path — raises :class:`NotImplementedError` if *True*.
+        particles: Particle objects.
+        focus: Particle being measured.
+        gdb: Ghost Double Bypass; not implemented here, raises
+            :class:`NotImplementedError` if *True*.
     """
     if gdb:
         msg = (

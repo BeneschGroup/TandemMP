@@ -147,8 +147,8 @@ class TestFastRollingMean:
     def test_agrees_with_rolling_mean_on_random_input(self) -> None:
         """fast and slow must agree numerically on non-constant input.
 
-        The real test of the incremental-update divisor — a constant movie
-        would pass regardless of the divisor because both outputs are 0.
+        This is the real test of the incremental-update divisor: a constant movie passes
+        regardless, as both outputs are 0.
         """
         rng = np.random.default_rng(123)
         movie = (rng.random((30, 5, 5)) + 1.0).astype(float)
@@ -205,11 +205,10 @@ class TestFastRatiometric:
         )
 
     def test_agrees_with_ratiometric_on_random_input(self) -> None:
-        """fast_ratiometric must match ratiometric numerically on non-constant input.
+        """fast_ratiometric must match ratiometric on non-constant input.
 
-        The constant-input test would pass even with an off-by-one indexing
-        bug in the ``n_sum`` rolling sum, because both outputs are 0
-        regardless of the divisor.
+        The constant-input test would pass even with an off-by-one bug in the ``n_sum``
+        rolling sum, as both outputs are 0 regardless of the divisor.
         """
         rng = np.random.default_rng(456)
         movie = (rng.random((30, 5, 5)) + 1.0).astype(float)

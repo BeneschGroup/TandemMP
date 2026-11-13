@@ -1,10 +1,10 @@
 """Simulated particle and particle-list classes for the Monte Carlo engine.
 
-Provides :class:`SimulatedParticle` (a single Monte Carlo particle carrying a
+:class:`SimulatedParticle` is one Monte Carlo particle with a
 :class:`~tandemmp.simulation.meta.Structure` and a current
-:class:`~tandemmp.simulation.meta.Stage`)
-and :class:`SimulatedParticleList` (a mutable container with bulk accessors
-used by the simulator to query per-particle rates and positions).
+:class:`~tandemmp.simulation.meta.Stage`; :class:`SimulatedParticleList` is a
+mutable container with the bulk accessors the simulator uses to query rates and
+positions.
 """
 
 from __future__ import annotations
@@ -81,9 +81,9 @@ class ParticleData:
 class SimulatedParticle:
     """A single Monte Carlo simulated particle.
 
-    Each particle carries a :class:`Structure` describing its mass and binding
-    chemistry, a current :class:`Stage` (location), and optionally a
-    2-D spatial position once it has bound to the surface.
+    Carries a :class:`Structure` (mass and binding chemistry), a current
+    :class:`Stage` (location) and, once bound to the surface, an optional 2-D
+    position.
     """
 
     def __init__(
@@ -115,9 +115,8 @@ class SimulatedParticle:
     def set_command(self, command: Command, *, remove_rates: bool = True) -> None:
         """Schedule *command* to fire on its frame.
 
-        When *remove_rates* is true (the default) all kinetic rates on the
-        particle's structure are zeroed so the command is the only action that
-        will affect this particle going forward.
+        With *remove_rates* (default) all kinetic rates on the particle's structure are
+        zeroed, so the command is the only action affecting the particle afterwards.
         """
         if not isinstance(command, Command):
             raise TypeError(f"command must be a Command, got {type(command).__name__}")
@@ -155,8 +154,8 @@ class SimulatedParticle:
     ) -> Reaction | None:
         """Pick a reaction whose rate is ≥ *chance*, or ``None``.
 
-        If more than one reaction is eligible a uniform random choice is made
-        using *rng* (a fresh :func:`numpy.random.default_rng` when omitted).
+        If several are eligible, one is chosen uniformly with *rng* (a fresh
+        :func:`numpy.random.default_rng` if omitted).
         """
         reactions = self.structure.actual_reactions
         eligible = [r for r in reactions if r.rate >= chance]

@@ -1,8 +1,8 @@
 """A 2-D Gaussian PSF model.
 
-The simplest concrete :class:`~tandemmp.fitting.psf_interface.PsfInterface`
-implementation: an analytic, un-normalised 2-D Gaussian with a single
-``sigma`` shape parameter. A worked example for writing your own PSF model.
+The simplest concrete :class:`~tandemmp.fitting.psf_interface.PsfInterface`: an
+analytic, un-normalised 2-D Gaussian with one ``sigma`` parameter, and a worked
+example for writing your own PSF model.
 """
 
 from __future__ import annotations
@@ -23,18 +23,16 @@ from tandemmp.fitting.psf_interface import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-# ``1.5`` matches the PSF-width scale already used elsewhere in the codebase
-# for a "typical" iSCAT point-spread function in pixel units (e.g.
-# `pipeline/investigator.py`'s `fake_sigma = 1.5` and
-# `pipeline/open_iscat.py`'s `sigma_iimg=1.5`) — there is no single canonical
-# default sigma for a generic Gaussian PSF, so this value is chosen for
-# consistency with those call sites rather than derived from a fit.
+# 1.5 matches the typical iSCAT PSF width (pixels) used elsewhere, e.g.
+# `pipeline/investigator.py`'s `fake_sigma = 1.5` and `pipeline/open_iscat.py`'s
+# `sigma_iimg=1.5`. Chosen for consistency with those call sites, not fitted.
 _DEFAULT_SIGMA: float = 1.5
 
 
 class GaussianPsfModel:
-    """A 2-D Gaussian PSF model — the simplest :class:`PsfInterface`
-    implementation, with no spline/Rust backends.
+    """A 2-D Gaussian PSF model: the simplest :class:`PsfInterface`.
+
+    It has no spline/Rust backends.
     """
 
     def __init__(self, sigma: float = _DEFAULT_SIGMA) -> None:
@@ -93,8 +91,7 @@ class GaussianPsfModel:
     ) -> npt.NDArray[np.floating]:
         """Render a PSF image at *(dx, dy)* with contrast *c*.
 
-        No spline/Rust backends exist for this model — always uses
-        :meth:`psf_2d_offset`.
+        Always uses :meth:`psf_2d_offset` (no spline/Rust backends).
         """
         return self.psf_2d_offset(size, dx, dy, c)
 
@@ -107,9 +104,8 @@ class GaussianPsfModel:
     ) -> PeakFitResult:
         """Fit this Gaussian PSF to a 2-D peak thumbnail.
 
-        Delegates entirely to
-        :func:`tandemmp.fitting.psf_interface.fit_peak_generic` — there is
-        no Rust fast-path for this model.
+        Delegates to :func:`tandemmp.fitting.psf_interface.fit_peak_generic` (no Rust
+        fast path).
         """
         return fit_peak_generic(self, peak, **kwargs)
 
@@ -119,7 +115,5 @@ class GaussianPsfModel:
         exclusion: npt.NDArray[np.bool_],
         **kwargs: Any,  # noqa: ANN401
     ) -> PeakFitResult:
-        """Fit this Gaussian PSF to *peak*, ignoring pixels where
-        *exclusion* is True.
-        """
+        """Fit this Gaussian PSF to *peak*, ignoring *exclusion* pixels."""
         return fit_peak_exclusion_generic(self, peak, exclusion, **kwargs)

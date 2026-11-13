@@ -1,7 +1,7 @@
 [build-system]
-# setuptools-rust compiles the two PyO3 crates under src/tandemmp/_rust/ as part
-# of the normal build, so one wheel per platform carries the pure-Python package
-# *and* both native extensions. Building from source needs a Rust toolchain.
+# setuptools-rust builds the two PyO3 crates under src/tandemmp/_rust/, so one wheel
+# per platform carries the Python package and both extensions. Building from source
+# needs a Rust toolchain.
 requires = ["setuptools>=68", "wheel>=0.41", "setuptools-rust>=1.10"]
 build-backend = "setuptools.build_meta"
 
@@ -32,8 +32,7 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
 tandemmp = ["resources/*.h5"]
-# Type stubs only: the compiled extensions are added by setuptools-rust below
-# and are no longer committed to git.
+# Type stubs only; setuptools-rust adds the compiled extensions (not committed).
 "tandemmp._rust" = ["*.pyi"]
 
 [tool.setuptools.packages.find]
@@ -42,15 +41,15 @@ where = ["src"]
 # ---------------------------------------------------------------------------
 # Native extensions (Rust / PyO3), built by setuptools-rust
 # ---------------------------------------------------------------------------
-# Both crates use PyO3's stable ABI (abi3-py310), so a single wheel per
-# OS/architecture works for every Python >= 3.10.
+# Both crates use PyO3's stable ABI (abi3-py310): one wheel per OS/arch for
+# Python >= 3.10.
 
 [[tool.setuptools-rust.ext-modules]]
 target = "tandemmp._rust.drift_correction"
 path = "src/tandemmp/_rust/drift_correction/Cargo.toml"
 binding = "PyO3"
 py-limited-api = true
-# Always optimise: the numerical hot paths are unusably slow as debug builds.
+# Always release: debug builds are far too slow for the numerical hot paths.
 debug = false
 
 [[tool.setuptools-rust.ext-modules]]
@@ -58,7 +57,7 @@ target = "tandemmp._rust.spline_psf"
 path = "src/tandemmp/_rust/spline_psf/Cargo.toml"
 binding = "PyO3"
 py-limited-api = true
-# Always optimise: the numerical hot paths are unusably slow as debug builds.
+# Always release: debug builds are far too slow for the numerical hot paths.
 debug = false
 
 [tool.distutils.bdist_wheel]
@@ -74,16 +73,15 @@ py-limited-api = "cp310"
 build = "cp310-*"
 # TensorFlow publishes no musllinux wheels, so skip them.
 skip = "*-musllinux_*"
-# Don't pull TensorFlow & co. into the throwaway test env: the smoke test only
-# needs numpy. It imports tandemmp and calls into both extensions (an import
-# alone can succeed on an ABI/linking mismatch that crashes on first use).
+# Skip TensorFlow & co. in the throwaway test env: the smoke test needs only numpy
+# and calls into both extensions (an import alone can pass on an ABI mismatch that
+# crashes on first use).
 test-requires = "numpy"
 test-environment = { PIP_NO_DEPS = "1" }
 test-command = "python {project}/scripts/smoke_test_extensions.py"
 
 [tool.cibuildwheel.windows]
-# 64-bit only: cibuildwheel also builds 32-bit (win32) by default, which
-# TensorFlow (a hard dependency) does not support.
+# 64-bit only: cibuildwheel also builds win32, which TensorFlow doesn't support.
 archs = ["AMD64"]
 
 [tool.cibuildwheel.linux]

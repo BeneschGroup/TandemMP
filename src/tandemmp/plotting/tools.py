@@ -99,17 +99,14 @@ def add_gaussian_fit(
     """Fit a single Gaussian to *data* and overlay the curve on *axes*.
 
     Args:
-        axes: Target axes (should already contain a histogram of *data*).
+        axes: Target axes, ideally already holding a histogram of *data*.
         data: Raw 1-D observations.
-        bins: Bin edges used when histogramming *data*.
-        mean_guess: Initial guess for the mean. Inferred from data when
-            ``None``.
-        amplitude_guess: Initial guess for the amplitude. Inferred from
-            data when ``None``.
-        sigma_guess: Initial guess for the sigma. Inferred from data when
-            ``None``.
-        color: Line colour for the fitted curve.
-        annotate: If ``True``, add a text annotation with fitted parameters.
+        bins: Bin edges used to histogram *data*.
+        mean_guess: Initial mean; inferred from the data when ``None``.
+        amplitude_guess: Initial amplitude; inferred from the data when ``None``.
+        sigma_guess: Initial sigma; inferred from the data when ``None``.
+        color: Line colour of the fitted curve.
+        annotate: Add a text annotation of the fitted parameters.
     """
     counts, bin_edges = np.histogram(data, bins)
     bin_mid = (bin_edges[1:] + bin_edges[:-1]) / 2

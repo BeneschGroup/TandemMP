@@ -1,8 +1,8 @@
-"""Tests for tandemmp.pipeline.simple_analysis — target API.
+"""Tests for tandemmp.pipeline.simple_analysis.
 
-Covers CSV loading + drift correction, pair-matching algorithms, and RDF/ring-area
-helpers; ``load_events`` uses a monkeypatched ``Loader``/``get_vector`` to avoid a
-real ``open_iscat`` dependency.
+Covers CSV loading + drift correction, pair-matching algorithms and
+RDF/ring-area helpers; ``load_events`` uses a monkeypatched
+``Loader``/``get_vector`` to avoid a real ``open_iscat`` dependency.
 """
 
 from __future__ import annotations
@@ -227,9 +227,8 @@ class TestMatchPairsSigma:
         assert f"id={binding.id}" in repr(pairs[0])
 
     def test_match_binding_pairs_binding_events_together(self) -> None:
-        # All three events are "binding" (negative contrast); match_binding
-        # re-targets the matching to pair binding events with each other
-        # instead of with (nonexistent, here) unbinding events, while still
+        # All three events are "binding" (negative contrast); match_binding pairs binding
+        # events with each other (there are no unbinding events here), while still
         # excluding an event from matching itself.
         first = _event(c=-0.05, m=100.0, x=0.0, y=0.0, i=0)
         second = _event(c=-0.05, m=100.0, x=0.0, y=0.0, i=1)
@@ -356,12 +355,10 @@ class TestAreaOfRingInBox:
 
 class TestCalculateRdf:
     def test_uniform_random_points_have_rdf_near_one(self) -> None:
-        # calculate_rdf normalises each query point's local counts by the
-        # candidate-pool size rather than the number of query points, so
-        # its g(r) ~ 1 approximation only holds when sel_first and
-        # sel_after select comparably-sized pools of the same data (the
-        # common case of an unrestricted, self-referential RDF) — as here,
-        # where both default to "every point".
+        # calculate_rdf normalises local counts by the candidate-pool size, not the number
+        # of query points, so g(r) ~ 1 only holds when sel_first and sel_after select
+        # comparably sized pools of the same data (the common unrestricted, self-referential
+        # RDF), as here, where both default to every point.
         rng = np.random.default_rng(0)
         n = 3000
         x = rng.uniform(0, 300, n)

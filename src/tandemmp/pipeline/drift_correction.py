@@ -1,29 +1,20 @@
 """Standalone drift-correction entry point.
 
-Standalone from :mod:`tandemmp.pipeline.batch` so a movie's drift can be
-estimated (:func:`run_drift_correction`) and persisted
-(:func:`save_drift_vector` / :func:`save_correction_function`) without
-running a full tracking/pair-matching analysis. The movie is loaded through
-:class:`~tandemmp.pipeline.loader.Loader` with ``just_movie=True`` and the
-loader's own drift correction disabled — this module drives the lower-level
-:func:`tandemmp.drift.corrector.get_vector` directly instead, mirroring how
-:func:`tandemmp.pipeline.simple_analysis.load_events` obtains a vector for
-its CSV-only workflow.
+Estimates (:func:`run_drift_correction`) and persists a movie's drift without a
+full tracking/pair-matching analysis. The movie is loaded through
+:class:`~tandemmp.pipeline.loader.Loader` with ``just_movie=True`` and its own
+correction disabled; the vector comes from
+:func:`tandemmp.drift.corrector.get_vector` directly, as in
+:func:`tandemmp.pipeline.simple_analysis.load_events`.
 
-Two on-disk representations are supported for the resulting
-:class:`~tandemmp.drift.corrector.DriftVector`:
+A :class:`~tandemmp.drift.corrector.DriftVector` can be stored two ways:
 
-- :func:`save_drift_vector` / :func:`load_drift_vector` — plain JSON
-  (``source_filepath``, ``frame_start``/``frame_end``, and per-frame
-  ``x``/``y`` arrays), human-readable and hand-editable, mirroring
-  :mod:`tandemmp.pipeline.calibration`'s save format.
-- :func:`save_correction_function` / :func:`load_correction_function` —
-  pickles a :class:`DriftCorrectionFunction`, a small wrapper exposing the
-  same vector as ``correct_coordinates(x, y, i) -> (x_corrected,
-  y_corrected)`` and ``correct_movie(movie, i) -> corrected_movie``, for
-  callers that want to correct arbitrary positions or a whole movie
-  directly (linearly interpolating between sampled frames) rather than
-  re-deriving the subtraction themselves.
+- :func:`save_drift_vector` / :func:`load_drift_vector`: plain, hand-editable
+  JSON (``source_filepath``, ``frame_start``/``frame_end``, per-frame ``x``/``y``),
+  like :mod:`tandemmp.pipeline.calibration`.
+- :func:`save_correction_function` / :func:`load_correction_function`: a pickled
+  :class:`DriftCorrectionFunction` exposing ``correct_coordinates(x, y, i)`` and
+  ``correct_movie(movie, i)``, which interpolate between sampled frames.
 """
 
 from __future__ import annotations
@@ -48,20 +39,17 @@ from tandemmp.pipeline.loader import Loader
 
 @dataclasses.dataclass(frozen=True)
 class DriftCorrectionFunction:
-    """A :class:`DriftVector` wrapped up as a callable position/movie corrector.
+    """A :class:`DriftVector` wrapped as a callable position/movie corrector.
 
-    ``correct_coordinates(x, y, i)`` linearly interpolates the vector at
-    frame *i* (via :func:`numpy.interp`, which clamps rather than
-    extrapolates outside the vector's frame range) and subtracts it from
-    ``(x, y)`` — the same convention used elsewhere in the pipeline, e.g.
-    :func:`tandemmp.pipeline.simple_analysis.load_events`. *x*, *y* and *i*
-    may be scalars or equal-shaped arrays.
+    ``correct_coordinates(x, y, i)`` linearly interpolates the vector at frame *i*
+    (:func:`numpy.interp`, which clamps outside the range) and subtracts it from
+    ``(x, y)``, as elsewhere in the pipeline. *x*, *y* and *i* may be scalars or
+    equal-shaped arrays.
 
-    ``correct_movie(movie, i)`` applies that same per-frame shift to every
-    frame of a raw movie array instead of a set of point coordinates.
+    ``correct_movie(movie, i)`` applies the same per-frame shift to every frame of a
+    raw movie.
 
-    Plain dataclass, so instances pickle without issue (see
-    :func:`save_correction_function`).
+    A plain dataclass, so instances pickle (see :func:`save_correction_function`).
     """
 
     vector: DriftVector
@@ -95,19 +83,15 @@ class DriftCorrectionFunction:
     ) -> FloatArray:
         """Apply this drift correction to every frame of *movie*.
 
-        *i* gives, for each frame of *movie*, the frame index into this
-        object's vector; it defaults to ``range(len(movie))``, i.e. *movie*
-        is assumed frame-aligned with the vector it was estimated from. Pass
-        the original frame indices here to correct a *movie* that was
-        loaded with a different ``frame_start``/``frame_end`` slice than the
-        one the vector was estimated from — non-integer/out-of-range values
-        are linearly interpolated/clamped exactly as in
-        :meth:`correct_coordinates`.
+        *i* gives each frame's index into this object's vector; the default
+        ``range(len(movie))`` assumes *movie* is frame-aligned with the vector. Pass the
+        original frame indices for a movie loaded with a different
+        ``frame_start``/``frame_end`` slice; non-integer or out-of-range values are
+        interpolated/clamped as in :meth:`correct_coordinates`.
 
-        The actual per-frame shift, and cropping to the region that stays in
-        view across every frame, is delegated to
-        :func:`tandemmp.drift.corrector.get_corrected_movie`, called with a
-        vector resampled onto *i*.
+        Shifting and cropping to the region in view in every frame is delegated to
+        :func:`tandemmp.drift.corrector.get_corrected_movie` with a vector resampled
+        onto *i*.
         """
         movie_arr: FloatArray = np.asarray(movie, dtype=float)
         frame_indices: FloatArray
@@ -149,14 +133,10 @@ class DriftCorrectionFunction:
 class DriftCorrectionResult:
     """A movie's estimated :class:`DriftVector` plus its source filepath.
 
-    ``frame_start``/``frame_end`` record the slice of the *source* movie the
-    vector was estimated over (i.e. the ``frame_start``/``frame_end`` passed
-    to :func:`run_drift_correction`, ``None`` meaning "from the start" /
-    "to the end"). The vector's own index ``0`` always corresponds to
-    ``frame_start`` (or the source movie's first frame if ``None``), *not*
-    necessarily raw frame ``0`` of the file on disk — persisting these two
-    values lets a later caller recover that offset instead of having to
-    remember it out-of-band.
+    ``frame_start``/``frame_end`` record the slice of the source movie the vector
+    covers (as passed to :func:`run_drift_correction`; ``None`` means start/end).
+    Vector index ``0`` is ``frame_start``, not necessarily raw frame ``0`` of the
+    file, so persisting them lets later callers recover the offset.
     """
 
     vector: DriftVector
@@ -188,14 +168,11 @@ def run_drift_correction(
 ) -> DriftCorrectionResult:
     """Load a movie and estimate its :class:`~tandemmp.drift.corrector.DriftVector`.
 
-    The movie is loaded via :class:`~tandemmp.pipeline.loader.Loader` with
-    ``just_movie=True`` and the loader's own drift correction disabled — this
-    function drives :func:`~tandemmp.drift.corrector.get_vector` itself so
-    the raw vector is returned for inspection/persistence rather than being
-    silently applied and discarded inside the loader. See
-    :func:`~tandemmp.drift.corrector.get_vector` for the meaning of
-    *frame_gap*, *rolling_baseline*, *threshold*, *threshold_margin*,
-    *parallel*, *n_jobs*, *seed* and *use_rust*.
+    The loader's own drift correction is disabled and
+    :func:`~tandemmp.drift.corrector.get_vector` is called directly, so the raw
+    vector is returned for inspection or saving, not applied and discarded. See
+    :func:`~tandemmp.drift.corrector.get_vector` for *frame_gap*, *rolling_baseline*,
+    *threshold*, *threshold_margin*, *parallel*, *n_jobs*, *seed* and *use_rust*.
     """
     movie = Loader(
         filepath,
@@ -225,10 +202,7 @@ def run_drift_correction(
     )
 
 
-# Persistence — plain JSON vector
-#
-# On disk, a drift vector is plain JSON so it can be opened and hand-edited
-# in a text editor, mirroring tandemmp.pipeline.calibration's save format.
+# Persistence: plain JSON vector (hand-editable, like pipeline.calibration's format)
 
 
 def _drift_vector_to_mapping(result: DriftCorrectionResult) -> dict[str, Any]:
@@ -259,10 +233,9 @@ def _drift_vector_from_mapping(
 
 
 def save_drift_vector(filepath: str | Path, result: DriftCorrectionResult) -> Path:
-    """Write *result* to *filepath* as human-editable JSON.
+    """Write *result* to *filepath* as human-editable JSON, creating parent directories.
 
-    Creates parent directories as needed. See the module docstring for the
-    on-disk field names.
+    See the module docstring for the field names.
     """
     if not isinstance(result, DriftCorrectionResult):
         msg = f"result must be a DriftCorrectionResult, got {type(result).__name__}"
@@ -293,10 +266,8 @@ def save_correction_function(
 ) -> Path:
     """Pickle *result* as a :class:`DriftCorrectionFunction`.
 
-    Unlike :func:`save_drift_vector`, this is a binary format — load it back
-    with :func:`load_correction_function` and call
-    ``result.correct_coordinates(x, y, i)`` or ``result.correct_movie(movie)``
-    directly.
+    A binary format: load it with :func:`load_correction_function` and call
+    ``correct_coordinates(x, y, i)`` or ``correct_movie(movie)``.
     """
     if not isinstance(result, DriftCorrectionResult):
         msg = f"result must be a DriftCorrectionResult, got {type(result).__name__}"

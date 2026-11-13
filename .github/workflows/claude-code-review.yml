@@ -10,15 +10,12 @@ on:
 
 jobs:
   claude-review:
-    # Gate: only run for the allowlisted maintainers (alexross-o, joshualiambishop).
-    # For PRs, both the person triggering the event and the PR author must be on the
-    # list. Manual workflow_dispatch runs only need the triggering user on the list.
-    # PRs from anyone else are skipped; a maintainer can still ask for a review with
-    # '@claude' on the PR (see claude.yml).
-    # We match on login, not author_association: association is reported as
-    # CONTRIBUTOR for org members whose membership is private, which would lock out
-    # the very people this is meant to allow. To add a maintainer, append their
-    # login to both lists below.
+    # Gate: only the allowlisted maintainers (alexross-o, joshualiambishop). For PRs,
+    # both the triggering user and the PR author must be listed (workflow_dispatch
+    # needs only the user). Other PRs are skipped; a maintainer can request a review
+    # with '@claude' (see claude.yml). Matched by login, not author_association,
+    # which reads CONTRIBUTOR for org members with private membership. To add a
+    # maintainer, append their login to both lists below.
     if: |
       contains(fromJSON('["alexross-o","joshualiambishop"]'), github.event.sender.login) &&
       (

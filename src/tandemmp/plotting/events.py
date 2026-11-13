@@ -1,9 +1,7 @@
-"""Plotting for the events subpackage — peak images, fit diagnostics, reports.
+"""Plotting for the events subpackage: peak images, fit diagnostics, reports.
 
-Event classes in :mod:`tandemmp.events` hold fit state (peak images,
-positions, corrections, ...) but perform no matplotlib calls themselves;
-this module renders that state. Functions here take the event/series object
-directly, using their connections, correction attempts, and trajectories.
+Event classes in :mod:`tandemmp.events` hold fit state but make no matplotlib
+calls; this module renders that state from the event/series objects directly.
 """
 
 from __future__ import annotations
@@ -162,11 +160,9 @@ def show_fits(
 ) -> None:
     """Show *event*'s fit diagnostics.
 
-    Dispatches to :func:`show_fits_improved` (raw data, 3-D fit, basic fit)
-    when *event* is a :class:`~tandemmp.events.ratiometric.RatiometricEvent`
-    with an applied 3-D fit; otherwise renders the basic 2-D fit (raw data,
-    fit, residual). This replaces the pre-6k pattern of monkey-patching
-    ``show_fits`` onto the instance in ``apply_3D_fit``/``disconnect_all``.
+    Dispatches to :func:`show_fits_improved` (raw data, 3-D fit, basic fit) for a
+    :class:`~tandemmp.events.ratiometric.RatiometricEvent` with an applied 3-D fit;
+    otherwise renders the basic 2-D fit (raw data, fit, residual).
     """
     if isinstance(event, RatiometricEvent) and event.fit_3D:
         show_fits_improved(event, axes=axes, vmin=vmin, vmax=vmax, saveas=saveas)
@@ -413,8 +409,8 @@ def report(
 def report_and_draw(event: RatiometricEvent) -> None:
     """Generate *event*'s report and force a redraw.
 
-    Convenience wrapper for interactive (``supervise=True``) analysis loops
-    — see :meth:`tandemmp.pipeline.pca.Experiment.analyse`.
+    For interactive (``supervise=True``) loops; see
+    :meth:`tandemmp.pipeline.pca.Experiment.analyse`.
     """
     import matplotlib.pyplot as plt
 

@@ -1,20 +1,19 @@
 """Standalone pair-matching entry point.
 
-Loads a movie via :class:`~tandemmp.pipeline.loader.Loader` (which
-drift-corrects and finds/fits first-pass events in the usual way — see
-:class:`~tandemmp.core.parameters.FullAnalysisParams`'s ``drift_correction``
-field, on by default), converts the resulting first-pass
-:class:`~tandemmp.events.RatiometricEvent`\\ s into
-:class:`~tandemmp.pipeline.simple_analysis.SimpleEvent`\\ s via
+Loads a movie via :class:`~tandemmp.pipeline.loader.Loader` (which drift-corrects
+and finds/fits first-pass events as usual; ``drift_correction`` in
+:class:`~tandemmp.core.parameters.FullAnalysisParams` is on by default), converts
+the first-pass :class:`~tandemmp.events.RatiometricEvent` objects to
+:class:`~tandemmp.pipeline.simple_analysis.SimpleEvent` with
 :func:`~tandemmp.pipeline.simple_analysis.build_simple_events`, and matches
-binding/unbinding pairs via
+binding/unbinding pairs with
 :func:`~tandemmp.pipeline.simple_analysis.match_pairs_sigma`.
 
-Supports movie slicing via ``frame_start`` and ``frame_end`` without running
-the PSF-fit-based tracking loop. :func:`run_pair_matching` returns matched
-pairs and events in a :class:`PairMatchingResult`; callers handle plotting.
-:attr:`PairMatchingResult.initial_masses`/:attr:`~PairMatchingResult.secondary_masses`
-can be passed to :func:`~tandemmp.plotting.experiment.mass_tablecloth`.
+Movies can be sliced with ``frame_start`` / ``frame_end``, and the PSF-fit
+tracking loop is skipped. :func:`run_pair_matching` returns the pairs and events
+in a :class:`PairMatchingResult`; callers handle plotting. Its
+``initial_masses`` / ``secondary_masses`` can go to
+:func:`~tandemmp.plotting.experiment.mass_tablecloth`.
 """
 
 from __future__ import annotations
@@ -41,11 +40,10 @@ from tandemmp.pipeline.simple_analysis import (
 
 @dataclasses.dataclass(frozen=True)
 class PairMatchingResult:
-    """The outcome of :func:`run_pair_matching` on a single movie.
+    """The outcome of :func:`run_pair_matching` on one movie.
 
-    ``events`` holds every first-pass event the movie produced (not just
-    those that ended up in a pair), in case a caller wants to inspect or
-    re-match against the full set.
+    ``events`` holds every first-pass event the movie produced, not just those in a
+    pair, so callers can inspect or re-match against the full set.
     """
 
     pairs: list[Pair]
@@ -83,18 +81,16 @@ def run_pair_matching(
 ) -> PairMatchingResult:
     """Load a movie, drift-correct it, and match binding/unbinding event pairs.
 
-    The movie is loaded via :class:`~tandemmp.pipeline.loader.Loader` with
-    its default full first-pass pipeline (event finding *and* drift
-    correction, since ``FullAnalysisParams.drift_correction`` defaults to
-    on) — pass e.g. ``drift_correction=False`` or ``frame_gap=50`` via
-    *parameter_overrides* to tune or disable it (forwarded to
-    :func:`~tandemmp.core.parameters.get_parameters`, which resolves
-    keywords against the full, possibly-nested
-    :class:`~tandemmp.core.parameters.FullAnalysisParams` tree).
+    The movie goes through the default first-pass
+    :class:`~tandemmp.pipeline.loader.Loader` pipeline, which includes drift
+    correction (on by default). Tune or disable it via *parameter_overrides*, e.g.
+    ``drift_correction=False`` or ``frame_gap=50``; they are resolved against the
+    full nested :class:`~tandemmp.core.parameters.FullAnalysisParams` tree by
+    :func:`~tandemmp.core.parameters.get_parameters`.
 
-    See :func:`~tandemmp.pipeline.simple_analysis.match_pairs_sigma` for the
-    meaning of *sigma_multiplier*, *max_pairs*, *analyse_distance*,
-    *minimum_overlap* and *match_binding*.
+    See :func:`~tandemmp.pipeline.simple_analysis.match_pairs_sigma` for
+    *sigma_multiplier*, *max_pairs*, *analyse_distance*, *minimum_overlap* and
+    *match_binding*.
     """
     parameters = get_parameters(parallel=parallel, **parameter_overrides)
 

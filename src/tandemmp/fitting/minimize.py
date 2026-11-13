@@ -1,9 +1,8 @@
-"""Generic minimisation helpers shared by every curve/model fit in TandemMP.
+"""Generic minimisation helpers shared by the curve/model fits in TandemMP.
 
-Provides :func:`minimize_model` and :func:`curve_fit_model`, thin wrappers
-around :func:`scipy.optimize.minimize` and :func:`scipy.optimize.curve_fit`
-that return uniform, typed result dataclasses (:class:`FitResult` and
-:class:`CurveFitResult`).
+:func:`minimize_model` and :func:`curve_fit_model` wrap
+:func:`scipy.optimize.minimize` and :func:`scipy.optimize.curve_fit`, returning
+uniform typed results (:class:`FitResult`, :class:`CurveFitResult`).
 """
 
 from __future__ import annotations
@@ -40,9 +39,8 @@ def minimize_model(
 ) -> FitResult:
     """Minimise *objective* from *x0*, returning a uniform :class:`FitResult`.
 
-    Thin wrapper around :func:`scipy.optimize.minimize`.  ``raw`` carries the
-    underlying :class:`~scipy.optimize.OptimizeResult` for callers whose
-    public API contract exposes it directly.
+    Wraps :func:`scipy.optimize.minimize`; ``raw`` keeps the underlying
+    :class:`~scipy.optimize.OptimizeResult` for callers whose public API exposes it.
     """
     res = scipy.optimize.minimize(
         objective, x0, method=method, bounds=bounds, options=options

@@ -1,8 +1,7 @@
-"""Particle — tracks a single iSCAT particle across events.
+"""Particle: tracks a single iSCAT particle across events.
 
-Provides :class:`Particle` and :class:`GhostParticle` — the core domain
-objects used by :mod:`tandemmp.tracking.manager` to group events into
-persistent particles across a movie.
+:class:`Particle` and :class:`GhostParticle` are the domain objects
+:mod:`tandemmp.tracking.manager` uses to group events into persistent particles.
 """
 
 from __future__ import annotations
@@ -27,7 +26,7 @@ from tandemmp.events import (
 
 logger = logging.getLogger(__name__)
 
-# Module-level ID counter, shared across all Particle/GhostParticle instances.
+# ID counter shared by all Particle/GhostParticle instances.
 _next_particle_id: int = 0
 
 
@@ -68,12 +67,11 @@ class HistoryEntry:
 
 
 class EventMap:
-    """Three frame-indexed dictionaries of events for a single particle.
+    """Three frame-indexed event dictionaries for one particle.
 
-    Stores ratiometric, connected (subtraction events attached to a
-    ratiometric series), and disconnected (standalone subtraction) events
-    separately so the most recent event preceding a given frame can be
-    retrieved for each category independently.
+    Ratiometric, connected (subtraction events attached to a ratiometric series) and
+    disconnected (standalone subtraction) events are stored separately, so the latest
+    event before a frame can be retrieved per category.
     """
 
     __slots__ = ("ratiometric", "connected", "disconnected")
@@ -106,8 +104,8 @@ class EventMap:
 class Particle:
     """A tracked iSCAT particle built from a binding ratiometric event.
 
-    Events are added via :meth:`propose_new_event`; on-particle positions,
-    masses and trajectories are derived from the accumulated event map.
+    Events are added via :meth:`propose_new_event`; positions, masses and
+    trajectories are derived from the accumulated event map.
     """
 
     def __init__(
@@ -188,8 +186,8 @@ class Particle:
         if event is None:
             return None
 
-        # If the chosen event returns non-scalar x at this frame (arrays from
-        # a 3-D ratiometric fit), try stepping past the averaging window.
+        # Non-scalar x here (array from a 3-D ratiometric fit):
+        # try stepping past the averaging window.
         if not isinstance(event.x, float):
             if isinstance(event, RatiometricEvent) and event.has_connection:
                 later = self.get_best_event(frame + 2)
@@ -270,9 +268,7 @@ class Particle:
         l_thum: int,
         psf_radius: int,
     ) -> int:
-        """Return the last frame where this particle was spatially clear of
-        the thumbnail centred at *midpoint*.
-        """
+        """Last frame where the particle was clear of the thumbnail at *midpoint*."""
         (x, y), i = self.trajectory
         dx = x - midpoint[0]
         dy = y - midpoint[1]
