@@ -11,7 +11,7 @@ pip install -e /path_to_repo/.
 TandemMP includes two native extensions written in Rust (`drift_correction`
 and `spline_psf`, under `src/tandemmp/_rust/`). They are compiled when you
 install from source, so you need a [Rust toolchain](https://rustup.rs). Release
-wheels (Windows, Linux, macOS; Python >= 3.10) ship them prebuilt, so
+wheels (Windows and Linux; Python >= 3.10; no macOS wheels) ship them prebuilt, so
 `pip install <wheel>` needs no compiler. Compiled binaries are never committed
 to git; CI builds them (see `.github/workflows/wheels.yml`).
 

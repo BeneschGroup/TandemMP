@@ -9,6 +9,17 @@ on:
   workflow_dispatch:
 
 jobs:
+  # TEMPORARY diagnostic: shows what the runner is told about the PR author so the
+  # claude-review gate below can be debugged. Remove once the gate is confirmed.
+  debug-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "sender=${{ github.event.sender.login }}"
+          echo "pr_author=${{ github.event.pull_request.user.login }}"
+          echo "pr_author_association=${{ github.event.pull_request.author_association }}"
+
   claude-review:
     # Gate: only run for the allowlisted maintainers (alexross-o, joshualiambishop).
     # For PRs, both the person triggering the event and the PR author must be on the
