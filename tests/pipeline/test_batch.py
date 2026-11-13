@@ -1,7 +1,7 @@
-"""Tests for tandemmp.pipeline.batch — target API.
+"""Tests for tandemmp.pipeline.batch.
 
-``process_movie``/``batch_process`` are tested against a lightweight fake
-``Experiment`` monkeypatched into the module, since real construction is expensive.
+``process_movie``/``batch_process`` run against a lightweight fake ``Experiment``
+monkeypatched into the module, since real construction is expensive.
 """
 
 from __future__ import annotations
@@ -20,8 +20,8 @@ from tandemmp.pipeline import batch
 class _FakeExperiment:
     """Stand-in for ``pipeline.pca.Experiment``.
 
-    ``_events_by_path`` maps a filepath (as ``str``) to a fake event count;
-    unmapped paths default to a single event.
+    ``_events_by_path`` maps a filepath (``str``) to a fake event count; unmapped
+    paths get one event.
     """
 
     _events_by_path: dict[str, int] = {}

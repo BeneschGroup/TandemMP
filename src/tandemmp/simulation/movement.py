@@ -17,12 +17,10 @@ class MovementVector:
     """Random displacement generator for simulated particle motion.
 
     Attributes:
-        chance_per_frame: Probability of this movement occurring on a
-            given frame.
+        chance_per_frame: Probability of the movement occurring on a frame.
         max_distance: Maximum displacement magnitude (pixels).
-        bias: If ``True``, :meth:`generate` uses a normally distributed
-            angle centred on *centre_angle_bias* instead of a uniform
-            random angle.
+        bias: If ``True``, :meth:`generate` draws the angle from a normal distribution
+            centred on *centre_angle_bias* instead of uniformly.
     """
 
     chance_per_frame: float
@@ -43,12 +41,11 @@ class MovementVector:
         """Return a random ``(dx, dy)`` displacement.
 
         Args:
-            centre_angle_bias: Centre angle (radians) for biased movement.
-                Required when *bias* is ``True``.
-            standard_deviation: Standard deviation of the angle
-                distribution (radians). Required when *bias* is ``True``.
-            rng: NumPy random generator. Uses a module-level default when
-                ``None``.
+            centre_angle_bias: Centre angle (radians) of biased movement; required when
+                *bias* is ``True``.
+            standard_deviation: Standard deviation of the angle distribution (radians);
+                required when *bias* is ``True``.
+            rng: NumPy generator; a module-level default if ``None``.
         """
         if rng is None:
             rng = np.random.default_rng()

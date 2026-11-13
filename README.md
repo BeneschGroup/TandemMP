@@ -8,6 +8,35 @@ Pair matching and particle tracking analysis for Mass Photometry data.
 pip install -e /path_to_repo/.
 ```
 
+TandemMP includes two native extensions written in Rust (`drift_correction`
+and `spline_psf`, under `src/tandemmp/_rust/`). Compiled binaries are never
+committed to git; CI builds them (see `.github/workflows/wheels.yml`).
+
+**From a release wheel** (Windows x86_64, Linux x86_64/aarch64; Python >= 3.10):
+`pip install <wheel>` needs no compiler.
+
+**From source** (any platform, including macOS, which has no prebuilt wheels):
+you need a [Rust toolchain](https://rustup.rs), **version 1.88 or newer**
+(`rustup update`). The extensions are compiled during `pip install`, which takes
+a few minutes the first time because they are built with full optimisation.
+
+Release builds embed the builder's absolute source paths. If you build a wheel
+on your own machine to share, strip them and check the result:
+
+```bash
+# Linux / macOS / Git Bash
+RUSTFLAGS="--remap-path-prefix=$HOME=/home/builder" pip wheel . --no-deps -w dist
+python scripts/check_wheel_paths.py dist/*.whl
+```
+
+```powershell
+# Windows PowerShell (if CARGO_HOME or RUSTUP_HOME live outside your home
+# directory, add a --remap-path-prefix for those too)
+$env:RUSTFLAGS = "--remap-path-prefix=$env:USERPROFILE=/home/builder"
+pip wheel . --no-deps -w dist
+python scripts/check_wheel_paths.py (Get-ChildItem dist\*.whl)
+```
+
 ## Requirements
 `open_iscat`, `numpy`, `scipy`, `matplotlib`, `scikit-learn`, `tqdm`, `opencv-python`, `tensorflow`.
 `open_iscat` is an internal dependency; we are working on an alternative.

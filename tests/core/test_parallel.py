@@ -1,4 +1,4 @@
-"""Tests for tandemmp.core.parallel — shared picklable-kwargs dispatch.
+"""Tests for tandemmp.core.parallel: shared picklable-kwargs dispatch.
 
 Pool cleanup is handled by the autouse fixture in ``tests/conftest.py``.
 """
@@ -28,9 +28,8 @@ class TestDispatchKwargs:
         assert dispatch_kwargs(_double, [], parallel=True) == []
 
     def test_parallel_runs_via_pool(self):
-        # Uses a real src-defined function (not one local to this test module) —
-        # a worker spawned via Pool.map must be able to re-import its target,
-        # which a pytest-collected test function is not guaranteed to support.
+        # Use a real src-defined function: a Pool.map worker must be able to re-import its
+        # target, which a pytest-collected test function is not guaranteed to allow.
         args = [{"nm": NM_PER_PIXEL}, {"nm": NM_PER_PIXEL * 2}]
         out = dispatch_kwargs(nm2pixels, args, parallel=True, n_jobs=2)
         assert out == [1.0, 2.0]

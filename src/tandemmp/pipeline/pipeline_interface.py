@@ -1,12 +1,11 @@
 """Generic event-finding pipeline interface.
 
-Defines :class:`PipelineRunner`, a :class:`typing.Protocol` describing the
-minimal surface an event-finding backend must expose, plus the shared result
-types (:class:`EventsFound`, :class:`PipelineResults`) any backend produces.
-
-This module does not import backend implementations, avoiding circular
-imports. :mod:`tandemmp.pipeline.open_iscat_pipeline` re-exports the result
-types for backward compatibility.
+:class:`PipelineRunner` is a :class:`typing.Protocol` for the minimal surface an
+event-finding backend must expose; :class:`EventsFound` and
+:class:`PipelineResults` are the shared result types any backend produces. No
+backend implementations are imported, avoiding circular imports;
+:mod:`tandemmp.pipeline.open_iscat_pipeline` re-exports the result types for
+backward compatibility.
 """
 
 from __future__ import annotations
@@ -27,8 +26,8 @@ if TYPE_CHECKING:
 class EventsFound(Protocol):
     """Structural type for a backend's peak-finder output.
 
-    Not a plain list — exposes per-axis accessors instead of per-event
-    records.
+    Exposes per-axis accessors rather than per-event records, so it is not a plain
+    list.
     """
 
     def get_X(self) -> npt.NDArray[np.floating[Any]]: ...  # noqa: N802
@@ -53,16 +52,12 @@ class PipelineResults:
 class PipelineRunner(Protocol):
     """Structural interface an event-finding pipeline must satisfy.
 
-    Only ``filepath``/``frame_bypass``/``parallel`` are treated as universal
-    across backends — backend-specific tuning (e.g. open_iscat's ``navg``
-    ratiometric-averaging window and ``l_thum`` thumbnail size) is forwarded
-    via ``**kwargs`` rather than fixed in this signature, so a
-    differently-parameterised backend isn't forced to accept knobs it has no
-    use for.
+    Only ``filepath``/``frame_bypass``/``parallel`` are universal across backends.
+    Backend-specific tuning (e.g. open_iscat's ``navg`` and ``l_thum``) goes through
+    ``**kwargs``, so a backend isn't forced to accept knobs it doesn't use.
 
-    Concrete implementation:
-    :class:`tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`.
-    Other backends implement the same structural contract without subclassing.
+    Implemented by :class:`tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`;
+    other backends satisfy the contract without subclassing.
     """
 
     def run(

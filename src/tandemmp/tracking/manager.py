@@ -1,11 +1,10 @@
-"""ParticleManager — a collection for tracked particles.
+"""ParticleManager: a collection of tracked particles.
 
-Provides :class:`ParticleManager`, which aggregates :class:`Particle` and
-:class:`GhostParticle` instances and supports the spatial/temporal queries
-needed by the pair-matching and ghost-detection pipelines.
+Aggregates :class:`Particle` and :class:`GhostParticle` instances and supports the
+spatial/temporal queries needed by pair matching and ghost detection.
 
-Rust acceleration candidate: :meth:`ParticleManager.find_best_matches` and
-the per-frame spatial filters currently perform O(n^2) Python loops.
+Rust acceleration candidate: :meth:`ParticleManager.find_best_matches` and the
+per-frame spatial filters use O(n^2) Python loops.
 """
 
 from __future__ import annotations
@@ -22,15 +21,15 @@ logger = logging.getLogger(__name__)
 
 
 class ParticleManager:
-    """Container for :class:`Particle` instances tracked in a single movie.
+    """Container for the :class:`Particle` instances tracked in one movie.
 
-    The manager owns the particle list and exposes queries used by the
-    investigator (present-particles lookup, close-particle search,
-    thumbnail-based spatial filtering, nearest-neighbour match ranking).
+    It owns the particle list and serves the investigator's queries (present
+    particles, close-particle search, thumbnail-based spatial filtering,
+    nearest-neighbour ranking).
 
-    Ghost particles are also accepted via :meth:`append` — when a ghost is
-    added, nearby particles flagged via :attr:`Particle.split_mass` so they
-    can accommodate mass that may have left as the ghost.
+    Ghost particles are also accepted via :meth:`append`; adding one flags nearby
+    particles via :attr:`Particle.split_mass` so they can accommodate mass that may
+    have left as the ghost.
     """
 
     GHOST_SPLIT_RADIUS: float = 0.5
@@ -61,9 +60,9 @@ class ParticleManager:
     def append(self, particle: Particle) -> None:
         """Add *particle* to the manager.
 
-        If *particle* is a :class:`GhostParticle`, nearby particles at the
-        ghost's binding frame are marked as possible mass-split sources so
-        their mass-consistency checks become more permissive.
+        For a :class:`GhostParticle`, nearby particles at its binding frame are marked
+        as possible mass-split sources, making their mass-consistency checks more
+        permissive.
         """
         if not isinstance(particle, Particle):
             msg = f"Expected Particle, got {type(particle).__name__}"
@@ -100,9 +99,8 @@ class ParticleManager:
     def remove(self, particle: Particle) -> bool:
         """Remove *particle* from the manager.
 
-        Returns ``True`` if the particle was removed, ``False`` if it was
-        not found. Missing particles are logged rather than raising so
-        repeat-removal during coincidence handling is non-fatal.
+        Returns ``True`` if removed, ``False`` if not found. Missing particles are
+        logged, not raised, so repeat removal during coincidence handling is non-fatal.
         """
         try:
             self._particles.remove(particle)
@@ -143,8 +141,9 @@ class ParticleManager:
         l_thum: int,
         psf_radius: float,
     ) -> list[Particle]:
-        """Return particles whose frame-*frame* position lies inside the
-        thumbnail centred on *event*'s peak midpoint, expanded by *psf_radius*.
+        """Particles inside the thumbnail around *event*'s peak midpoint at *frame*.
+
+        The thumbnail is expanded by *psf_radius*.
         """
         midpoint = event.peak.midpoint
         distance = (l_thum / 2) + psf_radius
@@ -156,9 +155,7 @@ class ParticleManager:
         l_thum: int,
         psf_radius: float = 7.0,
     ) -> list[list[Particle]]:
-        """Return, for each frame in *event*'s averaging window, the
-        particles lying inside the thumbnail box centred on *event*.
-        """
+        """Per frame of *event*'s averaging window, the particles in its thumbnail."""
         cx, cy = event.peak.midpoint
         distance = (l_thum / 2) + psf_radius
         frame_range = range(event.i - event.navg, event.i + event.navg + 1)
@@ -200,11 +197,10 @@ class ParticleManager:
         i: int,
         c: float,
     ) -> list[Particle]:
-        """Return particles present at frame *i*, ranked by 3-D proximity in
-        ``(x, y, c)`` space to the query point.
+        """Particles at frame *i*, ranked by ``(x, y, c)`` proximity to the query.
 
-        Particles that cannot supply an entry at *frame* are dropped; the
-        returned list is strictly aligned with the particles that do.
+        Particles with no entry at that frame are dropped; the returned list is aligned
+        with those that remain.
         """
         present = self.get_present_particles(i)
         with_entry: list[tuple[Particle, float]] = []

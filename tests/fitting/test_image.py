@@ -133,10 +133,10 @@ class TestGhostPredictionTransform:
         assert np.all(np.isnan(result))
 
     def test_output_does_not_flip_sign(self):
-        """The transform never flips a pixel's sign (factor is non-negative).
+        """The transform never flips a pixel's sign.
 
-        The factor ``1 - nan_normalise(distances)**0.1`` is in [0, 1],
-        so the result can be zero but never the opposite sign.
+        The factor ``1 - nan_normalise(distances)**0.1`` is in [0, 1], so the result can
+        be zero but never the opposite sign.
         """
         peak = np.random.default_rng(1).normal(0, 0.01, (5, 5))
         result = ghost_prediction_transform(peak)
@@ -209,9 +209,8 @@ class TestCalculateOverlappingSlice:
     def test_overlap_corner_at_relative_offset_zero(self):
         """Bottom-right of cutout2 landing at cutout1's origin (offset 0).
 
-        When ``x22 - x11 == 0`` (and likewise for y), the relative offset is
-        0 — a valid pixel that must produce a slice with stop=1 rather than
-        being treated as "out of range".
+        When ``x22 - x11 == 0`` (likewise y), the relative offset 0 is a valid pixel and
+        must give a slice with stop=1, not be treated as out of range.
         """
         # cutout1 starts at (5, 5); cutout2 ends exactly at (5, 5).
         c1 = (slice(5, 13), slice(5, 13))
@@ -303,11 +302,10 @@ class TestRemoveArtefacts:
 
 class TestCorrectGhost:
     def test_basic_subtraction(self, spline_model):
-        """correct_ghost should subtract a ghost PSF from each peak.
+        """correct_ghost subtracts a ghost PSF (contrast ``-c``) from each peak.
 
-        The ghost contrast is ``-c`` (negated real particle contrast).
-        correct_ghost generates ``psf_2d_cached(dx, dy, -c, ...)`` and
-        subtracts it, removing the ghost impression.
+        It generates ``psf_2d_cached(dx, dy, -c, ...)`` and subtracts it, removing the
+        ghost impression.
         """
         width = 13
         real_c = -0.05

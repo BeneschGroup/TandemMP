@@ -12,11 +12,27 @@ on:
 
 jobs:
   claude:
+    # Gate: only the allowlisted maintainers (alexross-o, joshualiambishop), and only
+    # for content they authored, so an outsider's text (e.g. an issue they assign)
+    # can't drive a run. Matched by login, not author_association, which reads
+    # CONTRIBUTOR for org members with private membership. To add a maintainer,
+    # append their login to every list below.
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      contains(fromJSON('["alexross-o","joshualiambishop"]'), github.event.sender.login) &&
+      (
+        (github.event_name == 'issue_comment'
+          && contains(fromJSON('["alexross-o","joshualiambishop"]'), github.event.comment.user.login)
+          && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment'
+          && contains(fromJSON('["alexross-o","joshualiambishop"]'), github.event.comment.user.login)
+          && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review'
+          && contains(fromJSON('["alexross-o","joshualiambishop"]'), github.event.review.user.login)
+          && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues'
+          && contains(fromJSON('["alexross-o","joshualiambishop"]'), github.event.issue.user.login)
+          && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: read

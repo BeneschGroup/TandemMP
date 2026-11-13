@@ -1,15 +1,12 @@
 """Unit conversions for TandemMP (spatial, mass/contrast, precision).
 
-The active contrast/mass calibration (:data:`_active_calibration`) is
-process-wide mutable state, read by :func:`c_to_mass`/:func:`mass_to_c` on
-every call rather than being baked into them at import time. This is not
-thread-safe — it assumes a single writer per process, matching the
-persistent worker-pool precedent in :mod:`tandemmp.core.parallel`. It is
-safe under :func:`tandemmp.pipeline.batch.batch_process`'s persistent pool
-specifically because every dispatched call sets the calibration explicitly
-before use (including resetting to the default when none is given), so a
-reused worker process never carries over a stale calibration from a
-previous call.
+The active contrast/mass calibration (:data:`_active_calibration`) is process-wide
+mutable state, read by :func:`c_to_mass` / :func:`mass_to_c` on every call. It is
+not thread-safe (single writer per process, like the pool in
+:mod:`tandemmp.core.parallel`). It is safe under
+:func:`tandemmp.pipeline.batch.batch_process`'s persistent pool because every
+dispatched call sets the calibration explicitly (resetting to the default when
+none is given), so a reused worker never carries a stale one.
 """
 
 from __future__ import annotations
@@ -90,12 +87,11 @@ def mass_to_c(m: Numeric) -> Numeric:
 
 
 def mass_to_sigma(mass: float) -> float:
-    """Estimate positional precision (in nanometres) for a given mass (kDa).
+    """Estimate positional precision (nm) for a given mass (kDa).
 
-    ``sigma = a / (mass * b)``, clamped to ``[1.0 nm, pixels2nm(4.0)]``:
-    very light particles saturate at the 4 px upper bound, and particles
-    heavier than ~982 kDa bottom out at the 1.0 nm floor. The
-    physical-radius branch is currently disabled.
+    ``sigma = a / (mass * b)``, clamped to ``[1.0 nm, pixels2nm(4.0)]``: very light
+    particles saturate at the 4 px bound and those above ~982 kDa hit the 1.0 nm
+    floor. The physical-radius branch is currently disabled.
     """
     a, b = 5.6254382094058055, 0.00572794123917841
     sigma = a / (abs(mass) * b)  # in nm

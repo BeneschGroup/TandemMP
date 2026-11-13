@@ -43,24 +43,19 @@ def process_movie(
 ) -> BatchResult:
     """Run a full :class:`~tandemmp.pipeline.pca.Experiment` analysis on one movie.
 
-    Movies with *max_events* or more first-pass events are skipped rather
-    than analysed, since that many events usually indicates a bad movie
-    (dust, drift, or a mis-set threshold) rather than genuine data.
+    Movies with *max_events* or more first-pass events are skipped: that many usually
+    means a bad movie (dust, drift, a mis-set threshold), not genuine data.
 
-    Results are pickled to *save_filepath*, defaulting to *filepath* with
-    ``_tandemmp`` appended before its (``.pkl``) suffix.
+    Results are pickled to *save_filepath*, default *filepath* with ``_tandemmp``
+    appended before its (``.pkl``) suffix.
 
     *pipeline_runner* selects the event-finding backend (see
-    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); defaults
-    to open_iscat.
-
-    *calibration* overrides the process-wide contrast/mass conversion (see
-    :mod:`tandemmp.core.conversions`) for the duration of this call — set
-    explicitly (including resetting to the default when ``None``) so this is
-    safe to call repeatedly against a persistent, possibly-reused worker
-    process (see :func:`batch_process`).
-
-    *peak_model* is the PSF model to use; defaults to the bundled Rust spline.
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); default
+    open_iscat. *calibration* overrides the process-wide contrast/mass conversion (see
+    :mod:`tandemmp.core.conversions`) for this call; it is always set explicitly
+    (``None`` resets to the default), so repeated calls on a reused worker process
+    (see :func:`batch_process`) are safe. *peak_model* is the PSF model; default the
+    bundled Rust spline.
     """
     set_calibration(calibration)
 
@@ -121,46 +116,29 @@ def batch_process(
 ) -> list[BatchResult]:
     """Run :func:`process_movie` over *filepaths*, in parallel by default.
 
-    Each movie can use on the order of tens of GB of RAM to analyse, so
-    *n_jobs* defaults to ``min(6, len(filepaths))`` to bound peak memory use
-    rather than spawning one worker per file.
+    Each movie can need tens of GB of RAM, so *n_jobs* defaults to
+    ``min(6, len(filepaths))`` to bound peak memory.
 
-    The underlying worker pool (:func:`tandemmp.core.parallel.dispatch_kwargs`)
-    persists for the process lifetime rather than being recreated per call,
-    so expensive per-worker state each worker process lazily initialises
-    (e.g. a TensorFlow ghost model, cached via :func:`functools.lru_cache`)
-    is set up at most once per worker and reused across subsequent
-    :func:`batch_process` calls in the same process — at the cost of that
-    per-worker RAM staying resident (additive to the per-movie RAM noted
-    above) for as long as the process runs. Calling with a different
-    *n_jobs* than a previous call tears down and recreates the pool.
+    The worker pool (:func:`tandemmp.core.parallel.dispatch_kwargs`) persists for the
+    process lifetime, so per-worker state (e.g. the cached TensorFlow ghost model) is
+    initialised at most once per worker and reused across :func:`batch_process`
+    calls, at the cost of that RAM staying resident. A different *n_jobs* recreates
+    the pool.
 
-    Note: :func:`process_movie` (via :class:`~tandemmp.pipeline.pca.Experiment`)
-    itself calls :func:`~tandemmp.core.parallel.dispatch_kwargs` internally
-    for its own sub-tasks (e.g. via ``FullAnalysisParams(parallel=True)``).
-    Pool workers are daemonic and cannot spawn child pools of their own, so
-    combining ``batch_process(parallel=True)`` with a ``parallel=True``
-    analysis-parameters object raises ``AssertionError: daemonic processes
-    are not allowed to have children``. This is a pre-existing constraint of
-    :class:`multiprocessing.Pool` itself, not something this persistent-pool
-    change introduces or fixes — avoid enabling both parallelism layers at
-    once.
+    Do not combine ``batch_process(parallel=True)`` with ``parallel=True`` analysis
+    parameters: pool workers are daemonic and cannot spawn child pools
+    (``AssertionError: daemonic processes are not allowed to have children``). This
+    is a :class:`multiprocessing.Pool` constraint.
 
     *pipeline_runner* selects the event-finding backend (see
-    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); defaults
-    to open_iscat. When *parallel* is ``True`` it must be picklable, since
-    each :func:`process_movie` call (and the *pipeline_runner* passed to it)
-    is sent across the :class:`multiprocessing.Pool` boundary —
-    :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline` is
-    stateless and satisfies this, as does the default ``None``.
-
-    *calibration* overrides the process-wide contrast/mass conversion (see
-    :mod:`tandemmp.core.conversions`) for every movie in this batch; it is
-    forwarded to each :func:`process_movie` call the same way as
-    *pipeline_runner*, so it is applied per-call and survives worker reuse.
-
-    *peak_model* is forwarded to each :func:`process_movie` call; it must be
-    picklable (a top-level class) when *parallel* is ``True``.
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`; default
+    open_iscat). With *parallel* it must be picklable, as it crosses the pool boundary
+    with each :func:`process_movie` call; the default ``None`` and
+    :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline` are.
+    *calibration* overrides the contrast/mass conversion (see
+    :mod:`tandemmp.core.conversions`) for every movie in the batch, applied per call
+    so it survives worker reuse. *peak_model* is forwarded to each call and must be a
+    picklable top-level class when *parallel* is ``True``.
     """
     args_list: list[dict[str, Any]] = [
         {
@@ -196,9 +174,8 @@ if __name__ == "__main__":
         save_calibration,
     )
 
-    # PSF model for this run: any PsfInterface implementation, e.g.
-    # ``GaussianPsfModel(sigma=1.5)`` or your own class. ``None`` = bundled
-    # Rust spline (``SplinePsfModel``).
+    # PSF model for this run: any PsfInterface, e.g. ``GaussianPsfModel(sigma=1.5)``;
+    # ``None`` = bundled Rust spline (``SplinePsfModel``).
     PEAK_MODEL: PsfInterface | None = None
 
     calibration_file = choose_file(mp_file=False)

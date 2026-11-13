@@ -1,11 +1,11 @@
 """Top-level analysis orchestration for TandemMP.
 
-:class:`Experiment` wires together :class:`~tandemmp.pipeline.loader.Loader`
-(movie loading + first-pass event detection),
-:class:`~tandemmp.pipeline.investigator.Investigator` (per-event
-classification/fitting) and :class:`~tandemmp.tracking.manager.ParticleManager`
-(accumulated tracked particles) into the single entry point used to run a
-full particle-centric analysis of an iSCAT movie.
+:class:`Experiment` ties together :class:`~tandemmp.pipeline.loader.Loader` (movie
+loading and first-pass event detection),
+:class:`~tandemmp.pipeline.investigator.Investigator` (per-event classification
+and fitting) and :class:`~tandemmp.tracking.manager.ParticleManager` (tracked
+particles) into the entry point for a full particle-centric analysis of an iSCAT
+movie.
 """
 
 from __future__ import annotations
@@ -44,19 +44,17 @@ logger = logging.getLogger(__name__)
 
 
 class Experiment:
-    """Master orchestrator for a single particle-centric TandemMP analysis.
+    """Orchestrates a single particle-centric TandemMP analysis.
 
-    Loads a movie via :class:`~tandemmp.pipeline.loader.Loader`, then steps
-    through detected events with :meth:`analyse`, using an
-    :class:`~tandemmp.pipeline.investigator.Investigator` to classify/fit
-    each event and a :class:`~tandemmp.tracking.manager.ParticleManager` to
-    accumulate the resulting tracked particles.
+    Loads a movie via :class:`~tandemmp.pipeline.loader.Loader`, then steps through
+    detected events with :meth:`analyse`, classifying and fitting each with an
+    :class:`~tandemmp.pipeline.investigator.Investigator` and accumulating tracked
+    particles in a :class:`~tandemmp.tracking.manager.ParticleManager`.
 
     *pipeline_runner* selects the event-finding backend (see
-    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); defaults
-    to :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline` via
-    :class:`~tandemmp.pipeline.loader.Loader`. *peak_model* sets the PSF
-    model (default: bundled Rust spline).
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`; the Loader's
+    default is :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`).
+    *peak_model* sets the PSF model (default: bundled Rust spline).
     """
 
     def __init__(
@@ -151,8 +149,8 @@ class Experiment:
     def reset(self) -> None:
         """Undo in-progress classification state so :meth:`analyse` can restart.
 
-        Re-fits events up to (and just past) the current progress index and
-        clears all tracked particles; :attr:`_index` is reset to zero.
+        Re-fits events up to (and just past) the current progress index, clears all
+        tracked particles and resets :attr:`_index` to zero.
         """
         for event in self.events[: self._index + 2]:
             event.disconnect_all()
@@ -163,9 +161,8 @@ class Experiment:
     def analyse(self, *, refresh: bool = False, stop_at: int = -1) -> None:
         """Step through :attr:`events`, classifying and tracking each one.
 
-        Resumes from :attr:`_index` unless *refresh* is set, in which case
-        :meth:`reset` is called first. Stops after processing event index
-        *stop_at* (inclusive of nothing beyond it) if given.
+        Resumes from :attr:`_index` unless *refresh* is set (which calls :meth:`reset`
+        first). Stops after event index *stop_at* if given.
         """
         if refresh:
             self.reset()

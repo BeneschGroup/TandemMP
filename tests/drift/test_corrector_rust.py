@@ -1,7 +1,7 @@
 """Tests for the Rust-backed (``use_rust=True``) path of ``tandemmp.drift.corrector``.
 
-Mirrors cases from ``tests/drift/test_corrector.py`` and tests the PyO3
-binding layer directly; skipped (not failed) if the extension isn't built.
+Mirrors cases from ``tests/drift/test_corrector.py`` and tests the PyO3 bindings
+directly; skipped if the extension isn't built.
 """
 
 from __future__ import annotations
@@ -197,10 +197,11 @@ class TestSolveUseRust:
         np.testing.assert_array_equal(first, second)
 
     def test_generator_seed_falls_back_to_python(self, caplog):
-        """A `np.random.Generator` seed isn't supported by the Rust path
-        (it only accepts a plain int/None) — `_solve` should silently fall
-        back to the Python `differential_evolution` implementation rather
-        than erroring."""
+        """A `np.random.Generator` seed falls back to Python.
+
+        The Rust path accepts only a plain int/None, so `_solve` should silently use the
+        Python `differential_evolution` instead of erroring.
+        """
         rng = np.random.default_rng(8)
         base = rng.normal(0, 1, size=(31, 31))
         shifted = shift(base, (1.0, -1.0))
@@ -216,10 +217,11 @@ class TestSolveUseRust:
 
 
 class TestUseRustFallback:
-    """Verify the ImportError -> Python-fallback degradation path itself,
-    by simulating the extension being unavailable (rather than relying on
-    it actually being absent, which `importorskip` above already rules out
-    for this test run)."""
+    """Verify the ImportError -> Python fallback path.
+
+    Simulates the extension being unavailable, since `importorskip` above already
+    rules out it being absent for this run.
+    """
 
     def test_solve_falls_back_when_rust_unavailable(self, monkeypatch, caplog):
         import tandemmp.drift.corrector as corrector

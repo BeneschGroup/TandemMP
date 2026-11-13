@@ -1,11 +1,10 @@
 # Python
 __pycache__/
 *.py[cod]
-# Ship the prebuilt Rust extension so installs don't need a Rust toolchain.
-!src/tandemmp/_rust/drift_correction*.pyd
-!src/tandemmp/_rust/drift_correction*.so
-!src/tandemmp/_rust/spline_psf*.pyd
-!src/tandemmp/_rust/spline_psf*.so
+# Compiled Rust extensions are built by setuptools-rust / CI wheels and are
+# never committed (release builds embed the builder's home-directory paths).
+src/tandemmp/_rust/*.pyd
+src/tandemmp/_rust/*.so
 *.egg-info/
 *.egg
 dist/

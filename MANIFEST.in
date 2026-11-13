@@ -1,0 +1,10 @@
+# The sdist must carry the Rust crates so `pip install` from source can build the
+# native extensions (needs a Rust toolchain). Wheels do not need this.
+graft src/tandemmp/_rust
+
+# ...but never build output or compiled artefacts.
+prune src/tandemmp/_rust/drift_correction/target
+prune src/tandemmp/_rust/drift_correction/dist
+prune src/tandemmp/_rust/spline_psf/target
+prune src/tandemmp/_rust/spline_psf/dist
+global-exclude *.pyd *.so *.dll *.dylib *.py[cod] __pycache__

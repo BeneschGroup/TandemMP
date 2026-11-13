@@ -243,10 +243,9 @@ class TestParallelFindClassification:
             particle_c=float("nan"),
             allow_native=False,
         )
-        # Movement with a 2-param fit that resolves to association by default
-        # (signals: before=50, after=100 → mass increase → Association).
-        # Stub returns len(x) == 2, so classify_mass_change runs and returns
-        # Association.
+        # Movement with a 2-param fit that resolves to association (signals:
+        # before=50, after=100 → mass increase). The stub returns len(x) == 2, so
+        # classify_mass_change runs and returns Association.
         assert result["classification"] == EvClassification.Association
         assert result["fit_type"].startswith("untracked")
 

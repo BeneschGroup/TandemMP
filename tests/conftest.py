@@ -9,10 +9,10 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _shutdown_persistent_pool() -> Iterator[None]:
-    """Terminate `core.parallel`'s persistent worker pool after every test.
+    """Shut down `core.parallel`'s persistent pool after every test.
 
-    Parallel dispatch reuses a module-level pool. Shut it down so worker
-    processes do not outlive the test that created them.
+    Parallel dispatch reuses a module-level pool; this stops workers outliving the
+    test that created them.
     """
     yield
     from tandemmp.core.parallel import shutdown_pool
@@ -24,7 +24,7 @@ def _shutdown_persistent_pool() -> Iterator[None]:
 def _reset_active_calibration() -> Iterator[None]:
     """Reset `core.conversions`'s active calibration after every test.
 
-    Calibration is process-wide state; overrides must not leak between tests.
+    It is process-wide state, so overrides must not leak between tests.
     """
     yield
     from tandemmp.core.conversions import set_calibration

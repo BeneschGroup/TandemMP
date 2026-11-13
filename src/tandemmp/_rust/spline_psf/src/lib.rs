@@ -14,10 +14,9 @@ pub use bspline::Spline;
 const DEGREE: usize = 3;
 
 fn decode(bytes: &[u8]) -> Vec<f64> {
-    bytes
-        .chunks_exact(8)
-        .map(|b| f64::from_le_bytes(b.try_into().unwrap()))
-        .collect()
+    // Any trailing partial chunk is ignored, as with `chunks_exact`.
+    let (chunks, _remainder) = bytes.as_chunks::<8>();
+    chunks.iter().map(|b| f64::from_le_bytes(*b)).collect()
 }
 
 /// The bundled PSF spline, decoded on first use.

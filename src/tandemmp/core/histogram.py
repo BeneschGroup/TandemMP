@@ -1,7 +1,7 @@
-"""Histogram analysis utilities — bin selection, Gaussian fitting, GMM.
+"""Histogram analysis utilities: bin selection, Gaussian fitting, GMM.
 
-Plotting for these fits lives in :mod:`tandemmp.plotting.histogram`; this
-module is pure data/fitting with no matplotlib dependency.
+Plotting lives in :mod:`tandemmp.plotting.histogram`; this module has no
+matplotlib dependency.
 """
 
 from __future__ import annotations
@@ -93,13 +93,13 @@ def fit_gmm(
     criterion: str = "bic",
     xlim: tuple[float, float] | None = None,
 ) -> GaussianMixture:
-    """Fit a :class:`~sklearn.mixture.GaussianMixture` with BIC/AIC model selection.
+    """Fit a :class:`~sklearn.mixture.GaussianMixture`, choosing components by BIC/AIC.
 
     Args:
-        data: 1-D array of observations.
-        max_components: Maximum number of Gaussian components to try.
+        data: 1-D observations.
+        max_components: Maximum components to try.
         criterion: ``'bic'`` or ``'aic'``.
-        xlim: If provided, only data within ``[xlim[0], xlim[1]]`` is used.
+        xlim: If given, use only data within ``[xlim[0], xlim[1]]``.
     """
     if criterion not in ("bic", "aic"):
         raise ValueError(f"criterion must be 'bic' or 'aic', got {criterion!r}")
@@ -130,14 +130,14 @@ def duplicate_inliers(
     duplicates: int = 2,
     cut: bool = False,
 ) -> npt.NDArray[np.floating[Any]]:
-    """Use DBSCAN to identify inliers, then duplicate them.
+    """Use DBSCAN to find inliers, then duplicate them.
 
     Args:
-        data: 1-D array of observations.
+        data: 1-D observations.
         eps: DBSCAN neighbourhood radius.
         min_samples: DBSCAN minimum samples per cluster.
-        duplicates: Number of times to repeat inlier points.
-        cut: If ``True``, return only inlier points (no duplication).
+        duplicates: Times to repeat inlier points.
+        cut: Return only the inliers, without duplication.
     """
     data = np.asarray(data, dtype=float)
     labels = DBSCAN(eps=eps, min_samples=min_samples).fit_predict(data.reshape(-1, 1))
@@ -167,15 +167,13 @@ def _prepare_means_for_line_fit(
     """Filter and sort GMM component means ahead of a line fit.
 
     Shared by :func:`fit_means` and
-    :func:`tandemmp.plotting.histogram._plot_means_on_ax`.
+    :func:`tandemmp.plotting.histogram._plot_means_on_ax`. Components whose standard
+    deviation is outside *sigma_limits* are dropped and the rest sorted by mean;
+    per-component "steps" are unit spacing, or inferred from the median spacing of
+    the sorted means when *adjust_unit* is ``True``.
 
-    Components whose standard deviation falls outside *sigma_limits* are
-    dropped, the remainder are sorted by ascending mean, and per-component
-    "steps" are computed (unit spacing, or inferred from median spacing
-    between sorted means when *adjust_unit* is ``True``).
-
-    Returns ``(steps, means, sigmas)`` or ``None`` if fewer than two
-    components survive the sigma filter.
+    Returns ``(steps, means, sigmas)``, or ``None`` if fewer than two components
+    survive.
     """
     means = gmm.means_[:, 0]
     sigmas = np.array([float(np.sqrt(c[0][0])) for c in gmm.covariances_])
@@ -210,14 +208,14 @@ def fit_means(
 
     Args:
         gmm: A fitted :class:`~sklearn.mixture.GaussianMixture`.
-        sigma_limits: ``(min, max)`` standard-deviation range; components
-            outside are excluded.
-        adjust_unit: If ``True``, infer step sizes from median spacing
-            between sorted means rather than assuming unit spacing.
+        sigma_limits: ``(min, max)`` standard-deviation range; components outside it
+            are excluded.
+        adjust_unit: Infer step sizes from the median spacing of sorted means instead
+            of assuming unit spacing.
 
     Returns:
-        ``(r_squared, slope)``, or ``(None, None)`` if fewer than two
-        components survive the sigma filter.
+        ``(r_squared, slope)``, or ``(None, None)`` if fewer than two components
+        survive the sigma filter.
     """
     prepared = _prepare_means_for_line_fit(gmm, sigma_limits, adjust_unit)
     if prepared is None:

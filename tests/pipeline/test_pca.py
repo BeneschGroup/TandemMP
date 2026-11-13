@@ -1,7 +1,7 @@
-"""Tests for tandemmp.pipeline.pca — target API.
+"""Tests for tandemmp.pipeline.pca.
 
 Covers ``Experiment`` wiring (with lightweight ``Loader``/``Investigator`` fakes)
-and property/method behavior on a bare, minimally-constructed ``Experiment``.
+and property/method behaviour on a bare, minimally constructed ``Experiment``.
 """
 
 from __future__ import annotations
@@ -126,8 +126,8 @@ def _make_ghost_particle(model: PsfModel, **kwargs: Any) -> GhostParticle:
 def _bare_experiment(**attrs: Any) -> pca.Experiment:
     """Construct an ``Experiment`` bypassing ``__init__``.
 
-    Only the attributes under test need to be set, isolating each method
-    from the (heavy, ``open_iscat``-dependent) construction path.
+    Only the attributes under test are set, isolating each method from the heavy,
+    ``open_iscat``-dependent construction path.
     """
     exp = object.__new__(pca.Experiment)
     for key, value in attrs.items():

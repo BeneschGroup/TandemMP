@@ -1,7 +1,7 @@
 """Kalman filter for iSCAT particle tracking.
 
-Provides :class:`KalmanFilter` — a general linear Kalman filter used to
-smooth per-frame PSF fit parameters (contrast, dx, dy) over time.
+:class:`KalmanFilter` is a general linear Kalman filter that smooths per-frame PSF
+fit parameters (contrast, dx, dy) over time.
 
 Rust acceleration candidate (batch updates across many particles).
 """
@@ -75,8 +75,7 @@ class KalmanFilter:
         """Predict the next state.
 
         Args:
-            new_u: Control input vector. If *None*, the stored ``self.u``
-                is used.
+            new_u: Control input vector; the stored ``self.u`` if *None*.
         """
         u = self.u if new_u is None else np.asarray(new_u, dtype=float)
         self.X = self.F @ self.X + self.B @ u

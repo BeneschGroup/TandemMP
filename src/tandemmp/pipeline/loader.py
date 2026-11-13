@@ -1,16 +1,15 @@
-"""Movie loading and first-pass event detection for the TandemMP pipeline.
+"""Movie loading and first-pass event detection.
 
-:class:`Loader` reads a raw movie (from a file or an injected array), applies
-optional drift correction, runs an event-finding pipeline conforming to
-:class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner` (defaulting to
-:class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`), fits a
-first-pass :class:`~tandemmp.events.RatiometricEvent` for every detected
-peak, and then merges/filters/marks-overlaps on those events ready for
+:class:`Loader` reads a movie (file or injected array), optionally drift-corrects
+it, runs an event-finding :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`
+(default :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`), fits a
+first-pass :class:`~tandemmp.events.RatiometricEvent` per peak, then merges,
+filters and marks overlaps ready for
 :class:`tandemmp.pipeline.investigator.Investigator`.
 
 Parallel work uses :func:`tandemmp.core.parallel.dispatch_kwargs`.
-``determine_experimental_psf_model`` refits the PSF model's shape
-parameters to an experimental spline PSF.
+``determine_experimental_psf_model`` refits the PSF model to an experimental
+spline PSF.
 """
 
 from __future__ import annotations
@@ -64,8 +63,7 @@ def bin_movie(
 ) -> npt.NDArray[Any]:
     """Temporally bin *arr* by averaging non-overlapping windows of *binning* frames.
 
-    The final partial window (if ``len(arr)`` is not a multiple of *binning*)
-    is dropped, matching the original ``utils.bin_array`` behaviour.
+    A final partial window is dropped.
     """
     indices = np.arange(0, len(arr) - binning, binning)
     return np.array([arr[i : i + binning].mean(axis=0) for i in indices]).astype(dtype)
@@ -74,10 +72,10 @@ def bin_movie(
 def compute_post_binning_factor(
     raw_fps: float, pre_binning: int, navg: int, target_integration_time: float = 0.1
 ) -> int:
-    """Return the extra temporal binning factor to reach ``target_integration_time``.
+    """Extra temporal binning factor needed to reach ``target_integration_time``.
 
-    Used to auto-bin a movie to roughly a 100 ms integration window (the
-    default) once *navg*-frame ratiometric averaging is taken into account.
+    Auto-bins a movie to about 100 ms (the default) once *navg*-frame ratiometric
+    averaging is taken into account.
     """
     return int(
         np.round(max(1, target_integration_time / (navg / (raw_fps / pre_binning))))
@@ -96,11 +94,11 @@ def get_peak(
     *,
     nanopore: bool = False,
 ) -> PeakImage:
-    """Cut a thumbnail out of *ratiometric* centred on ``(x, y)`` at frame *i*.
+    """Cut a thumbnail centred on ``(x, y)`` at frame *i* out of *ratiometric*.
 
-    The thumbnail is clamped to stay within the frame if it would otherwise
-    run off the edge. ``nanopore`` inverts the sign of the cutout, since the
-    destructive-interference convention is flipped for nanopore movies.
+    The thumbnail is clamped inside the frame. ``nanopore`` inverts the cutout's
+    sign, since the destructive-interference convention is flipped for nanopore
+    movies.
     """
     shape = ratiometric[0].shape
     width = l_thum // 2
@@ -165,12 +163,11 @@ def find_lid_open_exclusion_range(
     threshold: float,
     margin: int = 5,
 ) -> set[int]:
-    """Return frame indices near a "lid open" region, in ``final_polish_fix``-space.
+    """Frame indices near a "lid open" region, in ``final_polish_fix``-space.
 
     *raw_movie* is the movie **before** :func:`~tandemmp.io.movie.final_polish_fix`
-    prepends ``navg * 2`` synthetic frames. Those prepended frames never count
-    as lid-open, so the returned indices are directly comparable against
-    events found in the polished movie.
+    prepends ``navg * 2`` frames. Those never count as lid-open, so the indices
+    compare directly against events from the polished movie.
     """
     below_threshold = np.sum(raw_movie, axis=(1, 2)) < threshold
     below_threshold = np.concatenate([np.zeros(navg * 2, dtype=bool), below_threshold])
@@ -206,11 +203,11 @@ def correct_movements(
     nanopore: bool = False,
     peak_model: PsfInterface | None = None,
 ) -> Events:
-    """Merge events that fire on the same particle across adjacent frames.
+    """Merge events that fire on the same particle in adjacent frames.
 
-    Nearby events (within ``0.8 * l_thum`` pixels, at most one frame apart)
-    are averaged into a single re-fitted event, weighted by whether they are
-    signal (contrast < 0) or a likely background fluctuation.
+    Events within ``0.8 * l_thum`` pixels and at most one frame apart are averaged
+    into one re-fitted event, weighted by signal (contrast < 0) vs likely
+    background fluctuation.
     """
     if not events:
         return events
@@ -267,9 +264,9 @@ def correct_movements(
 
 
 def mark_overlaps(events: Events) -> None:
-    """Populate ``event.overlaps`` for every spatio-temporally overlapping pair.
+    """Populate ``event.overlaps`` (:class:`OverlapArea`) for every overlapping pair.
 
-    Mutates *events* in place, appending :class:`OverlapArea` entries.
+    Mutates *events* in place.
     """
     n_spatial, n_spatiotemporal = 0, 0
 
@@ -367,9 +364,8 @@ def filter_events_by_mass(
 ) -> tuple[Events, Events]:
     """Split *events* into ``(kept, discarded)`` by minimum mass and SNR.
 
-    An event with a suspiciously high signal in its raw image is kept
-    regardless of SNR/mass — it likely represents a genuine, if oddly-fit,
-    particle rather than noise.
+    An event with a suspiciously high raw-image signal is kept regardless: it is
+    likely a genuine, if oddly fit, particle.
     """
     high_signal = np.array(
         [np.max(np.abs(c_to_mass(e.peak.image))) > minimum_mass * 3 for e in events],
@@ -398,9 +394,9 @@ def determine_experimental_psf_model(
 ) -> tuple[PsfInterface, PsfModel | None, PsfInterface | None]:
     """Build a spline PSF from high-SNR events and refit *peak_model* to it.
 
-    Returns ``(peak_model, exp_model, refit_model)``. The refit model is
-    adopted (and all events refitted) only if it lowers the summed fit error
-    of the selected events.
+    Returns ``(peak_model, exp_model, refit_model)``. The refit model is adopted (and
+    all events refitted) only if it lowers the summed fit error of the selected
+    events.
     """
     if not events:
         return peak_model, None, None
@@ -526,33 +522,25 @@ class Loader:
     """Load a movie, optionally drift-correct it, and find/fit first-pass events.
 
     Args:
-        mp_filepath: Path to the ``.mp``/``.tdms`` movie file. Still required
-            (and used for naming outputs) even when *special_bypass* supplies
-            the frames directly.
-        special_bypass: Use these frames directly instead of reading
-            *mp_filepath* — for injecting simulated movies. Must be a
-            ``uint16`` array, matching the dtype of real camera-captured
-            movies. Event finding is still driven through ``mp_filepath``.
-        parameters: Analysis configuration. Defaults to
+        mp_filepath: ``.mp``/``.tdms`` movie path. Required (and used to name outputs)
+            even with *special_bypass*.
+        special_bypass: ``uint16`` frames to use instead of reading *mp_filepath*
+            (for simulated movies). Event finding is still driven through
+            ``mp_filepath``.
+        parameters: Analysis config; defaults to
             :func:`~tandemmp.core.parameters.get_parameters`.
-        just_movie: If ``True``, load (and optionally drift-correct) the
-            movie and return without running event detection.
-        skip_exp_model: If ``True``, skip fitting/adopting an experimental
-            PSF model even when *special_bypass* is not set.
-        frame_start: Start of the slice applied to the raw movie before any
-            processing.
-        frame_end: End of the slice applied to the raw movie before any
-            processing.
-        seed: Forwarded to the drift-correction search for reproducibility
-            (see :func:`tandemmp.drift.corrector.get_vector`). Left ``None``
-            for real usage.
-        pipeline_runner: The event-finding backend, conforming to
-            :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`.
-            Defaults to
+        just_movie: Load (and optionally drift-correct) the movie, then return
+            without event detection.
+        skip_exp_model: Skip fitting/adopting an experimental PSF model even when
+            *special_bypass* is unset.
+        frame_start: Start of the slice applied to the raw movie before processing.
+        frame_end: End of that slice.
+        seed: Passed to the drift-correction search (see
+            :func:`tandemmp.drift.corrector.get_vector`); leave ``None`` outside tests.
+        pipeline_runner: Event-finding backend implementing
+            :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`; defaults to
             :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`.
-            A different backend can be dropped in here without any other
-            changes to :class:`Loader`.
-        peak_model: PSF model to use. Defaults to the bundled Rust spline
+        peak_model: PSF model; defaults to the bundled Rust spline
             (:class:`~tandemmp.fitting.spline_psf.SplinePsfModel`).
     """
 
@@ -618,9 +606,8 @@ class Loader:
         if just_movie:
             return
 
-        # special_bypass's uint16 branch narrows self.movie's flow-type; widen
-        # it back so it type-checks against the floating-array-typed helpers
-        # below (they accept any numeric dtype at runtime via promotion).
+        # Widen self.movie back from special_bypass's uint16 narrowing so it type-checks
+        # against the float-array helpers below (they accept any dtype at runtime).
         self.movie = cast("npt.NDArray[Any]", self.movie)
 
         navg = self.parameters.first_analysis.navg

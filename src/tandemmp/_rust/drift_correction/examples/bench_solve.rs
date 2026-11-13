@@ -1,9 +1,8 @@
-//! Ad-hoc profiling harness for `solve()` at realistic movie-frame size
-//! (59x150, matching `012_20250717_beta_gal_6nM.mp`). Not part of the test
-//! suite — run manually with `cargo run --release --example bench_solve`.
-//! Prints wall time for BaselineFrame::new (prefilter) vs the DE+polish
-//! search, plus an objective-call counter, over many (seeded) frames to
-//! approximate the per-frame cost the real pipeline pays.
+//! Ad-hoc profiling harness for `solve()` at a realistic frame size (59x150). Not
+//! part of the test suite; run with `cargo run --release --example bench_solve`.
+//! Prints wall time for `BaselineFrame::new` (prefilter) vs the DE+polish search, plus
+//! an objective-call counter, over many seeded frames to approximate the per-frame
+//! cost the pipeline pays.
 
 use std::cell::Cell;
 use std::time::Instant;

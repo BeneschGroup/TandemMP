@@ -118,10 +118,9 @@ class TestDragAndFitPeaks:
 class _FakeDrag:
     """Stands in for _DragAndFitPeaks with canned peak means.
 
-    The widget's own drag-select-and-fit mechanics are covered directly by
-    TestDragAndFitPeaks; this lets calibrate()'s orchestration (the
-    reattempt/repeat loop, the final line fit) be tested without simulating
-    real mouse events.
+    The widget's own mechanics are covered by TestDragAndFitPeaks; this lets
+    calibrate()'s orchestration (reattempt/repeat loop, final line fit) be tested
+    without simulating mouse events.
     """
 
     def __init__(self, ax: object, data: object, bins: object) -> None:

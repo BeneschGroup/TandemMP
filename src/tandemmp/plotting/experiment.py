@@ -1,9 +1,8 @@
 """Experiment-level plotting functions.
 
-All public functions take plain numeric arrays rather than reaching into
-event or experiment objects. Callers are expected to extract the
-required per-event / per-particle quantities up-front (e.g. via
-:mod:`tandemmp.io.save` record builders) before handing them here.
+Public functions take plain numeric arrays, not event or experiment objects;
+callers extract the per-event / per-particle quantities first (e.g. with the
+:mod:`tandemmp.io.save` record builders).
 """
 
 from __future__ import annotations
@@ -37,12 +36,12 @@ def mass_histogram(
     """Plot a 1-D mass histogram.
 
     Args:
-        masses: Array of per-event masses in kDa.
-        xlim: ``(low, high)`` bounds on mass axis. Defaults to ``(min, max)``.
+        masses: Per-event masses in kDa.
+        xlim: ``(low, high)`` mass-axis bounds; defaults to ``(min, max)``.
         bins: Number of bins or explicit bin edges.
-        ax: Optional existing axes to draw on.
+        ax: Existing axes to draw on.
         title: Plot title.
-        saveas: Optional filepath to save the figure to.
+        saveas: Filepath to save the figure to.
     """
     masses_arr = np.asarray(masses, dtype=float)
     if masses_arr.size == 0:
@@ -52,9 +51,8 @@ def mass_histogram(
     if xlim is None:
         xlim = (float(masses_arr.min()), float(masses_arr.max()))
 
-    # matplotlib's `Axes.hist` stub only accepts `Sequence[float]` for
-    # `bins`, not an `ndarray`, so this stays a list despite the array
-    # already being materialised above.
+    # matplotlib's `Axes.hist` stub accepts `Sequence[float]` for `bins`, not ndarray,
+    # so keep this a list.
     bin_edges: list[float] | int
     if isinstance(bins, int):
         bin_edges = list(np.linspace(xlim[0], xlim[1], bins))
@@ -213,9 +211,8 @@ def error_vs_mass(
 # Events cube
 
 
-#: Unit cube expressed as 6 quad faces, each a (4, 3) array of corner
-#: coordinates. Scaled and translated per-event in ``_cuboid`` below; built
-#: once here rather than on every call.
+#: Unit cube as 6 quad faces, each a (4, 3) array of corner coordinates. Scaled and
+#: translated per event in ``_cuboid``; built once here, not per call.
 _CUBOID_TEMPLATE: npt.NDArray[np.floating] = np.array(
     [
         [[0, 1, 0], [0, 0, 0], [1, 0, 0], [1, 1, 0]],
@@ -243,14 +240,12 @@ def events_cube(
     """Render a 3-D cube plot of event positions (x, y, frame).
 
     Args:
-        positions: Array of shape ``(n_events, 3)`` with columns
-            ``(x, y, frame)``.
-        widths: Array of shape ``(n_events, 3)`` giving each cube's
-            ``(dx, dy, dt)``.
-        is_bad: Boolean array of length ``n_events``; ``True`` marks a bad
-            event (drawn red). Defaults to all-good (green).
-        movie_shape: Underlying movie shape ``(i_dim, y_dim, x_dim)``.
-        frame_limit: Optional upper frame bound to filter events.
+        positions: ``(n_events, 3)`` array of ``(x, y, frame)``.
+        widths: ``(n_events, 3)`` array of each cube's ``(dx, dy, dt)``.
+        is_bad: Boolean array of length ``n_events``; ``True`` marks a bad event
+            (red). Defaults to all-good (green).
+        movie_shape: Movie shape ``(i_dim, y_dim, x_dim)``.
+        frame_limit: Upper frame bound used to filter events.
     """
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 

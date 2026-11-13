@@ -10,13 +10,11 @@ def eval(
 ) -> npt.NDArray[np.float64]:
     """Bundled PSF at ``(u, v)`` = (row, col); equal-shape arrays."""
 
-def tck() -> (
-    tuple[
-        npt.NDArray[np.float64],
-        npt.NDArray[np.float64],
-        npt.NDArray[np.float64],
-        int,
-        int,
-    ]
-):
+def tck() -> tuple[
+    npt.NDArray[np.float64],
+    npt.NDArray[np.float64],
+    npt.NDArray[np.float64],
+    int,
+    int,
+]:
     """The bundled spline as ``(tx, ty, c, kx, ky)``."""

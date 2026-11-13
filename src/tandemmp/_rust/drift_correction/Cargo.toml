@@ -2,6 +2,8 @@
 name = "drift_correction"
 version = "0.1.0"
 edition = "2021"
+# 1.88 stabilised slice::as_chunks (used by spline_psf); both crates build in one install.
+rust-version = "1.88"
 description = "Drift correction for TandemMP with PyO3 bindings."
 
 # Build a Python extension and a library for Rust tests and documentation.
