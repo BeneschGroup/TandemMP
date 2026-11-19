@@ -2,8 +2,8 @@
 
 :class:`Loader` reads a movie (file or injected array), optionally drift-corrects
 it, runs an event-finding :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`
-(default :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`), fits a
-first-pass :class:`~tandemmp.events.RatiometricEvent` per peak, then merges,
+(:class:`~tandemmp.pipeline.csv_events.CsvEventsRunner` when given an events CSV),
+fits a first-pass :class:`~tandemmp.events.RatiometricEvent` per peak, then merges,
 filters and marks overlaps ready for
 :class:`tandemmp.pipeline.investigator.Investigator`.
 
@@ -541,8 +541,7 @@ class Loader:
         pipeline_runner: Event-finding backend implementing
             :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`; defaults to
             :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner` when *events_csv*
-            is given, else
-            :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`.
+            is given.
         events_csv: DiscoverMP events CSV, forwarded to the runner.
         peak_model: PSF model; defaults to the bundled Rust spline
             (:class:`~tandemmp.fitting.spline_psf.SplinePsfModel`).

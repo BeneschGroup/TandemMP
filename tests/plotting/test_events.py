@@ -61,7 +61,7 @@ def _close_figs():
 
 @pytest.fixture()
 def spline_model() -> PsfModel:
-    """PsfModel backed by a Gaussian spline (no open_iscat needed)."""
+    """PsfModel backed by a Gaussian spline."""
     model = PsfModel()
     model.set_spline_model(_make_gaussian_spline())
     return model
@@ -202,7 +202,7 @@ class TestShowSeries:
 class TestShowSeriesImpression:
     def test_runs_without_error(self, spline_model, monkeypatch):
         # impression() falls back to get_psf_model() when no model is
-        # passed explicitly; point that at our open_iscat-free spline model.
+        # passed explicitly; point that at our spline model.
         monkeypatch.setattr(
             "tandemmp.fitting.psf.get_psf_model", lambda **_: spline_model
         )

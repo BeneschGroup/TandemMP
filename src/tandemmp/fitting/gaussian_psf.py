@@ -24,8 +24,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 # 1.5 matches the typical iSCAT PSF width (pixels) used elsewhere, e.g.
-# `pipeline/investigator.py`'s `fake_sigma = 1.5` and `pipeline/open_iscat.py`'s
-# `sigma_iimg=1.5`. Chosen for consistency with those call sites, not fitted.
+# `pipeline/investigator.py`'s `fake_sigma = 1.5`. Chosen for consistency, not fitted.
 _DEFAULT_SIGMA: float = 1.5
 
 

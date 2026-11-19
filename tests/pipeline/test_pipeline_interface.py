@@ -1,7 +1,7 @@
 """Contract tests for :mod:`tandemmp.pipeline.pipeline_interface`.
 
-Checks ``OpenIscatPipeline`` conforms structurally and that the ``PipelineRunner``
-protocol is satisfiable by a minimal fake, without ``open_iscat``.
+Checks ``CsvEventsRunner`` conforms structurally and that the ``PipelineRunner``
+protocol is satisfiable by a minimal fake.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from tandemmp.pipeline.open_iscat_pipeline import OpenIscatPipeline
+from tandemmp.pipeline.csv_events import CsvEventsRunner
 from tandemmp.pipeline.pipeline_interface import PipelineResults, PipelineRunner
 
 
@@ -31,7 +31,7 @@ class _FakeEventsFound:
 
 
 class _FakePipelineRunner:
-    """Minimal PipelineRunner double, unrelated to open_iscat."""
+    """Minimal PipelineRunner double."""
 
     def run(
         self,
@@ -45,8 +45,8 @@ class _FakePipelineRunner:
         return PipelineResults(frames=frames, rframes=frames, events=_FakeEventsFound())
 
 
-RUNNER_FACTORIES = [OpenIscatPipeline, _FakePipelineRunner]
-RUNNER_IDS = ["OpenIscatPipeline", "_FakePipelineRunner"]
+RUNNER_FACTORIES = [CsvEventsRunner, _FakePipelineRunner]
+RUNNER_IDS = ["CsvEventsRunner", "_FakePipelineRunner"]
 
 
 @pytest.fixture(params=RUNNER_FACTORIES, ids=RUNNER_IDS)
@@ -71,7 +71,7 @@ class TestFakePipelineRunnerRun:
         assert result.frames.shape == (2, 3, 3)
 
     def test_ignores_backend_specific_kwargs_meant_for_other_runners(self) -> None:
-        # navg/l_thum are open_iscat-specific tuning, not part of the PipelineRunner
+        # navg/l_thum are backend-specific tuning, not part of the PipelineRunner
         # protocol; a generic caller may still pass them, and any conforming
         # implementation must tolerate that via **kwargs.
         runner = _FakePipelineRunner()

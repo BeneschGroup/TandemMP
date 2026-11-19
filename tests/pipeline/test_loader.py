@@ -1,7 +1,7 @@
 """Tests for tandemmp.pipeline.loader.
 
 Pure helpers run directly on synthetic data; ``load_mp_file`` and pipeline-backed
-event finding use bypasses/fakes to avoid a real ``open_iscat`` dependency.
+event finding use bypasses/fakes to avoid a real ``.mp`` file.
 """
 
 from __future__ import annotations
@@ -512,7 +512,7 @@ class _FakeEventsFound:
 
 class _FakePipelineRunner:
     """Minimal PipelineRunner double, exercising Loader's full event-finding
-    path without needing ``open_iscat``."""
+    path without a real event finder."""
 
     def __init__(self, movie: np.ndarray) -> None:
         self.movie = movie

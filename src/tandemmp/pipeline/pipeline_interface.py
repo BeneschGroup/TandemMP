@@ -4,9 +4,7 @@
 event-finding backend must expose; :class:`EventsFound` and
 :class:`PipelineResults` are the shared result types any backend produces, and
 :class:`Info` is the acquisition metadata a movie loader returns. No
-backend implementations are imported, avoiding circular imports;
-:mod:`tandemmp.pipeline.open_iscat_pipeline` re-exports the result types for
-backward compatibility.
+backend implementations are imported, avoiding circular imports.
 """
 
 from __future__ import annotations
@@ -64,11 +62,11 @@ class PipelineRunner(Protocol):
     """Structural interface an event-finding pipeline must satisfy.
 
     Only ``filepath``/``frame_bypass``/``parallel`` are universal across backends.
-    Backend-specific tuning (e.g. open_iscat's ``navg`` and ``l_thum``) goes through
-    ``**kwargs``, so a backend isn't forced to accept knobs it doesn't use.
+    Backend-specific tuning (e.g. ``navg`` and ``l_thum``) goes through ``**kwargs``,
+    so a backend isn't forced to accept knobs it doesn't use.
 
-    Implemented by :class:`tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`;
-    other backends satisfy the contract without subclassing.
+    Implemented by :class:`tandemmp.pipeline.csv_events.CsvEventsRunner`; other
+    backends satisfy the contract without subclassing.
     """
 
     def run(

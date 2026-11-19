@@ -12,8 +12,7 @@ pip install -e /path_to_repo/.
 `pip install <wheel>` 
 
 ## Requirements
-`open_iscat`, `numpy`, `scipy`, `matplotlib`, `scikit-learn`, `tqdm`, `opencv-python`, `tensorflow`.
-`open_iscat` is an internal dependency; we are working on an alternative.
+`numpy`, `scipy`, `matplotlib`, `scikit-learn`, `tqdm`, `opencv-python`, `h5py`, `tensorflow`.
 
 ## Entry points
 
