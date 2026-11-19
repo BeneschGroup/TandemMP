@@ -10,8 +10,7 @@ correction disabled; the vector comes from
 A :class:`~tandemmp.drift.corrector.DriftVector` can be stored two ways:
 
 - :func:`save_drift_vector` / :func:`load_drift_vector`: plain, hand-editable
-  JSON (``source_filepath``, ``frame_start``/``frame_end``, per-frame ``x``/``y``),
-  like :mod:`tandemmp.pipeline.calibration`.
+  JSON (``source_filepath``, ``frame_start``/``frame_end``, per-frame ``x``/``y``).
 - :func:`save_correction_function` / :func:`load_correction_function`: a pickled
   :class:`DriftCorrectionFunction` exposing ``correct_coordinates(x, y, i)`` and
   ``correct_movie(movie, i)``, which interpolate between sampled frames.
@@ -208,7 +207,7 @@ def run_drift_correction(
     )
 
 
-# Persistence: plain JSON vector (hand-editable, like pipeline.calibration's format)
+# Persistence: plain, hand-editable JSON vector
 
 
 def _drift_vector_to_mapping(result: DriftCorrectionResult) -> dict[str, Any]:
