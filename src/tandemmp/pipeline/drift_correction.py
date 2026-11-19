@@ -10,8 +10,7 @@ correction disabled; the vector comes from
 A :class:`~tandemmp.drift.corrector.DriftVector` can be stored two ways:
 
 - :func:`save_drift_vector` / :func:`load_drift_vector`: plain, hand-editable
-  JSON (``source_filepath``, ``frame_start``/``frame_end``, per-frame ``x``/``y``),
-  like :mod:`tandemmp.pipeline.calibration`.
+  JSON (``source_filepath``, ``frame_start``/``frame_end``, per-frame ``x``/``y``).
 - :func:`save_correction_function` / :func:`load_correction_function`: a pickled
   :class:`DriftCorrectionFunction` exposing ``correct_coordinates(x, y, i)`` and
   ``correct_movie(movie, i)``, which interpolate between sampled frames.
@@ -165,6 +164,7 @@ def run_drift_correction(
     frame_start: int | None = None,
     frame_end: int | None = None,
     use_rust: bool = True,
+    auto_bin: bool = True,
 ) -> DriftCorrectionResult:
     """Load a movie and estimate its :class:`~tandemmp.drift.corrector.DriftVector`.
 
@@ -173,11 +173,16 @@ def run_drift_correction(
     vector is returned for inspection or saving, not applied and discarded. See
     :func:`~tandemmp.drift.corrector.get_vector` for *frame_gap*, *rolling_baseline*,
     *threshold*, *threshold_margin*, *parallel*, *n_jobs*, *seed* and *use_rust*.
+
+    With *auto_bin* (default) the loader temporally bins the movie first, so the
+    vector has one entry per binned frame; turn it off for one per raw frame.
     """
     movie = Loader(
         filepath,
         just_movie=True,
-        parameters=FullAnalysisParams(drift_correction=False, parallel=parallel),
+        parameters=FullAnalysisParams(
+            drift_correction=False, parallel=parallel, auto_bin=auto_bin
+        ),
         frame_start=frame_start,
         frame_end=frame_end,
     ).movie
@@ -202,7 +207,7 @@ def run_drift_correction(
     )
 
 
-# Persistence: plain JSON vector (hand-editable, like pipeline.calibration's format)
+# Persistence: plain, hand-editable JSON vector
 
 
 def _drift_vector_to_mapping(result: DriftCorrectionResult) -> dict[str, Any]:
@@ -293,20 +298,17 @@ def load_correction_function(filepath: str | Path) -> DriftCorrectionFunction:
 if __name__ == "__main__":
     from tandemmp.core.functions import choose_file
 
-    movie_filepath = choose_file()
-    if not isinstance(movie_filepath, str):
-        raise TypeError("Select a single movie file.")
+    print("Select .mp movie(s).")
+    chosen = choose_file()
+    movie_filepaths = [chosen] if isinstance(chosen, str) else list(chosen)
 
-    drift_result = run_drift_correction(movie_filepath)
+    for fp in movie_filepaths:
+        drift_result = run_drift_correction(fp)
 
-    vector_path = Path(movie_filepath).with_name(
-        f"{Path(movie_filepath).stem}_drift_vector.json"
-    )
-    save_drift_vector(vector_path, drift_result)
-    print(f"Drift vector saved to {vector_path}")
+        vector_path = Path(fp).with_name(f"{Path(fp).stem}_drift_vector.json")
+        save_drift_vector(vector_path, drift_result)
+        print(f"Drift vector saved to {vector_path}")
 
-    function_path = Path(movie_filepath).with_name(
-        f"{Path(movie_filepath).stem}_drift_correction.pkl"
-    )
-    save_correction_function(function_path, drift_result)
-    print(f"Drift correction function saved to {function_path}")
+        function_path = Path(fp).with_name(f"{Path(fp).stem}_drift_correction.pkl")
+        save_correction_function(function_path, drift_result)
+        print(f"Drift correction function saved to {function_path}")

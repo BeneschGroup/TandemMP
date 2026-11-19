@@ -19,21 +19,21 @@ in a :class:`PairMatchingResult`; callers handle plotting. Its
 from __future__ import annotations
 
 import dataclasses
+import pickle
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
+from tandemmp.core.conversions import Calibration, get_calibration, set_calibration
 from tandemmp.core.parameters import get_parameters
 from tandemmp.core.types import FloatArray
 from tandemmp.events import RatiometricEvent
+from tandemmp.io.calibration import resolve_calibration
+from tandemmp.io.save import EventRecord, build_event_records
 from tandemmp.pipeline.loader import Loader
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
-from tandemmp.pipeline.simple_analysis import (
-    Pair,
-    build_simple_events,
-    match_pairs_sigma,
-)
+from tandemmp.pipeline.simple_analysis import Pair, match_events
 
 # Result container
 
@@ -71,6 +71,8 @@ def run_pair_matching(
     frame_end: int | None = None,
     seed: int | np.random.Generator | np.random.RandomState | None = None,
     pipeline_runner: PipelineRunner | None = None,
+    events_csv: str | Path | None = None,
+    calibration: Calibration | str | Path | None = None,
     sigma_multiplier: float = 3.0,
     max_pairs: int = 5,
     analyse_distance: float = 4.0,
@@ -88,10 +90,19 @@ def run_pair_matching(
     full nested :class:`~tandemmp.core.parameters.FullAnalysisParams` tree by
     :func:`~tandemmp.core.parameters.get_parameters`.
 
+    *events_csv* is the movie's DiscoverMP events CSV (default: the ``.csv`` next to
+    it); see :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner`.
+    *calibration* (a :class:`~tandemmp.core.conversions.Calibration` or a ``.mc``/
+    ``.json``/``.pkl`` file) sets the process-wide contrast/mass conversion; ``None``
+    leaves it as is.
+
     See :func:`~tandemmp.pipeline.simple_analysis.match_pairs_sigma` for
     *sigma_multiplier*, *max_pairs*, *analyse_distance*, *minimum_overlap* and
     *match_binding*.
     """
+    if calibration is not None:
+        set_calibration(resolve_calibration(calibration))
+
     parameters = get_parameters(parallel=parallel, **parameter_overrides)
 
     loader = Loader(
@@ -101,12 +112,11 @@ def run_pair_matching(
         frame_end=frame_end,
         seed=seed,
         pipeline_runner=pipeline_runner,
+        events_csv=events_csv,
     )
 
-    simple_events = build_simple_events(loader.events)
-
-    pairs = match_pairs_sigma(
-        simple_events,
+    pairs = match_events(
+        loader.events,
         sigma_multiplier=sigma_multiplier,
         max_pairs=max_pairs,
         analyse_distance=analyse_distance,
@@ -121,14 +131,67 @@ def run_pair_matching(
     )
 
 
+# Persistence
+
+
+@dataclasses.dataclass(frozen=True)
+class PairMatchingFile:
+    """A saved :class:`PairMatchingResult`, with events as serialisable records."""
+
+    source_filepath: str
+    pairs: list[Pair]
+    events: list[EventRecord]
+    calibration: Calibration
+
+
+def save_pair_matching(filepath: str | Path, result: PairMatchingResult) -> Path:
+    """Pickle *result* to *filepath* as a :class:`PairMatchingFile`.
+
+    The active calibration is stored with it, since the pair masses depend on it.
+    Returns the path.
+    """
+    saved = PairMatchingFile(
+        source_filepath=result.source_filepath,
+        pairs=result.pairs,
+        events=build_event_records(result.events),
+        calibration=get_calibration(),
+    )
+    path = Path(filepath)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as f:
+        pickle.dump(saved, f)
+    return path
+
+
+def load_pair_matching(filepath: str | Path) -> PairMatchingFile:
+    """Load a file written by :func:`save_pair_matching` (trusted files only)."""
+    with Path(filepath).open("rb") as f:
+        saved = pickle.load(f)  # noqa: S301
+    if not isinstance(saved, PairMatchingFile):
+        msg = f"{filepath} does not contain a PairMatchingFile"
+        raise TypeError(msg)
+    return saved
+
+
 if __name__ == "__main__":
     from tandemmp.core.functions import choose_file
+    from tandemmp.pipeline.csv_events import pair_movies_with_csvs
 
-    movie_filepath = choose_file()
-    if not isinstance(movie_filepath, str):
-        raise TypeError("Select a single movie file.")
+    print(
+        "Select one movie (.mp) and its events CSV (.csv). The two file names must "
+        "match; hold Ctrl to select both."
+    )
+    selected = pair_movies_with_csvs(choose_file(csv_file=True))
+    if len(selected) != 1:
+        raise ValueError("Select one movie and its events CSV.")
+    movie_filepath, events_csv_filepath = selected[0]
 
-    result = run_pair_matching(movie_filepath)
+    result = run_pair_matching(movie_filepath, events_csv=events_csv_filepath)
+    output_path = Path(movie_filepath).with_name(
+        f"{Path(movie_filepath).stem}_pair_matching.pkl"
+    )
+    save_pair_matching(output_path, result)
+    print(f"Pair matching result saved to {output_path}")
     print(
         f"{len(result.pairs)} pair(s) matched from {len(result.events)} "
         f"event(s) in {movie_filepath}"

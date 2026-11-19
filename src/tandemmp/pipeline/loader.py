@@ -2,7 +2,7 @@
 
 :class:`Loader` reads a movie (file or injected array), optionally drift-corrects
 it, runs an event-finding :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`
-(default :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`), fits a
+(default :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner`), fits a
 first-pass :class:`~tandemmp.events.RatiometricEvent` per peak, then merges,
 filters and marks overlaps ready for
 :class:`tandemmp.pipeline.investigator.Investigator`.
@@ -35,10 +35,10 @@ from tandemmp.events import PeakImage, RatiometricEvent
 from tandemmp.fitting.psf import PsfModel, get_psf_model
 from tandemmp.fitting.psf_interface import PsfInterface
 from tandemmp.fitting.psf_refit import refit_psf_parameters
-from tandemmp.io.movie import final_polish_fix
-from tandemmp.pipeline.open_iscat_pipeline import Info, OpenIscatPipeline, load_mp_file
+from tandemmp.io.movie import final_polish_fix, load_mp_file
+from tandemmp.pipeline.csv_events import CsvEventsRunner
 from tandemmp.pipeline.parallel import make_ratiometric_event_from_peak, median_frame
-from tandemmp.pipeline.pipeline_interface import PipelineResults, PipelineRunner
+from tandemmp.pipeline.pipeline_interface import Info, PipelineResults, PipelineRunner
 
 logger = logging.getLogger(__name__)
 
@@ -539,7 +539,9 @@ class Loader:
             :func:`tandemmp.drift.corrector.get_vector`); leave ``None`` outside tests.
         pipeline_runner: Event-finding backend implementing
             :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`; defaults to
-            :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`.
+            :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner`.
+        events_csv: DiscoverMP events CSV, forwarded to the runner. The default
+            runner falls back to the ``.csv`` next to *mp_filepath*.
         peak_model: PSF model; defaults to the bundled Rust spline
             (:class:`~tandemmp.fitting.spline_psf.SplinePsfModel`).
     """
@@ -557,17 +559,22 @@ class Loader:
         seed: int | np.random.Generator | np.random.RandomState | None = None,
         pipeline_runner: PipelineRunner | None = None,
         peak_model: PsfInterface | None = None,
+        events_csv: str | Path | None = None,
     ) -> None:
         self.parameters = parameters if parameters is not None else FullAnalysisParams()
         self.peak_model: PsfInterface = (
             peak_model if peak_model is not None else get_psf_model()
         )
+        self.events_csv = events_csv
         self.pipeline_runner: PipelineRunner = (
-            pipeline_runner if pipeline_runner is not None else OpenIscatPipeline()
+            pipeline_runner if pipeline_runner is not None else CsvEventsRunner()
         )
         self.mp_filepath = Path(mp_filepath)
         self.folder = self.mp_filepath.parent
         self.vector: DriftVector | None = None
+        self._drift_crop: tuple[slice, slice] | None = None
+        self._frame_start = frame_start or 0
+        self._frame_binning = 1
         self.exp_model: PsfModel | None = None
         self.refit_model: PsfInterface | None = None
         self.movie: npt.NDArray[Any]
@@ -590,6 +597,7 @@ class Loader:
                 self.movie = bin_movie(
                     np.asarray(movie)[frame_start:frame_end], binning=post_binning
                 )
+                self._frame_binning = post_binning
                 info = dataclasses.replace(
                     info, frame_binning=pre_binning * post_binning
                 )
@@ -746,6 +754,7 @@ class Loader:
         if improvement > 0:
             logger.info("Accepting drift correction")
             self.movie = corrected_movie
+            self._drift_crop = (sel3d[1], sel3d[2])
             return True
 
         logger.info("Refusing drift correction")
@@ -758,6 +767,12 @@ class Loader:
             navg=self.parameters.first_analysis.navg,
             l_thum=self.parameters.first_analysis.l_thum,
             parallel=self.parameters.parallel,
+            events_csv=self.events_csv,
+            # How the raw movie became self.movie, for runners with raw-frame events.
+            drift_vector=self.vector if self._drift_crop is not None else None,
+            drift_crop=self._drift_crop,
+            frame_start=self._frame_start,
+            frame_binning=self._frame_binning,
         )
         if not isinstance(pipeline_results, PipelineResults):
             msg = (

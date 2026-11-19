@@ -75,6 +75,7 @@ class TestProcessMovie:
             "minimum_mass": 30,
             "pipeline_runner": None,
             "peak_model": None,
+            "events_csv": None,
         }
 
     def test_no_parameters_passes_no_kwargs(
@@ -84,6 +85,7 @@ class TestProcessMovie:
         assert fake_experiment.instances[0].kwargs == {
             "pipeline_runner": None,
             "peak_model": None,
+            "events_csv": None,
         }
 
     def test_passes_pipeline_runner_through_to_experiment(
@@ -108,6 +110,16 @@ class TestProcessMovie:
         batch.process_movie(tmp_path / "movie.mp")
         assert fake_experiment.instances[0].calibration_at_construction == (
             DEFAULT_CALIBRATION
+        )
+
+    def test_calibration_file_is_loaded_and_active(
+        self, fake_experiment: type[_FakeExperiment], tmp_path: Path
+    ) -> None:
+        mc = tmp_path / "run.mc"
+        mc.write_text('{"gradient": -4e-05, "offset": -1e-05}')
+        batch.process_movie(tmp_path / "movie.mp", calibration=mc)
+        assert fake_experiment.instances[0].calibration_at_construction == Calibration(
+            slope=-4e-05, offset=-1e-05
         )
 
     def test_calibration_is_active_during_experiment_construction(
@@ -209,10 +221,35 @@ class TestBatchProcess:
 
         assert all(
             exp.kwargs
-            == {"minimum_mass": 25, "pipeline_runner": None, "peak_model": None}
+            == {
+                "minimum_mass": 25,
+                "pipeline_runner": None,
+                "peak_model": None,
+                "events_csv": None,
+            }
             for exp in fake_experiment.instances
         )
         assert all(r.skipped is False for r in results)
+
+    def test_events_csvs_go_to_matching_movies(
+        self, fake_experiment: type[_FakeExperiment], tmp_path: Path
+    ) -> None:
+        movies = [tmp_path / "a.mp", tmp_path / "b.mp"]
+        csvs = [tmp_path / "a.csv", tmp_path / "b.csv"]
+
+        batch.batch_process(movies, events_csvs=csvs, parallel=False)
+
+        assert [e.kwargs["events_csv"] for e in fake_experiment.instances] == csvs
+
+    def test_events_csvs_length_mismatch_raises(
+        self, fake_experiment: type[_FakeExperiment], tmp_path: Path
+    ) -> None:
+        with pytest.raises(ValueError, match="shorter|longer|zip"):
+            batch.batch_process(
+                [tmp_path / "a.mp", tmp_path / "b.mp"],
+                events_csvs=[tmp_path / "a.csv"],
+                parallel=False,
+            )
 
     def test_passes_pipeline_runner_to_each_process_movie_call(
         self, fake_experiment: type[_FakeExperiment], tmp_path: Path

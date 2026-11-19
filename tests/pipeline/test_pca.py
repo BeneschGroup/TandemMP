@@ -27,8 +27,9 @@ from tandemmp.events import GhostEvent, PeakImage, RatiometricEvent
 from tandemmp.fitting.psf import PsfModel
 from tandemmp.io.save import load_results
 from tandemmp.pipeline import pca
+from tandemmp.pipeline import simple_analysis as sa
 from tandemmp.pipeline.investigator import Action, Decision
-from tandemmp.pipeline.open_iscat_pipeline import Info
+from tandemmp.pipeline.pipeline_interface import Info
 from tandemmp.tracking.manager import ParticleManager
 from tandemmp.tracking.particle import GhostParticle, Particle, _reset_particle_ids
 
@@ -127,7 +128,7 @@ def _bare_experiment(**attrs: Any) -> pca.Experiment:
     """Construct an ``Experiment`` bypassing ``__init__``.
 
     Only the attributes under test are set, isolating each method from the heavy,
-    ``open_iscat``-dependent construction path.
+    movie-loading construction path.
     """
     exp = object.__new__(pca.Experiment)
     for key, value in attrs.items():
@@ -182,6 +183,7 @@ class _FakeLoader:
         special_bypass: Any,
         pipeline_runner: Any = None,
         peak_model: Any = None,
+        events_csv: Any = None,
     ) -> None:
         self.mp_filepath = mp_filepath
         self.parameters = parameters
@@ -189,6 +191,7 @@ class _FakeLoader:
         self.special_bypass = special_bypass
         self.pipeline_runner = pipeline_runner
         self.injected_peak_model = peak_model
+        self.events_csv = events_csv
         self.folder = Path("fake_folder")
         self.movie = np.zeros((3, 4, 4))
         self.params: Info | None = (
@@ -199,8 +202,6 @@ class _FakeLoader:
                 raw_camera_frame_rate=1000.0,
                 frame_binning=1,
                 pixel_binning=1,
-                full_well_capacity=None,
-                grey_levels=None,
             )
         )
         self.events: list[RatiometricEvent] = []
@@ -282,6 +283,15 @@ class TestInit:
         )
         assert exp.loader.injected_peak_model is sentinel
 
+    def test_forwards_events_csv_to_loader(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setattr(pca, "Loader", _FakeLoader)
+        exp = pca.Experiment(
+            tmp_path / "movie.mp", just_movie=True, events_csv="movie.csv"
+        )
+        assert exp.loader.events_csv == "movie.csv"
+
 
 # events / clean_events
 
@@ -326,6 +336,8 @@ class TestSimpleAnalysis:
             sigma_multiplier: float,
             max_pairs: int,
             analyse_distance: float,
+            minimum_overlap: float,
+            match_binding: bool,
         ) -> list[Any]:
             captured["simple_events"] = simple_events
             captured["sigma_multiplier"] = sigma_multiplier
@@ -333,7 +345,7 @@ class TestSimpleAnalysis:
             captured["analyse_distance"] = analyse_distance
             return []
 
-        monkeypatch.setattr(pca, "match_pairs_sigma", _fake_match)
+        monkeypatch.setattr(sa, "match_pairs_sigma", _fake_match)
         result = exp.simple_analysis(
             sigma_multiplier=2.0, max_pairs=3, analyse_distance=5.0
         )

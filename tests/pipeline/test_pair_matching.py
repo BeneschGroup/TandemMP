@@ -1,7 +1,7 @@
 """Tests for tandemmp.pipeline.pair_matching.
 
 ``run_pair_matching`` runs with ``Loader``/``match_pairs_sigma`` monkeypatched,
-avoiding a real ``.mp``/``open_iscat`` dependency.
+avoiding a real ``.mp`` file.
 """
 
 from __future__ import annotations
@@ -12,8 +12,16 @@ from typing import Any
 import numpy as np
 import pytest
 
+from tandemmp.core.conversions import Calibration, get_calibration, set_calibration
 from tandemmp.pipeline import pair_matching as pm
-from tandemmp.pipeline.pair_matching import PairMatchingResult, run_pair_matching
+from tandemmp.pipeline import simple_analysis as sa
+from tandemmp.pipeline.pair_matching import (
+    PairMatchingFile,
+    PairMatchingResult,
+    load_pair_matching,
+    run_pair_matching,
+    save_pair_matching,
+)
 from tandemmp.pipeline.simple_analysis import Pair, SimpleEvent
 
 
@@ -56,7 +64,7 @@ class TestRunPairMatchingWiring:
             return []
 
         monkeypatch.setattr(pm, "Loader", _FakeLoader)
-        monkeypatch.setattr(pm, "match_pairs_sigma", _spy_match)
+        monkeypatch.setattr(sa, "match_pairs_sigma", _spy_match)
 
         result = run_pair_matching(
             "movie.mp",
@@ -96,7 +104,7 @@ class TestRunPairMatchingWiring:
 
         sentinel_runner = object()
         monkeypatch.setattr(pm, "Loader", _CapturingLoader)
-        monkeypatch.setattr(pm, "match_pairs_sigma", lambda *a, **k: [])
+        monkeypatch.setattr(sa, "match_pairs_sigma", lambda *a, **k: [])
 
         run_pair_matching(
             "movie.mp",
@@ -112,6 +120,33 @@ class TestRunPairMatchingWiring:
         assert seen["kwargs"]["seed"] == 42
         assert seen["kwargs"]["pipeline_runner"] is sentinel_runner
 
+    def test_calibration_file_sets_active_calibration(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+    ) -> None:
+        mc = tmp_path / "run.mc"
+        mc.write_text('{"gradient": -4e-05, "offset": -1e-05}')
+        monkeypatch.setattr(pm, "Loader", _FakeLoader)
+        monkeypatch.setattr(sa, "match_pairs_sigma", lambda *a, **k: [])
+
+        run_pair_matching("movie.mp", calibration=mc)
+
+        assert get_calibration() == Calibration(slope=-4e-05, offset=-1e-05)
+
+    def test_forwards_events_csv(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        seen: dict[str, Any] = {}
+
+        class _CapturingLoader(_FakeLoader):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                seen.update(kwargs)
+                super().__init__(*args, **kwargs)
+
+        monkeypatch.setattr(pm, "Loader", _CapturingLoader)
+        monkeypatch.setattr(sa, "match_pairs_sigma", lambda *a, **k: [])
+
+        run_pair_matching("movie.mp", events_csv="movie.csv")
+
+        assert seen["events_csv"] == "movie.csv"
+
     def test_forwards_parameter_overrides(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -123,7 +158,7 @@ class TestRunPairMatchingWiring:
                 super().__init__(*args, **kwargs)
 
         monkeypatch.setattr(pm, "Loader", _CapturingLoader)
-        monkeypatch.setattr(pm, "match_pairs_sigma", lambda *a, **k: [])
+        monkeypatch.setattr(sa, "match_pairs_sigma", lambda *a, **k: [])
 
         run_pair_matching("movie.mp", parallel=False, drift_correction=False)
 
@@ -139,7 +174,7 @@ class TestRunPairMatchingWiring:
                 super().__init__(*args, **kwargs)
 
         monkeypatch.setattr(pm, "Loader", _CapturingLoader)
-        monkeypatch.setattr(pm, "match_pairs_sigma", lambda *a, **k: [])
+        monkeypatch.setattr(sa, "match_pairs_sigma", lambda *a, **k: [])
 
         run_pair_matching("movie.mp")
 
@@ -149,7 +184,7 @@ class TestRunPairMatchingWiring:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(pm, "Loader", _FakeLoader)
-        monkeypatch.setattr(pm, "match_pairs_sigma", lambda *a, **k: [])
+        monkeypatch.setattr(sa, "match_pairs_sigma", lambda *a, **k: [])
 
         result = run_pair_matching("some/movie.mp")
 
@@ -211,6 +246,43 @@ class TestRunPairMatchingEndToEnd:
         assert result.events == []
         assert result.initial_masses.shape == (0,)
         assert result.secondary_masses.shape == (0,)
+
+
+# save_pair_matching / load_pair_matching
+
+
+class TestSavePairMatching:
+    def _result(self) -> PairMatchingResult:
+        binding = SimpleEvent(c=-0.05, m=100.0, x=1.0, y=2.0, i=0)
+        unbinding = SimpleEvent(c=0.05, m=-100.0, x=1.1, y=2.1, i=5)
+        pair = Pair(binding, unbinding, time=5, distance=0.1, overlap=0.9, order=0)
+        return PairMatchingResult(
+            pairs=[pair],
+            events=[object()],
+            source_filepath="movie.mp",  # type: ignore[list-item]
+        )
+
+    def test_round_trip(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
+        monkeypatch.setattr(pm, "build_event_records", lambda events: ["record"])
+        set_calibration(Calibration(slope=-4e-05, offset=-1e-05))
+        result = self._result()
+
+        path = save_pair_matching(tmp_path / "sub" / "out.pkl", result)
+        loaded = load_pair_matching(path)
+
+        assert isinstance(loaded, PairMatchingFile)
+        assert loaded.source_filepath == "movie.mp"
+        assert loaded.pairs == result.pairs
+        assert loaded.events == ["record"]
+        assert loaded.calibration == Calibration(slope=-4e-05, offset=-1e-05)
+
+    def test_load_rejects_other_pickles(self, tmp_path: Any) -> None:
+        import pickle
+
+        path = tmp_path / "other.pkl"
+        path.write_bytes(pickle.dumps({"a": 1}))
+        with pytest.raises(TypeError, match="PairMatchingFile"):
+            load_pair_matching(path)
 
 
 # PairMatchingResult

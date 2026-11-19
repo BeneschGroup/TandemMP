@@ -34,8 +34,7 @@ from tandemmp.pipeline.loader import Loader
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
 from tandemmp.pipeline.simple_analysis import (
     Pair,
-    build_simple_events,
-    match_pairs_sigma,
+    match_events,
 )
 from tandemmp.tracking.manager import ParticleManager
 from tandemmp.tracking.particle import GhostParticle, Particle
@@ -52,9 +51,10 @@ class Experiment:
     particles in a :class:`~tandemmp.tracking.manager.ParticleManager`.
 
     *pipeline_runner* selects the event-finding backend (see
-    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`; the Loader's
-    default is :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`).
-    *peak_model* sets the PSF model (default: bundled Rust spline).
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`; default
+    :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner`, which reads *events_csv*,
+    default the ``.csv`` next to the movie). *peak_model* sets the PSF model (default:
+    bundled Rust spline).
     """
 
     def __init__(
@@ -65,6 +65,7 @@ class Experiment:
         special_bypass: UInt16Array | None = None,
         pipeline_runner: PipelineRunner | None = None,
         peak_model: PsfInterface | None = None,
+        events_csv: str | Path | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> None:
         self.parameters: FullAnalysisParams = get_parameters(**kwargs)
@@ -75,6 +76,7 @@ class Experiment:
             special_bypass=special_bypass,
             pipeline_runner=pipeline_runner,
             peak_model=peak_model,
+            events_csv=events_csv,
         )
         self.folder = self.loader.folder
         self.movie = self.loader.movie
@@ -130,18 +132,21 @@ class Experiment:
         sigma_multiplier: float = 3.0,
         max_pairs: int = 5,
         analyse_distance: float = 4.0,
+        minimum_overlap: float = 0.01,
+        match_binding: bool = False,
     ) -> list[Pair]:
         """Match binding/unbinding events by spatial and temporal overlap.
 
         Returns the matched pairs; see :mod:`tandemmp.plotting.experiment`
         for visualising the result.
         """
-        simple_events = build_simple_events(self.events)
-        return match_pairs_sigma(
-            simple_events,
+        return match_events(
+            self.events,
             sigma_multiplier=sigma_multiplier,
             max_pairs=max_pairs,
             analyse_distance=analyse_distance,
+            minimum_overlap=minimum_overlap,
+            match_binding=match_binding,
         )
 
     # Analysis loop

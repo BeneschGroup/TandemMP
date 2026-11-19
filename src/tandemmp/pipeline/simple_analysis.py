@@ -2,22 +2,28 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import numpy as np
 import numpy.typing as npt
 import tqdm
 
-from tandemmp.core.conversions import NM_PER_PIXEL, c_to_mass, mass_to_sigma
+from tandemmp.core.conversions import (
+    NM_PER_PIXEL,
+    Calibration,
+    c_to_mass,
+    mass_to_sigma,
+    set_calibration,
+)
 from tandemmp.core.functions import get_overlap_probability
-from tandemmp.core.parameters import FullAnalysisParams
 from tandemmp.core.types import BoolArray, FloatArray
-from tandemmp.drift.corrector import get_vector
 from tandemmp.events import RatiometricEvent
-from tandemmp.pipeline.loader import Loader
+from tandemmp.io.calibration import resolve_calibration
+from tandemmp.pipeline.csv_events import DISCOVERMP_COLUMNS, load_event_csv
+from tandemmp.pipeline.drift_correction import run_drift_correction
 
 # SimpleEvent
 
@@ -76,6 +82,19 @@ def build_simple_events(events: Sequence[RatiometricEvent]) -> list[SimpleEvent]
     ]
 
 
+def match_events(
+    events: Sequence[RatiometricEvent],
+    **match_kwargs: Any,  # noqa: ANN401
+) -> list[Pair]:
+    """Convert first-pass events and match them with :func:`match_pairs_sigma`.
+
+    The shared tail of :func:`~tandemmp.pipeline.pair_matching.run_pair_matching`
+    and :meth:`~tandemmp.pipeline.pca.Experiment.simple_analysis`; *match_kwargs* go
+    to :func:`match_pairs_sigma`.
+    """
+    return match_pairs_sigma(build_simple_events(events), **match_kwargs)
+
+
 # Loading
 
 
@@ -84,48 +103,49 @@ def load_events(
     movie_filepath: str | Path | None = None,
     *,
     parallel: bool = True,
+    column_map: Mapping[str, str] = DISCOVERMP_COLUMNS,
+    calibration: Calibration | str | Path | None = None,
 ) -> list[SimpleEvent]:
-    """Load point-events from a CSV export.
+    """Load point-events from a DiscoverMP CSV export.
 
-    *events_filepath* needs a header row then ``frame, x, y, contrast, mass`` columns
-    (extra trailing columns are ignored). If the mass column is all ``NaN``, mass is
-    derived from contrast with :func:`~tandemmp.core.conversions.c_to_mass`.
+    See :func:`~tandemmp.pipeline.csv_events.load_event_csv` for the columns and
+    *column_map*. If the mass column is empty or all ``NaN``, mass is derived from
+    contrast with :func:`~tandemmp.core.conversions.c_to_mass`, using *calibration*
+    (a :class:`~tandemmp.core.conversions.Calibration` or a ``.mc``/``.json``/``.pkl``
+    file) as the process-wide conversion when given.
 
-    If *movie_filepath* is given, the movie is loaded (without the full pipeline)
-    only to estimate a drift vector with
-    :func:`~tandemmp.drift.corrector.get_vector`, which is subtracted from every
+    If *movie_filepath* is given, its drift vector is estimated with
+    :func:`~tandemmp.pipeline.drift_correction.run_drift_correction` (on the
+    unbinned movie, so it is indexed by the CSV's frames) and subtracted from every
     event's position.
     """
-    vector = None
+    if calibration is not None:
+        set_calibration(resolve_calibration(calibration))
+    events = load_event_csv(events_filepath, column_map)
+    xs, ys = events.x, events.y
+    masses = np.asarray(
+        c_to_mass(events.contrast) if np.isnan(events.mass).all() else events.mass
+    )
+
     if movie_filepath is not None:
-        movie = Loader(
+        drift = run_drift_correction(
             movie_filepath,
-            just_movie=True,
-            parameters=FullAnalysisParams(drift_correction=False, parallel=parallel),
-        ).movie
-        vector = get_vector(
-            movie=movie,
             frame_gap=50,
             rolling_baseline=True,
             threshold=0,
             threshold_margin=1,
             parallel=parallel,
+            auto_bin=False,
+        )
+        xs, ys = drift.as_function().correct_coordinates(
+            xs, ys, events.frame.astype(float)
         )
 
-    data = np.loadtxt(events_filepath, delimiter=",", skiprows=1)
-    frames, xs, ys, cs, masses = data.T[:5].astype(float)
-    if np.isnan(masses).all():
-        masses = c_to_mass(cs)
-
-    if vector is None:
-        return [
-            SimpleEvent(c=c, m=m, x=x, y=y, i=i)
-            for i, x, y, c, m in zip(frames, xs, ys, cs, masses, strict=True)
-        ]
-
     return [
-        SimpleEvent(c=c, m=m, x=x - vector[int(i)][0], y=y - vector[int(i)][1], i=i)
-        for i, x, y, c, m in zip(frames, xs, ys, cs, masses, strict=True)
+        SimpleEvent(c=c, m=m, x=x, y=y, i=i)
+        for i, x, y, c, m in zip(
+            events.frame, xs, ys, events.contrast, masses, strict=True
+        )
     ]
 
 

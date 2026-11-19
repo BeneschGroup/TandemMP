@@ -1,7 +1,7 @@
 """Tests for tandemmp.pipeline.loader.
 
 Pure helpers run directly on synthetic data; ``load_mp_file`` and pipeline-backed
-event finding use bypasses/fakes to avoid a real ``open_iscat`` dependency.
+event finding use bypasses/fakes to avoid a real ``.mp`` file.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from tandemmp.core.parameters import (
 from tandemmp.events import PeakImage, RatiometricEvent
 from tandemmp.fitting.gaussian_psf import GaussianPsfModel
 from tandemmp.fitting.psf import PsfModel
+from tandemmp.pipeline.csv_events import CsvEventsRunner
 from tandemmp.pipeline.loader import (
     Loader,
     bin_movie,
@@ -36,7 +37,6 @@ from tandemmp.pipeline.loader import (
     get_peak,
     mark_overlaps,
 )
-from tandemmp.pipeline.open_iscat_pipeline import OpenIscatPipeline
 from tandemmp.pipeline.pipeline_interface import PipelineResults
 
 # Fixtures / helpers
@@ -511,7 +511,7 @@ class _FakeEventsFound:
 
 class _FakePipelineRunner:
     """Minimal PipelineRunner double, exercising Loader's full event-finding
-    path without needing ``open_iscat``."""
+    path without a real event finder."""
 
     def __init__(self, movie: np.ndarray) -> None:
         self.movie = movie
@@ -597,7 +597,7 @@ class TestLoader:
         assert loader.movie.shape[1] <= movie.shape[1]
         assert loader.movie.shape[2] <= movie.shape[2]
 
-    def test_defaults_to_open_iscat_pipeline(self):
+    def test_defaults_to_csv_events_runner(self):
         movie = np.arange(5 * 4 * 4, dtype=np.uint16).reshape(5, 4, 4)
         params = get_parameters(drift_correction=False)
         loader = Loader(
@@ -606,7 +606,19 @@ class TestLoader:
             parameters=params,
             just_movie=True,
         )
-        assert isinstance(loader.pipeline_runner, OpenIscatPipeline)
+        assert isinstance(loader.pipeline_runner, CsvEventsRunner)
+
+    def test_events_csv_is_forwarded_to_runner(self):
+        movie = np.zeros((5, 4, 4), dtype=np.uint16)
+        runner = _FakePipelineRunner(movie.astype(float))
+        Loader(
+            "fake/path.mp",
+            special_bypass=movie,
+            parameters=get_parameters(drift_correction=False, lid_open_threshold=0.0),
+            pipeline_runner=runner,
+            events_csv="fake/path.csv",
+        )
+        assert runner.calls[0]["events_csv"] == "fake/path.csv"
 
     def test_uses_injected_peak_model(self):
         movie = np.zeros((5, 8, 8), dtype=np.uint16)
@@ -637,3 +649,40 @@ class TestLoader:
         assert call["frame_bypass"] is not None
         assert call["navg"] == params.first_analysis.navg
         assert call["l_thum"] == params.first_analysis.l_thum
+
+    def test_runner_gets_raw_to_working_movie_mapping(self):
+        movie = np.zeros((8, 8, 8), dtype=np.uint16)
+        fake_runner = _FakePipelineRunner(movie.astype(float))
+        loader = Loader(
+            "fake/path.mp",
+            special_bypass=movie,
+            parameters=get_parameters(drift_correction=False, lid_open_threshold=0.0),
+            pipeline_runner=fake_runner,
+            frame_start=3,
+        )
+        call = fake_runner.calls[0]
+        assert loader.vector is None
+        assert call["drift_vector"] is None
+        assert call["drift_crop"] is None
+        assert call["frame_start"] == 3
+        assert call["frame_binning"] == 1
+
+    def test_runner_gets_drift_only_when_accepted(self):
+        movie = _make_drifting_movie()
+        fake_runner = _FakePipelineRunner(movie.astype(float))
+        loader = Loader(
+            "fake/path.mp",
+            special_bypass=movie,
+            parameters=get_parameters(
+                drift_correction=DriftCorrectionParams(frame_gap=2, z_drift=False),
+                parallel=False,
+                lid_open_threshold=0.0,
+            ),
+            pipeline_runner=fake_runner,
+            seed=42,
+        )
+        call = fake_runner.calls[0]
+        accepted = call["drift_crop"] is not None
+        assert (call["drift_vector"] is not None) == accepted
+        if accepted:
+            assert call["drift_vector"] is loader.vector
