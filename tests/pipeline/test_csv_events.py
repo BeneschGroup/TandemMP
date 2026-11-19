@@ -14,6 +14,7 @@ from tandemmp.pipeline.csv_events import (
     check_csv_matches_movie,
     load_event_csv,
     map_events_to_movie,
+    pair_movies_with_csvs,
 )
 from tandemmp.pipeline.pipeline_interface import PipelineResults, PipelineRunner
 
@@ -129,6 +130,34 @@ class TestCheckCsvMatchesMovie:
     def test_different_stem_raises(self) -> None:
         with pytest.raises(ValueError, match="same"):
             check_csv_matches_movie("run1.csv", "run2.mp")
+
+
+# pair_movies_with_csvs
+
+
+class TestPairMoviesWithCsvs:
+    def test_pairs_by_stem_in_movie_order(self) -> None:
+        pairs = pair_movies_with_csvs(["b.csv", "a.mp", "b.mp", "a.csv"])
+        assert [(m.name, c.name) for m, c in pairs] == [
+            ("a.mp", "a.csv"),
+            ("b.mp", "b.csv"),
+        ]
+
+    def test_single_path_has_no_partner(self) -> None:
+        with pytest.raises(ValueError, match="matching"):
+            pair_movies_with_csvs("a.mp")
+
+    def test_unmatched_raises(self) -> None:
+        with pytest.raises(ValueError, match="'b'"):
+            pair_movies_with_csvs(["a.mp", "a.csv", "b.csv"])
+
+    def test_duplicate_stem_raises(self) -> None:
+        with pytest.raises(ValueError, match="More than one"):
+            pair_movies_with_csvs(["x/a.mp", "y/a.mp", "a.csv"])
+
+    def test_other_extension_raises(self) -> None:
+        with pytest.raises(ValueError, match="Expected"):
+            pair_movies_with_csvs(["a.mp", "a.txt"])
 
 
 # map_events_to_movie

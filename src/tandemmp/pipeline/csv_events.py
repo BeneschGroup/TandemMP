@@ -20,7 +20,7 @@ from tandemmp.io.movie import ratiometric
 from tandemmp.pipeline.pipeline_interface import PipelineResults
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable, Mapping
 
     import numpy.typing as npt
 
@@ -34,6 +34,7 @@ __all__ = [
     "check_csv_matches_movie",
     "load_event_csv",
     "map_events_to_movie",
+    "pair_movies_with_csvs",
 ]
 
 # Role -> CSV column. The first four are required.
@@ -136,6 +137,36 @@ def check_csv_matches_movie(csv_path: str | Path, movie_path: str | Path) -> Non
             f"{Path(movie_path).name!r}; the file names must be the same"
         )
         raise ValueError(msg)
+
+
+def pair_movies_with_csvs(
+    paths: str | Path | Iterable[str | Path],
+) -> list[tuple[Path, Path]]:
+    """Pair each ``.mp`` movie with the ``.csv`` of the same file stem.
+
+    Raises:
+        ValueError: If a movie or CSV has no partner, a stem is repeated, or a file
+            is neither ``.mp`` nor ``.csv``.
+    """
+    items = (
+        [Path(paths)] if isinstance(paths, (str, Path)) else [Path(p) for p in paths]
+    )
+    movies: dict[str, Path] = {}
+    csvs: dict[str, Path] = {}
+    for path in items:
+        kind = {".mp": movies, ".csv": csvs}.get(path.suffix.lower())
+        if kind is None:
+            msg = f"Expected .mp or .csv files, got {path.name!r}"
+            raise ValueError(msg)
+        if path.stem in kind:
+            msg = f"More than one {path.suffix} file named {path.stem!r}"
+            raise ValueError(msg)
+        kind[path.stem] = path
+    unmatched = sorted(movies.keys() ^ csvs.keys())
+    if unmatched:
+        msg = f"No matching movie/CSV pair for: {unmatched}"
+        raise ValueError(msg)
+    return [(movies[stem], csvs[stem]) for stem in movies]
 
 
 def map_events_to_movie(  # noqa: PLR0913

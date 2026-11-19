@@ -29,11 +29,7 @@ from tandemmp.core.types import FloatArray
 from tandemmp.events import RatiometricEvent
 from tandemmp.pipeline.loader import Loader
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
-from tandemmp.pipeline.simple_analysis import (
-    Pair,
-    build_simple_events,
-    match_pairs_sigma,
-)
+from tandemmp.pipeline.simple_analysis import Pair, match_events
 
 # Result container
 
@@ -71,6 +67,7 @@ def run_pair_matching(
     frame_end: int | None = None,
     seed: int | np.random.Generator | np.random.RandomState | None = None,
     pipeline_runner: PipelineRunner | None = None,
+    events_csv: str | Path | None = None,
     sigma_multiplier: float = 3.0,
     max_pairs: int = 5,
     analyse_distance: float = 4.0,
@@ -88,6 +85,9 @@ def run_pair_matching(
     full nested :class:`~tandemmp.core.parameters.FullAnalysisParams` tree by
     :func:`~tandemmp.core.parameters.get_parameters`.
 
+    *events_csv* is a DiscoverMP events CSV for the movie, which selects the CSV event
+    runner by default (see :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner`).
+
     See :func:`~tandemmp.pipeline.simple_analysis.match_pairs_sigma` for
     *sigma_multiplier*, *max_pairs*, *analyse_distance*, *minimum_overlap* and
     *match_binding*.
@@ -101,12 +101,11 @@ def run_pair_matching(
         frame_end=frame_end,
         seed=seed,
         pipeline_runner=pipeline_runner,
+        events_csv=events_csv,
     )
 
-    simple_events = build_simple_events(loader.events)
-
-    pairs = match_pairs_sigma(
-        simple_events,
+    pairs = match_events(
+        loader.events,
         sigma_multiplier=sigma_multiplier,
         max_pairs=max_pairs,
         analyse_distance=analyse_distance,
@@ -123,12 +122,14 @@ def run_pair_matching(
 
 if __name__ == "__main__":
     from tandemmp.core.functions import choose_file
+    from tandemmp.pipeline.csv_events import pair_movies_with_csvs
 
-    movie_filepath = choose_file()
-    if not isinstance(movie_filepath, str):
-        raise TypeError("Select a single movie file.")
+    selected = pair_movies_with_csvs(choose_file(csv_file=True))
+    if len(selected) != 1:
+        raise ValueError("Select one movie and its events CSV.")
+    movie_filepath, events_csv_filepath = selected[0]
 
-    result = run_pair_matching(movie_filepath)
+    result = run_pair_matching(movie_filepath, events_csv=events_csv_filepath)
     print(
         f"{len(result.pairs)} pair(s) matched from {len(result.events)} "
         f"event(s) in {movie_filepath}"

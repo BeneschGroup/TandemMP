@@ -23,6 +23,7 @@ from tandemmp.core.parameters import (
 from tandemmp.events import PeakImage, RatiometricEvent
 from tandemmp.fitting.gaussian_psf import GaussianPsfModel
 from tandemmp.fitting.psf import PsfModel
+from tandemmp.pipeline.csv_events import CsvEventsRunner
 from tandemmp.pipeline.loader import (
     Loader,
     bin_movie,
@@ -607,6 +608,27 @@ class TestLoader:
             just_movie=True,
         )
         assert isinstance(loader.pipeline_runner, OpenIscatPipeline)
+
+    def test_events_csv_selects_csv_runner_and_is_forwarded(self):
+        movie = np.zeros((5, 4, 4), dtype=np.uint16)
+        loader = Loader(
+            "fake/path.mp",
+            special_bypass=movie,
+            parameters=get_parameters(drift_correction=False),
+            just_movie=True,
+            events_csv="fake/path.csv",
+        )
+        assert isinstance(loader.pipeline_runner, CsvEventsRunner)
+
+        runner = _FakePipelineRunner(movie.astype(float))
+        Loader(
+            "fake/path.mp",
+            special_bypass=movie,
+            parameters=get_parameters(drift_correction=False, lid_open_threshold=0.0),
+            pipeline_runner=runner,
+            events_csv="fake/path.csv",
+        )
+        assert runner.calls[0]["events_csv"] == "fake/path.csv"
 
     def test_uses_injected_peak_model(self):
         movie = np.zeros((5, 8, 8), dtype=np.uint16)

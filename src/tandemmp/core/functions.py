@@ -79,11 +79,19 @@ def gaussian_2d(
 
 def choose_file(
     mp_file: bool = True,
+    *,
+    csv_file: bool = False,
 ) -> str | tuple[str, ...]:
-    """Open a tkinter file dialog; return one path, or a tuple if several are chosen."""
+    """Open a tkinter file dialog; return one path, or a tuple if several are chosen.
+
+    *mp_file* filters to ``.mp`` movies, or to ``.mp`` and ``.csv`` with *csv_file*.
+    """
     root = tk.Tk()
 
-    if mp_file:
+    filetypes: list[tuple[str, str | tuple[str, ...]]]
+    if mp_file and csv_file:
+        filetypes = [("MP and CSV", ("*.mp", "*.csv")), ("All files", "*")]
+    elif mp_file:
         filetypes = [("MP", "*.mp"), ("All files", "*")]
     else:
         filetypes = [("All files", "*")]

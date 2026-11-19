@@ -165,6 +165,7 @@ def run_drift_correction(
     frame_start: int | None = None,
     frame_end: int | None = None,
     use_rust: bool = True,
+    auto_bin: bool = True,
 ) -> DriftCorrectionResult:
     """Load a movie and estimate its :class:`~tandemmp.drift.corrector.DriftVector`.
 
@@ -173,11 +174,16 @@ def run_drift_correction(
     vector is returned for inspection or saving, not applied and discarded. See
     :func:`~tandemmp.drift.corrector.get_vector` for *frame_gap*, *rolling_baseline*,
     *threshold*, *threshold_margin*, *parallel*, *n_jobs*, *seed* and *use_rust*.
+
+    With *auto_bin* (default) the loader temporally bins the movie first, so the
+    vector has one entry per binned frame; turn it off for one per raw frame.
     """
     movie = Loader(
         filepath,
         just_movie=True,
-        parameters=FullAnalysisParams(drift_correction=False, parallel=parallel),
+        parameters=FullAnalysisParams(
+            drift_correction=False, parallel=parallel, auto_bin=auto_bin
+        ),
         frame_start=frame_start,
         frame_end=frame_end,
     ).movie
