@@ -88,8 +88,8 @@ def run_pair_matching(
     full nested :class:`~tandemmp.core.parameters.FullAnalysisParams` tree by
     :func:`~tandemmp.core.parameters.get_parameters`.
 
-    *events_csv* is a DiscoverMP events CSV for the movie, which selects the CSV event
-    runner by default (see :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner`).
+    *events_csv* is the movie's DiscoverMP events CSV (default: the ``.csv`` next to
+    it); see :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner`.
     *calibration* (a :class:`~tandemmp.core.conversions.Calibration` or a ``.mc``/
     ``.json``/``.pkl`` file) sets the process-wide contrast/mass conversion; ``None``
     leaves it as is.

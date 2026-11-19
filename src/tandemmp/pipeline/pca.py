@@ -51,10 +51,10 @@ class Experiment:
     particles in a :class:`~tandemmp.tracking.manager.ParticleManager`.
 
     *pipeline_runner* selects the event-finding backend (see
-    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`; default the
-    Loader's).
-    *peak_model* sets the PSF model (default: bundled Rust spline). *events_csv* is a
-    DiscoverMP events CSV, which selects the CSV event runner by default.
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`; default
+    :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner`, which reads *events_csv*,
+    default the ``.csv`` next to the movie). *peak_model* sets the PSF model (default:
+    bundled Rust spline).
     """
 
     def __init__(

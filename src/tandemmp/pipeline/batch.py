@@ -52,9 +52,9 @@ def process_movie(
     appended before its (``.pkl``) suffix.
 
     *pipeline_runner* selects the event-finding backend (see
-    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); default the
-    Loader's. *events_csv* is the movie's DiscoverMP events CSV, which selects the
-    CSV event runner by default. *calibration* overrides the process-wide
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); default
+    :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner`, which reads *events_csv*
+    (default: the ``.csv`` next to the movie). *calibration* overrides the process-wide
     contrast/mass conversion (see :mod:`tandemmp.core.conversions`) for this call, and
     may be a calibration file (see :func:`~tandemmp.io.calibration.load_calibration`);
     it is always set explicitly
@@ -138,10 +138,10 @@ def batch_process(
     is a :class:`multiprocessing.Pool` constraint.
 
     *pipeline_runner* selects the event-finding backend (see
-    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`; default the
-    Loader's). With *parallel* it must be picklable, as it crosses the pool boundary
-    with each :func:`process_movie` call; the default ``None`` and
-    :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner` are.
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`; default
+    :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner`). With *parallel* it must
+    be picklable, as it crosses the pool boundary with each :func:`process_movie`
+    call; the default ``None`` and ``CsvEventsRunner`` are.
     *events_csvs* gives each movie's DiscoverMP events CSV, in the same order as
     *filepaths* (see :func:`~tandemmp.pipeline.csv_events.pair_movies_with_csvs`).
     *calibration* overrides the contrast/mass conversion (see
