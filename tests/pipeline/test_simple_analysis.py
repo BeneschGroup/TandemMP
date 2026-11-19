@@ -137,6 +137,13 @@ class TestLoadEvents:
         assert events[0].m == pytest.approx(100.0)
         assert events[1].m == pytest.approx(-100.0)
 
+    def test_calibration_file_converts_contrast_to_mass(self, tmp_path: Path) -> None:
+        csv_path = self._write_csv(tmp_path, [(0, 1.0, 2.0, -0.01, float("nan"))])
+        mc = tmp_path / "run.mc"
+        mc.write_text('{"gradient": -4e-05, "offset": -1e-05}')
+        (event,) = load_events(csv_path, calibration=mc)
+        assert event.m == pytest.approx((-0.01 - -1e-05) / -4e-05)
+
     def test_skips_discovermp_footer(self, tmp_path: Path) -> None:
         csv_path = self._write_csv(tmp_path, [(3, 10.0, 20.0, -0.05, 100.0)])
         with csv_path.open("a") as f:

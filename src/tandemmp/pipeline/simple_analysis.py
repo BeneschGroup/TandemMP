@@ -11,10 +11,17 @@ import numpy as np
 import numpy.typing as npt
 import tqdm
 
-from tandemmp.core.conversions import NM_PER_PIXEL, c_to_mass, mass_to_sigma
+from tandemmp.core.conversions import (
+    NM_PER_PIXEL,
+    Calibration,
+    c_to_mass,
+    mass_to_sigma,
+    set_calibration,
+)
 from tandemmp.core.functions import get_overlap_probability
 from tandemmp.core.types import BoolArray, FloatArray
 from tandemmp.events import RatiometricEvent
+from tandemmp.io.calibration import resolve_calibration
 from tandemmp.pipeline.csv_events import DISCOVERMP_COLUMNS, load_event_csv
 from tandemmp.pipeline.drift_correction import run_drift_correction
 
@@ -97,18 +104,23 @@ def load_events(
     *,
     parallel: bool = True,
     column_map: Mapping[str, str] = DISCOVERMP_COLUMNS,
+    calibration: Calibration | str | Path | None = None,
 ) -> list[SimpleEvent]:
     """Load point-events from a DiscoverMP CSV export.
 
     See :func:`~tandemmp.pipeline.csv_events.load_event_csv` for the columns and
     *column_map*. If the mass column is empty or all ``NaN``, mass is derived from
-    contrast with :func:`~tandemmp.core.conversions.c_to_mass`.
+    contrast with :func:`~tandemmp.core.conversions.c_to_mass`, using *calibration*
+    (a :class:`~tandemmp.core.conversions.Calibration` or a ``.mc``/``.json``/``.pkl``
+    file) as the process-wide conversion when given.
 
     If *movie_filepath* is given, its drift vector is estimated with
     :func:`~tandemmp.pipeline.drift_correction.run_drift_correction` (on the
     unbinned movie, so it is indexed by the CSV's frames) and subtracted from every
     event's position.
     """
+    if calibration is not None:
+        set_calibration(resolve_calibration(calibration))
     events = load_event_csv(events_filepath, column_map)
     xs, ys = events.x, events.y
     masses = np.asarray(
