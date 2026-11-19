@@ -298,6 +298,7 @@ def load_correction_function(filepath: str | Path) -> DriftCorrectionFunction:
 if __name__ == "__main__":
     from tandemmp.core.functions import choose_file
 
+    print("Select one movie (.mp).")
     movie_filepath = choose_file()
     if not isinstance(movie_filepath, str):
         raise TypeError("Select a single movie file.")

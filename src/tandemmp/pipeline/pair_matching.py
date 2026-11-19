@@ -133,6 +133,10 @@ if __name__ == "__main__":
     from tandemmp.core.functions import choose_file
     from tandemmp.pipeline.csv_events import pair_movies_with_csvs
 
+    print(
+        "Select one movie (.mp) and its events CSV (.csv). The two file names must "
+        "match; hold Ctrl to select both."
+    )
     selected = pair_movies_with_csvs(choose_file(csv_file=True))
     if len(selected) != 1:
         raise ValueError("Select one movie and its events CSV.")
