@@ -43,7 +43,7 @@ def _make_gaussian_spline(
 
 @pytest.fixture()
 def spline_model():
-    """PsfModel backed by a Gaussian spline (no open_iscat needed)."""
+    """PsfModel backed by a Gaussian spline."""
     model = PsfModel()
     model.set_spline_model(_make_gaussian_spline())
     return model

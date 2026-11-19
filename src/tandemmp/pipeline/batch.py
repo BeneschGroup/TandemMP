@@ -52,8 +52,8 @@ def process_movie(
     appended before its (``.pkl``) suffix.
 
     *pipeline_runner* selects the event-finding backend (see
-    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); default
-    open_iscat. *events_csv* is the movie's DiscoverMP events CSV, which selects the
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); default the
+    Loader's. *events_csv* is the movie's DiscoverMP events CSV, which selects the
     CSV event runner by default. *calibration* overrides the process-wide
     contrast/mass conversion (see :mod:`tandemmp.core.conversions`) for this call, and
     may be a calibration file (see :func:`~tandemmp.io.calibration.load_calibration`);
@@ -138,10 +138,10 @@ def batch_process(
     is a :class:`multiprocessing.Pool` constraint.
 
     *pipeline_runner* selects the event-finding backend (see
-    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`; default
-    open_iscat). With *parallel* it must be picklable, as it crosses the pool boundary
+    :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`; default the
+    Loader's). With *parallel* it must be picklable, as it crosses the pool boundary
     with each :func:`process_movie` call; the default ``None`` and
-    :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline` are.
+    :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner` are.
     *events_csvs* gives each movie's DiscoverMP events CSV, in the same order as
     *filepaths* (see :func:`~tandemmp.pipeline.csv_events.pair_movies_with_csvs`).
     *calibration* overrides the contrast/mass conversion (see

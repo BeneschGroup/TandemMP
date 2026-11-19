@@ -128,7 +128,7 @@ def _bare_experiment(**attrs: Any) -> pca.Experiment:
     """Construct an ``Experiment`` bypassing ``__init__``.
 
     Only the attributes under test are set, isolating each method from the heavy,
-    ``open_iscat``-dependent construction path.
+    movie-loading construction path.
     """
     exp = object.__new__(pca.Experiment)
     for key, value in attrs.items():
