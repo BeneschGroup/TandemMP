@@ -35,10 +35,10 @@ from tandemmp.events import PeakImage, RatiometricEvent
 from tandemmp.fitting.psf import PsfModel, get_psf_model
 from tandemmp.fitting.psf_interface import PsfInterface
 from tandemmp.fitting.psf_refit import refit_psf_parameters
-from tandemmp.io.movie import final_polish_fix
-from tandemmp.pipeline.open_iscat_pipeline import Info, OpenIscatPipeline, load_mp_file
+from tandemmp.io.movie import final_polish_fix, load_mp_file
+from tandemmp.pipeline.open_iscat_pipeline import OpenIscatPipeline
 from tandemmp.pipeline.parallel import make_ratiometric_event_from_peak, median_frame
-from tandemmp.pipeline.pipeline_interface import PipelineResults, PipelineRunner
+from tandemmp.pipeline.pipeline_interface import Info, PipelineResults, PipelineRunner
 
 logger = logging.getLogger(__name__)
 

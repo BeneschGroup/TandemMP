@@ -2,7 +2,8 @@
 
 :class:`PipelineRunner` is a :class:`typing.Protocol` for the minimal surface an
 event-finding backend must expose; :class:`EventsFound` and
-:class:`PipelineResults` are the shared result types any backend produces. No
+:class:`PipelineResults` are the shared result types any backend produces, and
+:class:`Info` is the acquisition metadata a movie loader returns. No
 backend implementations are imported, avoiding circular imports;
 :mod:`tandemmp.pipeline.open_iscat_pipeline` re-exports the result types for
 backward compatibility.
@@ -21,6 +22,16 @@ if TYPE_CHECKING:
     import numpy.typing as npt
 
 # Data containers
+
+
+@dataclasses.dataclass(frozen=True)
+class Info:
+    """Microscope acquisition metadata."""
+
+    scatter_interference_destructive: bool | None
+    raw_camera_frame_rate: float
+    frame_binning: int
+    pixel_binning: int
 
 
 class EventsFound(Protocol):

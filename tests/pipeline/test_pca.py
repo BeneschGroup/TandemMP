@@ -28,7 +28,7 @@ from tandemmp.fitting.psf import PsfModel
 from tandemmp.io.save import load_results
 from tandemmp.pipeline import pca
 from tandemmp.pipeline.investigator import Action, Decision
-from tandemmp.pipeline.open_iscat_pipeline import Info
+from tandemmp.pipeline.pipeline_interface import Info
 from tandemmp.tracking.manager import ParticleManager
 from tandemmp.tracking.particle import GhostParticle, Particle, _reset_particle_ids
 
@@ -199,8 +199,6 @@ class _FakeLoader:
                 raw_camera_frame_rate=1000.0,
                 frame_binning=1,
                 pixel_binning=1,
-                full_well_capacity=None,
-                grey_levels=None,
             )
         )
         self.events: list[RatiometricEvent] = []

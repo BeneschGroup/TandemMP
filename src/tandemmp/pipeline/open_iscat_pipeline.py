@@ -1,23 +1,21 @@
 """Wrapper around the open_iscat pipeline for TandemMP.
 
-The pipeline functions (:func:`load_mp_file`, :class:`OpenIscatPipeline`) need
-``open_iscat``, ``h5py`` and ``nptdms``; the containers (:class:`Info`,
-:class:`Movie`) do not. :class:`OpenIscatPipeline` implements
-:class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner` (see that module for
-the contract); :class:`EventsFound` and :class:`PipelineResults` are re-exported
-from it for backward compatibility.
+:class:`OpenIscatPipeline` needs ``open_iscat``. It implements
+:class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`. :class:`Info`,
+:class:`Movie`, :class:`PipelineResults` and :func:`load_mp_file` are re-exported
+from their new homes for backward compatibility.
 """
 
 from __future__ import annotations
 
 import logging
 import pathlib
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from tandemmp.pipeline.pipeline_interface import EventsFound, PipelineResults
+from tandemmp.io.movie import Movie, load_mp_file
+from tandemmp.pipeline.pipeline_interface import EventsFound, Info, PipelineResults
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -32,130 +30,6 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
-
-
-# Data containers
-
-
-@dataclass(frozen=True)
-class Info:
-    """Microscope acquisition metadata."""
-
-    scatter_interference_destructive: bool | None
-    raw_camera_frame_rate: float
-    frame_binning: int
-    pixel_binning: int
-    full_well_capacity: float | None
-    grey_levels: int | None
-
-
-@dataclass(frozen=True)
-class Movie:
-    """Movie frames with acquisition metadata.
-
-    Attribute access falls through to *frames*, so ``movie.shape`` is
-    ``movie.frames.shape``.
-    """
-
-    frames: npt.NDArray[np.floating[Any]]
-    info: Info
-
-    def __getattr__(self, attr: str) -> Any:  # noqa: ANN401
-        return getattr(self.frames, attr)
-
-
-# File loading
-
-
-def _read_mp_metadata(
-    filepath: str,
-) -> tuple[bool | None, float, int, int, float | None, int | None]:
-    """Extract metadata from an ``.mp`` (HDF5) file.
-
-    Returns ``(scatter_interference_destructive, raw_camera_frame_rate,
-    frame_binning, pixel_binning, full_well_capacity, grey_levels)``.
-    """
-    import h5py
-    from open_iscat.preprocess_read.FrameReader import FrameReader
-
-    frame_reader = FrameReader(filename=filepath, frame_range=None)
-
-    with h5py.File(filepath, "r") as f:
-        version = int(f["format_version_number"][()])
-        if version >= 3 and frame_reader.mp_version_number == version:
-            cfg = f["movie"]["configuration"]
-            return (
-                bool(cfg["scatter_interference_destructive"][()]),
-                float(cfg["acq_camera"]["frame_rate"][()]),
-                int(cfg["acq_camera"]["frame_binning"][()]),
-                int(cfg["acq_camera"]["pixel_binning"][()]),
-                None,
-                None,
-            )
-        if version >= 3:
-            dev = f["movie"]["configuration"]["Devices"]["AcqCam"]
-            return (
-                bool(dev["ScatterInterferenceDestructive"][()]),
-                float(dev["FrameRate"][()]),
-                int(dev["SoftwareFrameBinning"][()]),
-                int(dev["SoftwarePixelBinning"][()]),
-                None,
-                None,
-            )
-        eng = f["configuration"]["Engines"]["AcqMovieEngine"]
-        return (
-            None,
-            1320.0,
-            int(eng["FrameBinning"][()]),
-            int(eng["PixelBinning"][()]),
-            None,
-            None,
-        )
-
-
-def _read_tdms_metadata(
-    filepath: str,
-) -> tuple[None, float, int, int, None, None]:
-    """Extract metadata from a ``.tdms`` file."""
-    import nptdms
-
-    with nptdms.TdmsFile(filepath) as f:
-        attrs = f.object("img", "cam1").properties
-        return (
-            None,
-            float(attrs["Effective frame rate"]),
-            int(attrs["Bin frame size"]),
-            int(attrs["Pixel Binning"]) ** 2,
-            None,
-            None,
-        )
-
-
-def load_mp_file(filepath: str | pathlib.Path) -> Movie:
-    """Load a movie from an ``.mp`` or ``.tdms`` file.
-
-    Requires ``open_iscat``, ``h5py``, and/or ``nptdms``.
-    """
-    from open_iscat.preprocess_read.FrameReader import FrameReader
-
-    filepath_str = str(filepath)
-    logger.info("Loading file: %s", filepath_str)
-
-    frame_reader = FrameReader(filename=filepath_str, frame_range=None)
-    frames = frame_reader.work()
-
-    if filepath_str.endswith(".mp"):
-        meta = _read_mp_metadata(filepath_str)
-    elif filepath_str.endswith(".tdms"):
-        meta = _read_tdms_metadata(filepath_str)
-    else:
-        msg = f"Unsupported file extension: {filepath_str}"
-        raise ValueError(msg)
-
-    return Movie(
-        frames=frames,
-        info=Info(*meta),
-    )
 
 
 # Pipeline execution
