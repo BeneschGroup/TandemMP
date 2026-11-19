@@ -19,16 +19,18 @@ in a :class:`PairMatchingResult`; callers handle plotting. Its
 from __future__ import annotations
 
 import dataclasses
+import pickle
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from tandemmp.core.conversions import Calibration, set_calibration
+from tandemmp.core.conversions import Calibration, get_calibration, set_calibration
 from tandemmp.core.parameters import get_parameters
 from tandemmp.core.types import FloatArray
 from tandemmp.events import RatiometricEvent
 from tandemmp.io.calibration import resolve_calibration
+from tandemmp.io.save import EventRecord, build_event_records
 from tandemmp.pipeline.loader import Loader
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
 from tandemmp.pipeline.simple_analysis import Pair, match_events
@@ -129,6 +131,48 @@ def run_pair_matching(
     )
 
 
+# Persistence
+
+
+@dataclasses.dataclass(frozen=True)
+class PairMatchingFile:
+    """A saved :class:`PairMatchingResult`, with events as serialisable records."""
+
+    source_filepath: str
+    pairs: list[Pair]
+    events: list[EventRecord]
+    calibration: Calibration
+
+
+def save_pair_matching(filepath: str | Path, result: PairMatchingResult) -> Path:
+    """Pickle *result* to *filepath* as a :class:`PairMatchingFile`.
+
+    The active calibration is stored with it, since the pair masses depend on it.
+    Returns the path.
+    """
+    saved = PairMatchingFile(
+        source_filepath=result.source_filepath,
+        pairs=result.pairs,
+        events=build_event_records(result.events),
+        calibration=get_calibration(),
+    )
+    path = Path(filepath)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as f:
+        pickle.dump(saved, f)
+    return path
+
+
+def load_pair_matching(filepath: str | Path) -> PairMatchingFile:
+    """Load a file written by :func:`save_pair_matching` (trusted files only)."""
+    with Path(filepath).open("rb") as f:
+        saved = pickle.load(f)  # noqa: S301
+    if not isinstance(saved, PairMatchingFile):
+        msg = f"{filepath} does not contain a PairMatchingFile"
+        raise TypeError(msg)
+    return saved
+
+
 if __name__ == "__main__":
     from tandemmp.core.functions import choose_file
     from tandemmp.pipeline.csv_events import pair_movies_with_csvs
@@ -143,6 +187,11 @@ if __name__ == "__main__":
     movie_filepath, events_csv_filepath = selected[0]
 
     result = run_pair_matching(movie_filepath, events_csv=events_csv_filepath)
+    output_path = Path(movie_filepath).with_name(
+        f"{Path(movie_filepath).stem}_pair_matching.pkl"
+    )
+    save_pair_matching(output_path, result)
+    print(f"Pair matching result saved to {output_path}")
     print(
         f"{len(result.pairs)} pair(s) matched from {len(result.events)} "
         f"event(s) in {movie_filepath}"

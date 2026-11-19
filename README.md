@@ -18,14 +18,12 @@ pip install -e /path_to_repo/.
 
 TandemMP does not find events itself.
 
-1. Find events in the raw `.mp` movie with DiscoverMP and export them as a `.csv`
-   (columns `frame_indices`, `x_coords`, `y_coords`, `contrasts`; optionally
-   `calibrated_values` and `selections`).
+1. Find events in the raw `.mp` movie with DiscoverMP and export them as a `.csv`.
 2. Run an entry point below and select the `.mp` and its `.csv`. The two file
-   names must match (`run1.mp` and `run1.csv`).
+   names must match (ie. `sample1.mp` and `sample1.csv`).
 
 Drift is estimated from the raw movie frames, and the same drift vector corrects
-the event positions. Only `.mp` movies with `BASIC` frame encoding are supported.
+the event positions.
 
 **Calibration.** Masses use a linear contrast-to-mass calibration. Pass a
 DiscoverMP `.mc` file (or a `.json` / `.pkl` with `c2kDa` and `intercept`) as
@@ -37,10 +35,6 @@ default calibration applies.
 - **`src/tandemmp/pipeline/batch.py`** — main entry point for particle
   tracking analysis. Runs the full tracking and pair-matching pipeline over one
   or many movies with their events CSVs (`process_movie` / `batch_process`).
-- **`src/tandemmp/pipeline/simple_analysis.py`** — pair matching analysis for
-  CSV-exported point-events, without re-running PSF fitting (`load_events`,
-  `match_pairs_sigma`). Its `match_events` is the matching step shared with
-  `pair_matching.py` and `Experiment.simple_analysis`.
 - **`src/tandemmp/pipeline/drift_correction.py`** — estimates a movie's drift
   vector without running a full analysis (`run_drift_correction`), saved as
   JSON or as a pickled `DriftCorrectionFunction` (`save_drift_vector` /
