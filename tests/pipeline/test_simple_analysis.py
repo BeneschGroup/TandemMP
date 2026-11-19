@@ -15,7 +15,9 @@ import numpy as np
 import pytest
 
 from tandemmp.core.conversions import c_to_mass
+from tandemmp.drift.corrector import DriftVector
 from tandemmp.pipeline import simple_analysis as sa
+from tandemmp.pipeline.drift_correction import DriftCorrectionResult
 from tandemmp.pipeline.simple_analysis import (
     NewPair,
     Pair,
@@ -115,7 +117,7 @@ class TestBuildSimpleEvents:
 class TestLoadEvents:
     def _write_csv(self, tmp_path: Path, rows: list[tuple[float, ...]]) -> Path:
         path = tmp_path / "events.csv"
-        header = "frame,x,y,contrast,mass\n"
+        header = "frame_indices,x_coords,y_coords,contrasts,calibrated_values\n"
         body = "\n".join(",".join(str(v) for v in row) for row in rows)
         path.write_text(header + body + "\n")
         return path
@@ -134,6 +136,13 @@ class TestLoadEvents:
         assert events[0].y == pytest.approx(20.0)
         assert events[0].m == pytest.approx(100.0)
         assert events[1].m == pytest.approx(-100.0)
+
+    def test_skips_discovermp_footer(self, tmp_path: Path) -> None:
+        csv_path = self._write_csv(tmp_path, [(3, 10.0, 20.0, -0.05, 100.0)])
+        with csv_path.open("a") as f:
+            f.write("# Refeyn DiscoverMP; 2026.1.1" + chr(10))
+        events = load_events(csv_path)
+        assert [(e.i, e.m) for e in events] == [(3, 100.0)]
 
     def test_missing_mass_column_falls_back_to_contrast(self, tmp_path: Path) -> None:
         contrasts = [-0.01, -0.02]
@@ -160,28 +169,55 @@ class TestLoadEvents:
             ],
         )
 
-        class _FakeLoader:
-            def __init__(self, *args: Any, **kwargs: Any) -> None:
-                self.movie = np.zeros((2, 8, 8))
+        calls: dict[str, Any] = {}
 
-        shifts = {0: (1.0, -2.0), 1: (3.0, -4.0)}
+        def _fake_run_drift_correction(
+            filepath: Any, **kwargs: Any
+        ) -> DriftCorrectionResult:
+            calls["filepath"] = filepath
+            calls.update(kwargs)
+            return DriftCorrectionResult(
+                vector=DriftVector(np.array([1.0, 3.0]), np.array([-2.0, -4.0])),
+                source_filepath=str(filepath),
+                frame_start=None,
+                frame_end=None,
+            )
 
-        def _fake_get_vector(*, movie: Any, **kwargs: Any) -> Any:
-            class _Vector:
-                def __getitem__(self, key: int) -> tuple[float, float]:
-                    return shifts[key]
-
-            return _Vector()
-
-        monkeypatch.setattr(sa, "Loader", _FakeLoader)
-        monkeypatch.setattr(sa, "get_vector", _fake_get_vector)
+        monkeypatch.setattr(sa, "run_drift_correction", _fake_run_drift_correction)
 
         events = load_events(csv_path, movie_filepath="dummy.mp")
+
+        assert calls["filepath"] == "dummy.mp"
+        assert calls["auto_bin"] is False  # vector is indexed by the CSV's raw frames
 
         assert events[0].x == pytest.approx(10.0 - 1.0)
         assert events[0].y == pytest.approx(20.0 - -2.0)
         assert events[1].x == pytest.approx(10.0 - 3.0)
         assert events[1].y == pytest.approx(20.0 - -4.0)
+
+
+# match_events
+
+
+class TestMatchEvents:
+    def test_converts_then_matches(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        seen: dict[str, Any] = {}
+
+        def _spy(simple_events: Any, **kwargs: Any) -> list[Pair]:
+            seen["events"] = simple_events
+            seen["kwargs"] = kwargs
+            return []
+
+        monkeypatch.setattr(sa, "match_pairs_sigma", _spy)
+        event = _FakeRatiometricEvent(
+            particle_c=-0.05, particle_m=100.0, particle_x=1.0, particle_y=2.0, i=10
+        )
+
+        result = sa.match_events([event], sigma_multiplier=2.0, match_binding=True)  # type: ignore[list-item]
+
+        assert result == []
+        assert [e.c for e in seen["events"]] == [-0.05]
+        assert seen["kwargs"] == {"sigma_multiplier": 2.0, "match_binding": True}
 
 
 # match_pairs_sigma / match_pairs_tally

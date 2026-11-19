@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 
 from tandemmp.pipeline import pair_matching as pm
+from tandemmp.pipeline import simple_analysis as sa
 from tandemmp.pipeline.pair_matching import PairMatchingResult, run_pair_matching
 from tandemmp.pipeline.simple_analysis import Pair, SimpleEvent
 
@@ -56,7 +57,7 @@ class TestRunPairMatchingWiring:
             return []
 
         monkeypatch.setattr(pm, "Loader", _FakeLoader)
-        monkeypatch.setattr(pm, "match_pairs_sigma", _spy_match)
+        monkeypatch.setattr(sa, "match_pairs_sigma", _spy_match)
 
         result = run_pair_matching(
             "movie.mp",
@@ -96,7 +97,7 @@ class TestRunPairMatchingWiring:
 
         sentinel_runner = object()
         monkeypatch.setattr(pm, "Loader", _CapturingLoader)
-        monkeypatch.setattr(pm, "match_pairs_sigma", lambda *a, **k: [])
+        monkeypatch.setattr(sa, "match_pairs_sigma", lambda *a, **k: [])
 
         run_pair_matching(
             "movie.mp",
@@ -112,6 +113,21 @@ class TestRunPairMatchingWiring:
         assert seen["kwargs"]["seed"] == 42
         assert seen["kwargs"]["pipeline_runner"] is sentinel_runner
 
+    def test_forwards_events_csv(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        seen: dict[str, Any] = {}
+
+        class _CapturingLoader(_FakeLoader):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                seen.update(kwargs)
+                super().__init__(*args, **kwargs)
+
+        monkeypatch.setattr(pm, "Loader", _CapturingLoader)
+        monkeypatch.setattr(sa, "match_pairs_sigma", lambda *a, **k: [])
+
+        run_pair_matching("movie.mp", events_csv="movie.csv")
+
+        assert seen["events_csv"] == "movie.csv"
+
     def test_forwards_parameter_overrides(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -123,7 +139,7 @@ class TestRunPairMatchingWiring:
                 super().__init__(*args, **kwargs)
 
         monkeypatch.setattr(pm, "Loader", _CapturingLoader)
-        monkeypatch.setattr(pm, "match_pairs_sigma", lambda *a, **k: [])
+        monkeypatch.setattr(sa, "match_pairs_sigma", lambda *a, **k: [])
 
         run_pair_matching("movie.mp", parallel=False, drift_correction=False)
 
@@ -139,7 +155,7 @@ class TestRunPairMatchingWiring:
                 super().__init__(*args, **kwargs)
 
         monkeypatch.setattr(pm, "Loader", _CapturingLoader)
-        monkeypatch.setattr(pm, "match_pairs_sigma", lambda *a, **k: [])
+        monkeypatch.setattr(sa, "match_pairs_sigma", lambda *a, **k: [])
 
         run_pair_matching("movie.mp")
 
@@ -149,7 +165,7 @@ class TestRunPairMatchingWiring:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(pm, "Loader", _FakeLoader)
-        monkeypatch.setattr(pm, "match_pairs_sigma", lambda *a, **k: [])
+        monkeypatch.setattr(sa, "match_pairs_sigma", lambda *a, **k: [])
 
         result = run_pair_matching("some/movie.mp")
 

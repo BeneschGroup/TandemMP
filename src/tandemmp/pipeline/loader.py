@@ -36,6 +36,7 @@ from tandemmp.fitting.psf import PsfModel, get_psf_model
 from tandemmp.fitting.psf_interface import PsfInterface
 from tandemmp.fitting.psf_refit import refit_psf_parameters
 from tandemmp.io.movie import final_polish_fix, load_mp_file
+from tandemmp.pipeline.csv_events import CsvEventsRunner
 from tandemmp.pipeline.open_iscat_pipeline import OpenIscatPipeline
 from tandemmp.pipeline.parallel import make_ratiometric_event_from_peak, median_frame
 from tandemmp.pipeline.pipeline_interface import Info, PipelineResults, PipelineRunner
@@ -539,7 +540,10 @@ class Loader:
             :func:`tandemmp.drift.corrector.get_vector`); leave ``None`` outside tests.
         pipeline_runner: Event-finding backend implementing
             :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`; defaults to
+            :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner` when *events_csv*
+            is given, else
             :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline`.
+        events_csv: DiscoverMP events CSV, forwarded to the runner.
         peak_model: PSF model; defaults to the bundled Rust spline
             (:class:`~tandemmp.fitting.spline_psf.SplinePsfModel`).
     """
@@ -557,14 +561,18 @@ class Loader:
         seed: int | np.random.Generator | np.random.RandomState | None = None,
         pipeline_runner: PipelineRunner | None = None,
         peak_model: PsfInterface | None = None,
+        events_csv: str | Path | None = None,
     ) -> None:
         self.parameters = parameters if parameters is not None else FullAnalysisParams()
         self.peak_model: PsfInterface = (
             peak_model if peak_model is not None else get_psf_model()
         )
-        self.pipeline_runner: PipelineRunner = (
-            pipeline_runner if pipeline_runner is not None else OpenIscatPipeline()
-        )
+        self.events_csv = events_csv
+        if pipeline_runner is None:
+            pipeline_runner = (
+                CsvEventsRunner() if events_csv is not None else OpenIscatPipeline()
+            )
+        self.pipeline_runner: PipelineRunner = pipeline_runner
         self.mp_filepath = Path(mp_filepath)
         self.folder = self.mp_filepath.parent
         self.vector: DriftVector | None = None
@@ -763,6 +771,7 @@ class Loader:
             navg=self.parameters.first_analysis.navg,
             l_thum=self.parameters.first_analysis.l_thum,
             parallel=self.parameters.parallel,
+            events_csv=self.events_csv,
             # How the raw movie became self.movie, for runners with raw-frame events.
             drift_vector=self.vector if self._drift_crop is not None else None,
             drift_crop=self._drift_crop,

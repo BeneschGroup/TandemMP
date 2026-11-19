@@ -37,6 +37,7 @@ def process_movie(
     save_filepath: str | Path | None = None,
     max_events: int = 3500,
     pipeline_runner: PipelineRunner | None = None,
+    events_csv: str | Path | None = None,
     calibration: Calibration | None = None,
     save_movie: bool = False,
     peak_model: PsfInterface | None = None,
@@ -51,8 +52,10 @@ def process_movie(
 
     *pipeline_runner* selects the event-finding backend (see
     :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); default
-    open_iscat. *calibration* overrides the process-wide contrast/mass conversion (see
-    :mod:`tandemmp.core.conversions`) for this call; it is always set explicitly
+    open_iscat. *events_csv* is the movie's DiscoverMP events CSV, which selects the
+    CSV event runner by default. *calibration* overrides the process-wide
+    contrast/mass conversion (see :mod:`tandemmp.core.conversions`) for this call; it
+    is always set explicitly
     (``None`` resets to the default), so repeated calls on a reused worker process
     (see :func:`batch_process`) are safe. *peak_model* is the PSF model; default the
     bundled Rust spline.
@@ -65,6 +68,7 @@ def process_movie(
         filepath,
         pipeline_runner=pipeline_runner,
         peak_model=peak_model,
+        events_csv=events_csv,
         **(parameters or {}),
     )
     n_events = len(experiment.events)
@@ -111,6 +115,7 @@ def batch_process(
     parallel: bool = True,
     n_jobs: int | None = None,
     pipeline_runner: PipelineRunner | None = None,
+    events_csvs: Sequence[str | Path | None] | None = None,
     calibration: Calibration | None = None,
     peak_model: PsfInterface | None = None,
 ) -> list[BatchResult]:
@@ -135,21 +140,25 @@ def batch_process(
     open_iscat). With *parallel* it must be picklable, as it crosses the pool boundary
     with each :func:`process_movie` call; the default ``None`` and
     :class:`~tandemmp.pipeline.open_iscat_pipeline.OpenIscatPipeline` are.
+    *events_csvs* gives each movie's DiscoverMP events CSV, in the same order as
+    *filepaths* (see :func:`~tandemmp.pipeline.csv_events.pair_movies_with_csvs`).
     *calibration* overrides the contrast/mass conversion (see
     :mod:`tandemmp.core.conversions`) for every movie in the batch, applied per call
     so it survives worker reuse. *peak_model* is forwarded to each call and must be a
     picklable top-level class when *parallel* is ``True``.
     """
+    csvs = events_csvs if events_csvs is not None else [None] * len(filepaths)
     args_list: list[dict[str, Any]] = [
         {
             "filepath": fp,
             "parameters": parameters,
             "max_events": max_events,
             "pipeline_runner": pipeline_runner,
+            "events_csv": csv,
             "calibration": calibration,
             "peak_model": peak_model,
         }
-        for fp in filepaths
+        for fp, csv in zip(filepaths, csvs, strict=True)
     ]
     resolved_n_jobs = n_jobs if n_jobs is not None else min(6, len(filepaths))
     results = dispatch_kwargs(
@@ -168,37 +177,18 @@ def batch_process(
 
 if __name__ == "__main__":
     from tandemmp.core.functions import choose_file
-    from tandemmp.pipeline.calibration import (
-        load_calibration,
-        run_calibration,
-        save_calibration,
-    )
+    from tandemmp.pipeline.csv_events import pair_movies_with_csvs
 
     # PSF model for this run: any PsfInterface, e.g. ``GaussianPsfModel(sigma=1.5)``;
     # ``None`` = bundled Rust spline (``SplinePsfModel``).
     PEAK_MODEL: PsfInterface | None = None
 
-    calibration_file = choose_file(mp_file=False)
-    if not isinstance(calibration_file, str):
-        raise TypeError("Select a single calibration movie or calibration file.")
-
-    if calibration_file.endswith((".json", ".pkl", ".pickle")):
-        calibration_result = load_calibration(calibration_file)
-    else:
-        calibration_result = run_calibration(calibration_file)
-        calibration_path = Path(calibration_file).with_name(
-            f"{Path(calibration_file).stem}_calibration.json"
-        )
-        save_calibration(calibration_path, calibration_result)
-
-    chosen_movies = choose_file()
-    movie_filepaths = (
-        [chosen_movies] if isinstance(chosen_movies, str) else list(chosen_movies)
-    )
+    # Select each movie together with its events CSV (same file name).
+    movie_csv_pairs = pair_movies_with_csvs(choose_file(csv_file=True))
 
     results = batch_process(
-        movie_filepaths,
-        calibration=calibration_result.calibration,
+        [movie for movie, _ in movie_csv_pairs],
+        events_csvs=[events_csv for _, events_csv in movie_csv_pairs],
         parallel=False,
         peak_model=PEAK_MODEL,
     )
