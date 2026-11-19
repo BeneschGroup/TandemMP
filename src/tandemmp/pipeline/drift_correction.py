@@ -298,20 +298,19 @@ def load_correction_function(filepath: str | Path) -> DriftCorrectionFunction:
 if __name__ == "__main__":
     from tandemmp.core.functions import choose_file
 
-    movie_filepath = choose_file()
-    if not isinstance(movie_filepath, str):
-        raise TypeError("Select a single movie file.")
+    print("Select .mp movie(s).")
+    movie_filepaths = choose_file()
 
-    drift_result = run_drift_correction(movie_filepath)
+    if isinstance(movie_filepaths, str):
+        movie_filepaths = [movie_filepaths]
 
-    vector_path = Path(movie_filepath).with_name(
-        f"{Path(movie_filepath).stem}_drift_vector.json"
-    )
-    save_drift_vector(vector_path, drift_result)
-    print(f"Drift vector saved to {vector_path}")
+    for fp in movie_filepaths:
+        drift_result = run_drift_correction(fp)
 
-    function_path = Path(movie_filepath).with_name(
-        f"{Path(movie_filepath).stem}_drift_correction.pkl"
-    )
-    save_correction_function(function_path, drift_result)
-    print(f"Drift correction function saved to {function_path}")
+        vector_path = Path(fp).with_name(f"{Path(fp).stem}_drift_vector.json")
+        save_drift_vector(vector_path, drift_result)
+        print(f"Drift vector saved to {vector_path}")
+
+        function_path = Path(fp).with_name(f"{Path(fp).stem}_drift_correction.pkl")
+        save_correction_function(function_path, drift_result)
+        print(f"Drift correction function saved to {function_path}")

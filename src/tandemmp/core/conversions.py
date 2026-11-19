@@ -33,7 +33,9 @@ class Calibration:
     offset: float
 
 
-DEFAULT_CALIBRATION = Calibration(slope=-0.000030, offset=-0.000070)
+DEFAULT_CALIBRATION = Calibration(
+    slope=-3.317823610517915e-05, offset=-9.158798873485285e-05
+)
 """Default calibration (linear contrast-to-mass)."""
 
 _active_calibration: Calibration = DEFAULT_CALIBRATION

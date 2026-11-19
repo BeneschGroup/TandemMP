@@ -185,7 +185,7 @@ if __name__ == "__main__":
     # ``None`` = bundled Rust spline (``SplinePsfModel``).
     PEAK_MODEL: PsfInterface | None = None
 
-    # Optional contrast/mass calibration (.mc, .json or .pkl); cancel for the default.
+    print("Select a calibration file (.mc, .json or .pkl), or cancel for the default.")
     calibration_file = choose_file(mp_file=False)
     calibration = (
         load_calibration(calibration_file)
@@ -193,7 +193,10 @@ if __name__ == "__main__":
         else None
     )
 
-    # Select each movie together with its events CSV (same file name).
+    print(
+        "Select each movie (.mp) together with its events CSV (.csv). The two file "
+        "names must match; hold Ctrl to select several files."
+    )
     movie_csv_pairs = pair_movies_with_csvs(choose_file(csv_file=True))
 
     results = batch_process(
