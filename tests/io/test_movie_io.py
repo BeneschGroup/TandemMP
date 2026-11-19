@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import copy
 import dataclasses
+import pickle
 
 import h5py
 import numpy as np
@@ -99,6 +101,43 @@ class TestMovie:
         assert movie.shape == (5, 32, 32)
         assert movie.dtype == np.float64
         assert movie.ndim == 3
+
+    def test_copy_deepcopy_and_pickle_do_not_recurse(self) -> None:
+        info = Info(
+            scatter_interference_destructive=False,
+            raw_camera_frame_rate=1000.0,
+            frame_binning=1,
+            pixel_binning=1,
+        )
+        movie = Movie(frames=np.arange(8.0).reshape(2, 2, 2), info=info)
+        for clone in (
+            copy.copy(movie),
+            copy.deepcopy(movie),
+            pickle.loads(pickle.dumps(movie)),  # noqa: S301
+        ):
+            assert isinstance(clone, Movie)
+            np.testing.assert_array_equal(clone.frames, movie.frames)
+            assert clone.info == info
+            assert clone.shape == (2, 2, 2)
+
+    def test_missing_frames_attribute_raises_attribute_error(self) -> None:
+        bare = object.__new__(Movie)
+        with pytest.raises(AttributeError):
+            bare.frames  # noqa: B018
+        with pytest.raises(AttributeError):
+            bare.shape  # noqa: B018
+
+    def test_np_asarray_still_reaches_the_frames(self) -> None:
+        frames = np.arange(8.0).reshape(2, 2, 2)
+        info = Info(
+            scatter_interference_destructive=False,
+            raw_camera_frame_rate=1000.0,
+            frame_binning=1,
+            pixel_binning=1,
+        )
+        np.testing.assert_array_equal(
+            np.asarray(Movie(frames=frames, info=info)), frames
+        )
 
     def test_frozen(self) -> None:
         frames = np.ones((5, 32, 32))

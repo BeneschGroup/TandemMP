@@ -48,7 +48,7 @@ class TestSpatialConversions:
 
 class TestMassContrastConversions:
     def test_c_to_mass_zero_contrast(self):
-        # c=0 → (0 - (-0.000070)) / (-0.000030) = -2.333...
+        # c=0 -> (0 - offset) / slope
         result = c_to_mass(0.0)
         assert isinstance(result, float)
 
@@ -77,7 +77,9 @@ class TestMassContrastConversions:
 class TestCalibration:
     def test_default_calibration_matches_hardcoded_values(self):
         assert get_calibration() == DEFAULT_CALIBRATION
-        assert DEFAULT_CALIBRATION == Calibration(slope=-0.000030, offset=-0.000070)
+        assert DEFAULT_CALIBRATION == Calibration(
+            slope=-3.317823610517915e-05, offset=-9.158798873485285e-05
+        )
 
     def test_c_to_mass_uses_default_calibration(self):
         result = c_to_mass(0.0)

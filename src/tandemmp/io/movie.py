@@ -29,6 +29,11 @@ def _maybe_tqdm(iterable: Any, *, silent: bool, desc: str) -> Any:  # noqa: ANN4
 # Raw .mp (HDF5) loading
 
 
+_ARRAY_PROTOCOL_ATTRS = frozenset(
+    {"__array__", "__array_interface__", "__array_struct__"}
+)
+
+
 @dataclasses.dataclass(frozen=True)
 class Movie:
     """Movie frames with acquisition metadata.
@@ -41,6 +46,13 @@ class Movie:
     info: Info
 
     def __getattr__(self, attr: str) -> Any:  # noqa: ANN401
+        # ``frames`` would recurse forever while copying or unpickling, and
+        # ``__deepcopy__``-style dunders would copy the array instead of the Movie.
+        # Only numpy's array protocol (for ``np.asarray(movie)``) is forwarded.
+        if attr == "frames" or (
+            attr.startswith("__") and attr not in _ARRAY_PROTOCOL_ATTRS
+        ):
+            raise AttributeError(attr)
         return getattr(self.frames, attr)
 
 

@@ -299,10 +299,8 @@ if __name__ == "__main__":
     from tandemmp.core.functions import choose_file
 
     print("Select .mp movie(s).")
-    movie_filepaths = choose_file()
-
-    if isinstance(movie_filepaths, str):
-        movie_filepaths = [movie_filepaths]
+    chosen = choose_file()
+    movie_filepaths = [chosen] if isinstance(chosen, str) else list(chosen)
 
     for fp in movie_filepaths:
         drift_result = run_drift_correction(fp)
