@@ -568,6 +568,9 @@ class Loader:
         self.mp_filepath = Path(mp_filepath)
         self.folder = self.mp_filepath.parent
         self.vector: DriftVector | None = None
+        self._drift_crop: tuple[slice, slice] | None = None
+        self._frame_start = frame_start or 0
+        self._frame_binning = 1
         self.exp_model: PsfModel | None = None
         self.refit_model: PsfInterface | None = None
         self.movie: npt.NDArray[Any]
@@ -590,6 +593,7 @@ class Loader:
                 self.movie = bin_movie(
                     np.asarray(movie)[frame_start:frame_end], binning=post_binning
                 )
+                self._frame_binning = post_binning
                 info = dataclasses.replace(
                     info, frame_binning=pre_binning * post_binning
                 )
@@ -746,6 +750,7 @@ class Loader:
         if improvement > 0:
             logger.info("Accepting drift correction")
             self.movie = corrected_movie
+            self._drift_crop = (sel3d[1], sel3d[2])
             return True
 
         logger.info("Refusing drift correction")
@@ -758,6 +763,11 @@ class Loader:
             navg=self.parameters.first_analysis.navg,
             l_thum=self.parameters.first_analysis.l_thum,
             parallel=self.parameters.parallel,
+            # How the raw movie became self.movie, for runners with raw-frame events.
+            drift_vector=self.vector if self._drift_crop is not None else None,
+            drift_crop=self._drift_crop,
+            frame_start=self._frame_start,
+            frame_binning=self._frame_binning,
         )
         if not isinstance(pipeline_results, PipelineResults):
             msg = (

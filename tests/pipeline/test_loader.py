@@ -637,3 +637,40 @@ class TestLoader:
         assert call["frame_bypass"] is not None
         assert call["navg"] == params.first_analysis.navg
         assert call["l_thum"] == params.first_analysis.l_thum
+
+    def test_runner_gets_raw_to_working_movie_mapping(self):
+        movie = np.zeros((8, 8, 8), dtype=np.uint16)
+        fake_runner = _FakePipelineRunner(movie.astype(float))
+        loader = Loader(
+            "fake/path.mp",
+            special_bypass=movie,
+            parameters=get_parameters(drift_correction=False, lid_open_threshold=0.0),
+            pipeline_runner=fake_runner,
+            frame_start=3,
+        )
+        call = fake_runner.calls[0]
+        assert loader.vector is None
+        assert call["drift_vector"] is None
+        assert call["drift_crop"] is None
+        assert call["frame_start"] == 3
+        assert call["frame_binning"] == 1
+
+    def test_runner_gets_drift_only_when_accepted(self):
+        movie = _make_drifting_movie()
+        fake_runner = _FakePipelineRunner(movie.astype(float))
+        loader = Loader(
+            "fake/path.mp",
+            special_bypass=movie,
+            parameters=get_parameters(
+                drift_correction=DriftCorrectionParams(frame_gap=2, z_drift=False),
+                parallel=False,
+                lid_open_threshold=0.0,
+            ),
+            pipeline_runner=fake_runner,
+            seed=42,
+        )
+        call = fake_runner.calls[0]
+        accepted = call["drift_crop"] is not None
+        assert (call["drift_vector"] is not None) == accepted
+        if accepted:
+            assert call["drift_vector"] is loader.vector
