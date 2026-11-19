@@ -7,6 +7,7 @@ Visualisation lives in :mod:`tandemmp.plotting.animation`.
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 from shutil import copyfile
 from typing import Any, cast
@@ -15,12 +16,98 @@ import numpy as np
 import numpy.typing as npt
 from tqdm import tqdm
 
+from tandemmp.pipeline.pipeline_interface import Info
+
 
 def _maybe_tqdm(iterable: Any, *, silent: bool, desc: str) -> Any:  # noqa: ANN401
     """Wrap *iterable* in ``tqdm`` unless *silent* is ``True``."""
     if silent:
         return iterable
     return tqdm(iterable, desc=desc)
+
+
+# Raw .mp (HDF5) loading
+
+
+@dataclasses.dataclass(frozen=True)
+class Movie:
+    """Movie frames with acquisition metadata.
+
+    Attribute access falls through to *frames*, so ``movie.shape`` is
+    ``movie.frames.shape``.
+    """
+
+    frames: npt.NDArray[Any]
+    info: Info
+
+    def __getattr__(self, attr: str) -> Any:  # noqa: ANN401
+        return getattr(self.frames, attr)
+
+
+def _read_info(cfg: Any, fp: str | Path) -> Info:  # noqa: ANN401
+    """Read acquisition metadata from ``movie/configuration``.
+
+    Handles the lowercase ``acq_camera`` schema and the nested
+    ``Devices/AcqCam`` schema with capitalised field names.
+    """
+    try:
+        if "acq_camera" in cfg:
+            acq = cfg["acq_camera"]
+            return Info(
+                scatter_interference_destructive=bool(
+                    cfg["scatter_interference_destructive"][()]
+                ),
+                raw_camera_frame_rate=float(acq["frame_rate"][()]),
+                frame_binning=int(acq["frame_binning"][()]),
+                pixel_binning=int(acq["pixel_binning"][()]),
+            )
+        acq = cfg["Devices"]["AcqCam"]
+        return Info(
+            scatter_interference_destructive=bool(
+                acq["ScatterInterferenceDestructive"][()]
+            ),
+            raw_camera_frame_rate=float(acq["FrameRate"][()]),
+            frame_binning=int(acq["SoftwareFrameBinning"][()]),
+            pixel_binning=int(acq["SoftwarePixelBinning"][()]),
+        )
+    except KeyError as exc:
+        msg = f"{fp}: unrecognised or incomplete movie/configuration ({exc})"
+        raise ValueError(msg) from exc
+
+
+def load_mp_file(fp: str | Path) -> Movie:
+    """Load raw frames and acquisition metadata from an ``.mp`` (HDF5) file.
+
+    Frames are read undecoded, which is only valid for ``BASIC`` encoding.
+
+    Raises:
+        ValueError: If ``movie/frame`` is missing or not 3-D, the frame
+            ``encoding`` attribute is not ``BASIC`` (e.g. ``TIME_DIFFERENCE``
+            keyframe deltas), or the configuration is unrecognised.
+    """
+    import h5py
+
+    with h5py.File(fp, "r") as f:
+        if "movie" not in f or "frame" not in f["movie"]:
+            msg = f"{fp}: no 'movie/frame' dataset"
+            raise ValueError(msg)
+        frame_ds = f["movie"]["frame"]
+
+        encoding = frame_ds.attrs.get("encoding")
+        if encoding is not None:
+            encoding = np.asarray(encoding).ravel()[0]
+            if isinstance(encoding, bytes):
+                encoding = encoding.decode()
+            if encoding != "BASIC":
+                msg = f"{fp}: unsupported frame encoding {encoding!r} (BASIC only)"
+                raise ValueError(msg)
+
+        frames = frame_ds[()]
+        if frames.ndim != 3:  # noqa: PLR2004
+            msg = f"{fp}: movie/frame is not 3-D (shape {frames.shape})"
+            raise ValueError(msg)
+
+        return Movie(frames=frames, info=_read_info(f["movie"]["configuration"], fp))
 
 
 def ratiometric(
