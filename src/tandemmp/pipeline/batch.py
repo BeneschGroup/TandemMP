@@ -13,6 +13,7 @@ from typing import Any
 from tandemmp.core.conversions import Calibration, set_calibration
 from tandemmp.core.parallel import dispatch_kwargs
 from tandemmp.fitting.psf_interface import PsfInterface
+from tandemmp.io.calibration import load_calibration, resolve_calibration
 from tandemmp.pipeline.pca import Experiment
 from tandemmp.pipeline.pipeline_interface import PipelineRunner
 
@@ -38,7 +39,7 @@ def process_movie(
     max_events: int = 3500,
     pipeline_runner: PipelineRunner | None = None,
     events_csv: str | Path | None = None,
-    calibration: Calibration | None = None,
+    calibration: Calibration | str | Path | None = None,
     save_movie: bool = False,
     peak_model: PsfInterface | None = None,
 ) -> BatchResult:
@@ -54,13 +55,14 @@ def process_movie(
     :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`); default
     open_iscat. *events_csv* is the movie's DiscoverMP events CSV, which selects the
     CSV event runner by default. *calibration* overrides the process-wide
-    contrast/mass conversion (see :mod:`tandemmp.core.conversions`) for this call; it
-    is always set explicitly
+    contrast/mass conversion (see :mod:`tandemmp.core.conversions`) for this call, and
+    may be a calibration file (see :func:`~tandemmp.io.calibration.load_calibration`);
+    it is always set explicitly
     (``None`` resets to the default), so repeated calls on a reused worker process
     (see :func:`batch_process`) are safe. *peak_model* is the PSF model; default the
     bundled Rust spline.
     """
-    set_calibration(calibration)
+    set_calibration(resolve_calibration(calibration))
 
     filepath = Path(filepath)
     start = time.monotonic()
@@ -116,7 +118,7 @@ def batch_process(
     n_jobs: int | None = None,
     pipeline_runner: PipelineRunner | None = None,
     events_csvs: Sequence[str | Path | None] | None = None,
-    calibration: Calibration | None = None,
+    calibration: Calibration | str | Path | None = None,
     peak_model: PsfInterface | None = None,
 ) -> list[BatchResult]:
     """Run :func:`process_movie` over *filepaths*, in parallel by default.
@@ -183,12 +185,21 @@ if __name__ == "__main__":
     # ``None`` = bundled Rust spline (``SplinePsfModel``).
     PEAK_MODEL: PsfInterface | None = None
 
+    # Optional contrast/mass calibration (.mc, .json or .pkl); cancel for the default.
+    calibration_file = choose_file(mp_file=False)
+    calibration = (
+        load_calibration(calibration_file)
+        if isinstance(calibration_file, str)
+        else None
+    )
+
     # Select each movie together with its events CSV (same file name).
     movie_csv_pairs = pair_movies_with_csvs(choose_file(csv_file=True))
 
     results = batch_process(
         [movie for movie, _ in movie_csv_pairs],
         events_csvs=[events_csv for _, events_csv in movie_csv_pairs],
+        calibration=calibration,
         parallel=False,
         peak_model=PEAK_MODEL,
     )

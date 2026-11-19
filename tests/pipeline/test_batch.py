@@ -112,6 +112,16 @@ class TestProcessMovie:
             DEFAULT_CALIBRATION
         )
 
+    def test_calibration_file_is_loaded_and_active(
+        self, fake_experiment: type[_FakeExperiment], tmp_path: Path
+    ) -> None:
+        mc = tmp_path / "run.mc"
+        mc.write_text('{"gradient": -4e-05, "offset": -1e-05}')
+        batch.process_movie(tmp_path / "movie.mp", calibration=mc)
+        assert fake_experiment.instances[0].calibration_at_construction == Calibration(
+            slope=-4e-05, offset=-1e-05
+        )
+
     def test_calibration_is_active_during_experiment_construction(
         self, fake_experiment: type[_FakeExperiment], tmp_path: Path
     ) -> None:

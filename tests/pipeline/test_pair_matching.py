@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+from tandemmp.core.conversions import Calibration, get_calibration
 from tandemmp.pipeline import pair_matching as pm
 from tandemmp.pipeline import simple_analysis as sa
 from tandemmp.pipeline.pair_matching import PairMatchingResult, run_pair_matching
@@ -112,6 +113,18 @@ class TestRunPairMatchingWiring:
         assert seen["kwargs"]["frame_end"] == 15
         assert seen["kwargs"]["seed"] == 42
         assert seen["kwargs"]["pipeline_runner"] is sentinel_runner
+
+    def test_calibration_file_sets_active_calibration(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+    ) -> None:
+        mc = tmp_path / "run.mc"
+        mc.write_text('{"gradient": -4e-05, "offset": -1e-05}')
+        monkeypatch.setattr(pm, "Loader", _FakeLoader)
+        monkeypatch.setattr(sa, "match_pairs_sigma", lambda *a, **k: [])
+
+        run_pair_matching("movie.mp", calibration=mc)
+
+        assert get_calibration() == Calibration(slope=-4e-05, offset=-1e-05)
 
     def test_forwards_events_csv(self, monkeypatch: pytest.MonkeyPatch) -> None:
         seen: dict[str, Any] = {}
