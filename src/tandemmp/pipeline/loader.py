@@ -2,8 +2,8 @@
 
 :class:`Loader` reads a movie (file or injected array), optionally drift-corrects
 it, runs an event-finding :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`
-(:class:`~tandemmp.pipeline.csv_events.CsvEventsRunner` when given an events CSV),
-fits a first-pass :class:`~tandemmp.events.RatiometricEvent` per peak, then merges,
+(default :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner`), fits a
+first-pass :class:`~tandemmp.events.RatiometricEvent` per peak, then merges,
 filters and marks overlaps ready for
 :class:`tandemmp.pipeline.investigator.Investigator`.
 
@@ -37,7 +37,6 @@ from tandemmp.fitting.psf_interface import PsfInterface
 from tandemmp.fitting.psf_refit import refit_psf_parameters
 from tandemmp.io.movie import final_polish_fix, load_mp_file
 from tandemmp.pipeline.csv_events import CsvEventsRunner
-from tandemmp.pipeline.open_iscat_pipeline import OpenIscatPipeline
 from tandemmp.pipeline.parallel import make_ratiometric_event_from_peak, median_frame
 from tandemmp.pipeline.pipeline_interface import Info, PipelineResults, PipelineRunner
 
@@ -540,9 +539,9 @@ class Loader:
             :func:`tandemmp.drift.corrector.get_vector`); leave ``None`` outside tests.
         pipeline_runner: Event-finding backend implementing
             :class:`~tandemmp.pipeline.pipeline_interface.PipelineRunner`; defaults to
-            :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner` when *events_csv*
-            is given.
-        events_csv: DiscoverMP events CSV, forwarded to the runner.
+            :class:`~tandemmp.pipeline.csv_events.CsvEventsRunner`.
+        events_csv: DiscoverMP events CSV, forwarded to the runner. The default
+            runner falls back to the ``.csv`` next to *mp_filepath*.
         peak_model: PSF model; defaults to the bundled Rust spline
             (:class:`~tandemmp.fitting.spline_psf.SplinePsfModel`).
     """
@@ -567,11 +566,9 @@ class Loader:
             peak_model if peak_model is not None else get_psf_model()
         )
         self.events_csv = events_csv
-        if pipeline_runner is None:
-            pipeline_runner = (
-                CsvEventsRunner() if events_csv is not None else OpenIscatPipeline()
-            )
-        self.pipeline_runner: PipelineRunner = pipeline_runner
+        self.pipeline_runner: PipelineRunner = (
+            pipeline_runner if pipeline_runner is not None else CsvEventsRunner()
+        )
         self.mp_filepath = Path(mp_filepath)
         self.folder = self.mp_filepath.parent
         self.vector: DriftVector | None = None

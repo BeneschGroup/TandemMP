@@ -37,7 +37,6 @@ from tandemmp.pipeline.loader import (
     get_peak,
     mark_overlaps,
 )
-from tandemmp.pipeline.open_iscat_pipeline import OpenIscatPipeline
 from tandemmp.pipeline.pipeline_interface import PipelineResults
 
 # Fixtures / helpers
@@ -598,7 +597,7 @@ class TestLoader:
         assert loader.movie.shape[1] <= movie.shape[1]
         assert loader.movie.shape[2] <= movie.shape[2]
 
-    def test_defaults_to_open_iscat_pipeline(self):
+    def test_defaults_to_csv_events_runner(self):
         movie = np.arange(5 * 4 * 4, dtype=np.uint16).reshape(5, 4, 4)
         params = get_parameters(drift_correction=False)
         loader = Loader(
@@ -607,19 +606,10 @@ class TestLoader:
             parameters=params,
             just_movie=True,
         )
-        assert isinstance(loader.pipeline_runner, OpenIscatPipeline)
-
-    def test_events_csv_selects_csv_runner_and_is_forwarded(self):
-        movie = np.zeros((5, 4, 4), dtype=np.uint16)
-        loader = Loader(
-            "fake/path.mp",
-            special_bypass=movie,
-            parameters=get_parameters(drift_correction=False),
-            just_movie=True,
-            events_csv="fake/path.csv",
-        )
         assert isinstance(loader.pipeline_runner, CsvEventsRunner)
 
+    def test_events_csv_is_forwarded_to_runner(self):
+        movie = np.zeros((5, 4, 4), dtype=np.uint16)
         runner = _FakePipelineRunner(movie.astype(float))
         Loader(
             "fake/path.mp",
