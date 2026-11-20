@@ -1,5 +1,5 @@
 <h1 align="center">TandemMP</h1>
-<p align="center"><em>A Python-based Mass Photometry analysis package for pair matching and single particle tracking</em></p>
+<p align="center"><em>A Python-based Mass Photometry analysis package for pair matching and particle tracking</em></p>
 <p align="center">
   <picture>
     <img src="https://raw.githubusercontent.com/BeneschGroup/TandemMP/main/assets/schematic.png" width="980" alt="TandemMP schematic">
